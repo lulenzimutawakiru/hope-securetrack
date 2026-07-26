@@ -23,15 +23,31 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
       if (error) {
         toast.error(error.message);
         return;
       }
 
+      // Enterprise audit: last login
+      if (data.user) {
+        try {
+          await supabase.rpc("touch_user_login", {
+            p_user_id: data.user.id,
+            p_ip: null,
+          });
+        } catch {
+          /* non-fatal if RPC not yet migrated */
+        }
+      }
+
       toast.success("Welcome back!");
-      router.push("/dashboard");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && next.startsWith("/") ? next : "/dashboard");
       router.refresh();
     } catch {
       toast.error("An unexpected error occurred");

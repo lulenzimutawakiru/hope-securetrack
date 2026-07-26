@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { QrCode, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { QrCode, Sparkles, Tag } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,8 +65,8 @@ export default function QrCodesPage() {
       supabase
         .from("production_batches")
         .select("*")
-        .in("production_status", ["draft", "in_progress", "approved", "qc_pending"])
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
     setCodes((data as QrCodeType[]) ?? []);
     setBatches((batchData as ProductionBatch[]) ?? []);
@@ -97,6 +98,7 @@ export default function QrCodesPage() {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
           },
           body: JSON.stringify({
             batchId: form.batchId,
@@ -107,10 +109,19 @@ export default function QrCodesPage() {
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
+      if (!res.ok) {
+        const detail =
+          Array.isArray(data.details) && data.details.length
+            ? `: ${data.details[0]}`
+            : data.details
+              ? `: ${data.details}`
+              : "";
+        throw new Error((data.error || "Generation failed") + detail);
+      }
 
       toast.success(`Generated ${data.generated} QR codes`);
       setOpen(false);
+      setForm({ batchId: "", quantity: "50", codeType: "ream" });
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to generate QR codes");
@@ -134,7 +145,14 @@ export default function QrCodesPage() {
         title="QR Codes"
         description="Generate and manage secure product authentication codes"
         actions={
-          hasPermission("qr.generate") && (
+          <div className="flex gap-2">
+            <Link href="/dashboard/labels">
+              <Button variant="outline">
+                <Tag className="mr-2 h-4 w-4" />
+                Print Labels
+              </Button>
+            </Link>
+          {hasPermission("qr.generate") && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -204,7 +222,8 @@ export default function QrCodesPage() {
                 </form>
               </DialogContent>
             </Dialog>
-          )
+          )}
+          </div>
         }
       />
 

@@ -22,6 +22,7 @@ import { useUser } from "@/hooks/use-user";
 import type { DashboardStats, ProductionBatch, FraudAlert, VerificationLog } from "@/types/database";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ENTERPRISE_PIPELINE } from "@/lib/workflows";
 
 export default function DashboardPage() {
   const { auth } = useUser();
@@ -191,6 +192,28 @@ export default function DashboardPage() {
           icon={TrendingUp}
         />
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Enterprise production pipeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {ENTERPRISE_PIPELINE.map((step) => (
+              <Link
+                key={step.stage}
+                href={step.href}
+                className="rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+              >
+                <p className="text-sm font-semibold">{step.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {step.description}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">

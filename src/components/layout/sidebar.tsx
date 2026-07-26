@@ -18,6 +18,12 @@ import {
   ScrollText,
   Settings,
   Shield,
+  Tag,
+  Bluetooth,
+  ShoppingCart,
+  FileText,
+  Contact,
+  Network,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -48,6 +54,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Users,
   ScrollText,
   Settings,
+  Tag,
+  Bluetooth,
+  ShoppingCart,
+  FileText,
+  Contact,
+  Network,
 };
 
 export function Sidebar() {

@@ -2,6 +2,16 @@
 
 Enterprise QR Authentication, Manufacturing Traceability & Batch Printing Platform for **Hope Design Group Ltd**.
 
+## Production
+
+| | |
+|--|--|
+| **App** | https://hope-securetrack.vercel.app |
+| **Health** | https://hope-securetrack.vercel.app/api/health |
+| **Verify** | https://hope-securetrack.vercel.app/verify |
+| **Ops guide** | [docs/PRODUCTION.md](docs/PRODUCTION.md) |
+| **Niimbot agent** | [print-agent/README.md](print-agent/README.md) |
+
 ## Stack
 
 | Layer | Tech |
@@ -9,19 +19,19 @@ Enterprise QR Authentication, Manufacturing Traceability & Batch Printing Platfo
 | Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS, shadcn/ui |
 | Backend | Supabase (PostgreSQL, Auth, RLS, Edge Functions) |
 | Hosting | Vercel |
-| Print Agent | Windows service for Niimbot printers (optional) |
+| Labels | Label Studio + Windows Print Agent (Niimbot) |
+| Commerce | Sales · Invoicing · Dispatch |
+| People | HR (employees, leave) |
 
 ## Features
 
-- **Public product verification** (`/verify`) — encrypted, signed QR codes
-- **Production batches** — create, track, QC status
-- **QR generation** — edge function for ream/carton codes
-- **Printing jobs** — queue labels for print agents
-- **Packing station** — 5 reams → carton with validation
-- **Inventory** — reams, cartons, movements
-- **Fraud alerts** — automated detection from verification patterns
-- **Reports** — production & verification analytics
-- **RBAC** — roles, permissions, audit logs
+- Public verification portal (camera + serial + deep links)
+- Production → QR → print → pack → warehouse pipeline
+- Niimbot discovery (Web Bluetooth) + print job queue
+- Sales orders, invoices, payments, dispatch notes
+- HR employees & leave approvals
+- Fraud alerts, audit logs, RBAC
+- `/api/health` for uptime monitors
 
 ## Quick Start (local)
 

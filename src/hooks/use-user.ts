@@ -45,13 +45,34 @@ export function useUser() {
           .select("permissions(slug)")
           .eq("role_id", profile.role_id);
 
-        const permissions =
+        let permissions =
           rolePerms
             ?.map((rp) => {
               const p = rp.permissions as unknown as { slug: string } | null;
               return p?.slug;
             })
             .filter((s): s is string => Boolean(s)) ?? [];
+
+        // Super admin / empty role_permissions edge case: show full nav
+        const roleSlug = (profile.roles as Role | null)?.slug;
+        if (
+          roleSlug === "super_administrator" ||
+          permissions.includes("settings.manage")
+        ) {
+          // ensure new modules visible even if seed lag
+          const extras = [
+            "sales.view",
+            "sales.manage",
+            "invoices.view",
+            "invoices.manage",
+            "dispatch.view",
+            "dispatch.manage",
+            "hr.view",
+            "hr.manage",
+            "printers.manage",
+          ];
+          permissions = Array.from(new Set([...permissions, ...extras]));
+        }
 
         setAuth({
           user,

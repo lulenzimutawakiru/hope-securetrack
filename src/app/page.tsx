@@ -16,7 +16,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-4">
           <Link href="/verify">
             <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-              Verify Product
+              Verification Portal
             </Button>
           </Link>
           <Link href="/login">
@@ -45,7 +45,7 @@ export default function LandingPage() {
             </Link>
             <Link href="/verify">
               <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                Verify a Product
+                Open Verification Portal
               </Button>
             </Link>
           </div>

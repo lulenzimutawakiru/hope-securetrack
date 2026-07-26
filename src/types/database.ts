@@ -164,8 +164,12 @@ export interface QrCode {
   verification_count: number;
   is_recalled: boolean;
   created_at: string;
-  production_batches?: ProductionBatch | null;
-  products?: Product | null;
+  production_batches?: (ProductionBatch & {
+    manufacturing_date?: string;
+  }) | null;
+  products?: (Product & {
+    product_code?: string;
+  }) | null;
 }
 
 export interface Ream {

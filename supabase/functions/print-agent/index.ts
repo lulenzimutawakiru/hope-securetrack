@@ -48,13 +48,19 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "heartbeat":
-        return handleHeartbeat(agent);
+        return handleHeartbeat(agent, req.method === "POST" ? await req.json().catch(() => ({})) : {});
       case "jobs":
         return req.method === "GET"
           ? handleGetJobs(agent)
           : handleUpdateJob(agent, await req.json());
       case "status":
         return handleStatusUpdate(agent, await req.json());
+      case "printers":
+        return req.method === "GET"
+          ? handleListPrinters(agent)
+          : handleRegisterPrinters(agent, await req.json());
+      case "discover":
+        return handleRegisterPrinters(agent, await req.json());
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 404,
@@ -77,11 +83,88 @@ async function hashKey(key: string): Promise<string> {
     .join("");
 }
 
-function handleHeartbeat(agent: Record<string, unknown>) {
+async function handleHeartbeat(
+  agent: Record<string, unknown>,
+  body: Record<string, unknown>
+) {
+  // Optional: agent reports discovered Niimbot printers on heartbeat
+  if (Array.isArray(body.printers)) {
+    await handleRegisterPrinters(agent, { printers: body.printers });
+  }
   return new Response(
     JSON.stringify({ status: "ok", agentId: agent.id }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
+}
+
+async function handleListPrinters(agent: Record<string, unknown>) {
+  const { data } = await supabase
+    .from("printers")
+    .select("*")
+    .eq("company_id", agent.company_id)
+    .eq("is_active", true)
+    .order("name");
+  return new Response(JSON.stringify({ printers: data || [] }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleRegisterPrinters(
+  agent: Record<string, unknown>,
+  body: Record<string, unknown>
+) {
+  const list = (body.printers as Array<Record<string, unknown>>) || [];
+  const registered = [];
+
+  for (const p of list) {
+    const name = String(p.name || p.deviceName || "Niimbot");
+    const deviceId = p.deviceId || p.address || p.bluetoothAddress || null;
+    const model = String(p.model || "Niimbot");
+
+    const { data: existing } = await supabase
+      .from("printers")
+      .select("id")
+      .eq("company_id", agent.company_id)
+      .eq("name", name)
+      .maybeSingle();
+
+    const row = {
+      company_id: agent.company_id,
+      factory_id: agent.factory_id,
+      name,
+      model,
+      serial_number: p.serialNumber || null,
+      connection_type: p.transport || "bluetooth",
+      transport: p.transport || "bluetooth",
+      bluetooth_address: p.bluetoothAddress || p.address || null,
+      device_id: deviceId ? String(deviceId) : null,
+      status: "online",
+      is_active: true,
+      last_seen_at: new Date().toISOString(),
+      last_discovered_at: new Date().toISOString(),
+      discovery_source: "agent",
+      agent_id: String(agent.id),
+      firmware_version: p.firmware || null,
+      label_width_mm: p.labelWidthMm || 50,
+      label_height_mm: p.labelHeightMm || 30,
+    };
+
+    if (existing?.id) {
+      await supabase.from("printers").update(row).eq("id", existing.id);
+      registered.push({ id: existing.id, name, updated: true });
+    } else {
+      const { data: created } = await supabase
+        .from("printers")
+        .insert(row)
+        .select("id")
+        .single();
+      registered.push({ id: created?.id, name, created: true });
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true, registered }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 async function handleGetJobs(agent: Record<string, unknown>) {

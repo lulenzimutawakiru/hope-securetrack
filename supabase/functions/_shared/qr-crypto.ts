@@ -1,12 +1,13 @@
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
-
-const ENCRYPTION_KEY = Deno.env.get("QR_ENCRYPTION_KEY")!;
-const SIGNING_PUBLIC_KEY = Deno.env.get("QR_SIGNING_PUBLIC_KEY")!;
+import { type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 
 function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  const clean = hex.trim().replace(/^0x/, "");
+  if (clean.length % 2 !== 0) {
+    throw new Error("Invalid hex key length");
+  }
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < clean.length; i += 2) {
+    bytes[i / 2] = parseInt(clean.substr(i, 2), 16);
   }
   return bytes;
 }
@@ -18,32 +19,124 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-async function verifySignature(data: string, signature: string): Promise<boolean> {
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+}
+
+function getEncryptionKeyBytes(): Uint8Array {
+  const raw = Deno.env.get("QR_ENCRYPTION_KEY") ?? "";
+  if (!raw) throw new Error("QR_ENCRYPTION_KEY is not set");
+
+  // Prefer 64-char hex (AES-256). Fall back to UTF-8 padded/truncated to 32 bytes.
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+    return hexToBytes(raw);
+  }
+  const encoded = new TextEncoder().encode(raw);
+  const out = new Uint8Array(32);
+  out.set(encoded.slice(0, 32));
+  return out;
+}
+
+function getSigningSecretBytes(): Uint8Array {
+  const raw =
+    Deno.env.get("QR_SIGNING_PRIVATE_KEY") ??
+    Deno.env.get("QR_ENCRYPTION_KEY") ??
+    "";
+  if (!raw) throw new Error("QR_SIGNING_PRIVATE_KEY is not set");
+
+  // Accept base64, hex, or plain secret string
   try {
-    const publicKeyBytes = base64ToBytes(SIGNING_PUBLIC_KEY);
-    const key = await crypto.subtle.importKey(
-      "raw",
-      publicKeyBytes,
-      { name: "Ed25519" },
-      false,
-      ["verify"]
+    if (/^[0-9a-fA-F]{32,}$/.test(raw) && raw.length % 2 === 0) {
+      return hexToBytes(raw);
+    }
+    if (/^[A-Za-z0-9+/=]+$/.test(raw) && raw.length >= 16) {
+      const decoded = base64ToBytes(raw);
+      if (decoded.length >= 16) return decoded;
+    }
+  } catch {
+    // fall through
+  }
+  return new TextEncoder().encode(raw);
+}
+
+async function importAesKey(usages: KeyUsage[]): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(getEncryptionKeyBytes()),
+    { name: "AES-GCM" },
+    false,
+    usages
+  );
+}
+
+async function importHmacKey(usages: KeyUsage[]): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(getSigningSecretBytes()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    usages
+  );
+}
+
+async function hmacSign(data: string): Promise<string> {
+  const key = await importHmacKey(["sign"]);
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(data)
+  );
+  return bytesToBase64(new Uint8Array(sig));
+}
+
+async function hmacVerify(data: string, signature: string): Promise<boolean> {
+  try {
+    const key = await importHmacKey(["verify"]);
+    return await crypto.subtle.verify(
+      "HMAC",
+      key,
+      toArrayBuffer(base64ToBytes(signature)),
+      new TextEncoder().encode(data)
     );
-    const sigBytes = base64ToBytes(signature);
-    const dataBytes = new TextEncoder().encode(data);
-    return await crypto.subtle.verify("Ed25519", key, sigBytes, dataBytes);
   } catch {
     return false;
   }
 }
 
-async function verifyChecksum(payload: Record<string, unknown>): Promise<boolean> {
-  const { checksum, ...rest } = payload;
-  const data = JSON.stringify(rest, Object.keys(rest).sort());
-  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
-  const hashHex = Array.from(new Uint8Array(hashBuffer))
+async function computeChecksum(payload: Record<string, unknown>): Promise<string> {
+  const { checksum: _c, ...rest } = payload;
+  const sortedKeys = Object.keys(rest).sort();
+  const data = JSON.stringify(rest, sortedKeys);
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(data)
+  );
+  return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return hashHex === checksum;
+}
+
+async function encryptToken(data: Record<string, unknown>): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await importAesKey(["encrypt"]);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(JSON.stringify(data))
+  );
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  return bytesToBase64(combined);
 }
 
 async function decryptToken(token: string): Promise<Record<string, unknown> | null> {
@@ -51,22 +144,12 @@ async function decryptToken(token: string): Promise<Record<string, unknown> | nu
     const combined = base64ToBytes(token);
     const iv = combined.slice(0, 12);
     const ciphertext = combined.slice(12);
-    const keyBytes = hexToBytes(ENCRYPTION_KEY);
-
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyBytes,
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"]
-    );
-
+    const key = await importAesKey(["decrypt"]);
     const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv: toArrayBuffer(iv) },
       key,
-      ciphertext
+      toArrayBuffer(ciphertext)
     );
-
     return JSON.parse(new TextDecoder().decode(decrypted));
   } catch {
     return null;
@@ -94,7 +177,8 @@ export async function verifyQrPayload(
     }
   }
 
-  if (!(await verifyChecksum(payload))) {
+  const expectedChecksum = await computeChecksum(payload);
+  if (expectedChecksum !== payload.checksum) {
     return { valid: false, result: "counterfeit", message: "Checksum verification failed" };
   }
 
@@ -105,7 +189,7 @@ export async function verifyQrPayload(
     token: payload.token,
   });
 
-  if (!(await verifySignature(signData, payload.signature as string))) {
+  if (!(await hmacVerify(signData, payload.signature as string))) {
     return { valid: false, result: "counterfeit", message: "Digital signature invalid" };
   }
 
@@ -125,7 +209,13 @@ export async function verifyQrPayload(
   }
 
   if (qrCode.status === "counterfeit" || qrCode.status === "voided") {
-    return { valid: false, result: "counterfeit", message: "QR code flagged as counterfeit", companyId: qrCode.company_id, qrCode };
+    return {
+      valid: false,
+      result: "counterfeit",
+      message: "QR code flagged as counterfeit",
+      companyId: qrCode.company_id,
+      qrCode,
+    };
   }
 
   return {
@@ -139,61 +229,18 @@ export async function verifyQrPayload(
 
 export async function generateQrPayload(
   type: "REAM" | "CARTON",
-  internalData: Record<string, unknown>
+  internalData: Record<string, unknown>,
+  publicUuid?: string
 ): Promise<Record<string, unknown>> {
-  const uuid = crypto.randomUUID();
-  const SIGNING_PRIVATE_KEY = Deno.env.get("QR_SIGNING_PRIVATE_KEY")!;
-
-  const tokenData = JSON.stringify(internalData);
-  const keyBytes = hexToBytes(ENCRYPTION_KEY);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"]
-  );
-
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(tokenData)
-  );
-
-  const combined = new Uint8Array(iv.length + encrypted.byteLength);
-  combined.set(iv);
-  combined.set(new Uint8Array(encrypted), iv.length);
-  const token = btoa(String.fromCharCode(...combined));
+  const uuid = publicUuid ?? crypto.randomUUID();
+  const token = await encryptToken(internalData);
 
   const signPayload = { version: 1, type, uuid, token };
-  const signData = JSON.stringify(signPayload);
+  const signString = JSON.stringify(signPayload);
+  const signature = await hmacSign(signString);
 
-  const privateKeyBytes = base64ToBytes(SIGNING_PRIVATE_KEY);
-  const privateKey = await crypto.subtle.importKey(
-    "raw",
-    privateKeyBytes,
-    { name: "Ed25519" },
-    false,
-    ["sign"]
-  );
-
-  const signatureBuffer = await crypto.subtle.sign(
-    "Ed25519",
-    privateKey,
-    new TextEncoder().encode(signData)
-  );
-  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-
-  const payloadWithoutChecksum = { version: 1, type, uuid, token, signature };
-  const hashBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(JSON.stringify(payloadWithoutChecksum, Object.keys(payloadWithoutChecksum).sort()))
-  );
-  const checksum = Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const payloadWithoutChecksum = { ...signPayload, signature };
+  const checksum = await computeChecksum(payloadWithoutChecksum);
 
   return { ...payloadWithoutChecksum, checksum };
 }
