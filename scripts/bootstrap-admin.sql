@@ -1,0 +1,18 @@
+-- Bootstrap first Super Admin after creating a Supabase Auth user.
+-- 1. Create user in Supabase Dashboard → Authentication → Users
+--    Email: admin@hopedesign.co.ke (or your email)
+-- 2. Copy the auth user UUID
+-- 3. Replace YOUR_AUTH_USER_UUID below and run this in SQL Editor
+
+-- INSERT INTO user_profiles (
+--   id, company_id, role_id, first_name, last_name, email, employee_id, is_active
+-- ) VALUES (
+--   'YOUR_AUTH_USER_UUID',
+--   'a0000000-0000-4000-8000-000000000001',
+--   'e0000000-0000-4000-8000-000000000001',  -- Super Administrator
+--   'System',
+--   'Admin',
+--   'admin@hopedesign.co.ke',
+--   'EMP-001',
+--   true
+-- );
