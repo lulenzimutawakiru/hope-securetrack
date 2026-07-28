@@ -26,3 +26,15 @@ export function formatDateTime(date: string | Date): string {
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat("en-KE").format(num);
 }
+
+export function formatCurrency(
+  num: number,
+  currency = "UGX",
+  locale = "en-UG"
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(num);
+}

@@ -19,9 +19,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
+import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
+import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
 
 interface Dispatch {
@@ -348,28 +350,80 @@ export default function DispatchPage() {
                     <StatusBadge status={d.status} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Select
-                      value={d.status}
-                      onValueChange={(v) => setStatus(d.id, v)}
-                    >
-                      <SelectTrigger className="w-[130px] ml-auto">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          "draft",
-                          "ready",
-                          "in_transit",
-                          "delivered",
-                          "failed",
-                          "cancelled",
-                        ].map((s) => (
-                          <SelectItem key={s} value={s} className="capitalize">
-                            {s.replace(/_/g, " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center justify-end gap-1">
+                      <DocumentActions
+                        showLabel={false}
+                        size="sm"
+                        variant="ghost"
+                        doc={(): BusinessDocument => ({
+                          title: `Delivery Note ${d.dispatch_number}`,
+                          docType: "Delivery Note / Dispatch",
+                          number: d.dispatch_number,
+                          date: d.dispatch_date,
+                          status: d.status,
+                          billToLabel: "Deliver to",
+                          billToName:
+                            d.distributors?.name ||
+                            d.customers?.name ||
+                            d.destination_address ||
+                            "Destination",
+                          billToMeta: [
+                            d.destination_address,
+                            d.waybill_number
+                              ? `Waybill: ${d.waybill_number}`
+                              : undefined,
+                          ].filter(Boolean) as string[],
+                          meta: [
+                            {
+                              label: "Sales order",
+                              value: d.sales_orders?.order_number ?? "—",
+                            },
+                            {
+                              label: "Vehicle",
+                              value: d.vehicle_reg ?? "—",
+                            },
+                            {
+                              label: "Driver",
+                              value: d.driver_name ?? "—",
+                            },
+                          ],
+                          lines: [
+                            {
+                              description: `Dispatch of order ${d.sales_orders?.order_number ?? d.dispatch_number}`,
+                              quantity: 1,
+                              unit: "load",
+                              unit_price: 0,
+                              amount: 0,
+                            },
+                          ],
+                          notes: "Please sign and retain for proof of delivery.",
+                          footerNote:
+                            "Proof of delivery · Hope Design Group Ltd logistics",
+                        })}
+                      />
+                      <Select
+                        value={d.status}
+                        onValueChange={(v) => setStatus(d.id, v)}
+                      >
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            "draft",
+                            "ready",
+                            "in_transit",
+                            "delivered",
+                            "failed",
+                            "cancelled",
+                          ].map((s) => (
+                            <SelectItem key={s} value={s} className="capitalize">
+                              {s.replace(/_/g, " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Box } from "lucide-react";
+import { Plus, Box, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,8 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -100,13 +102,81 @@ export default function ProductsPage() {
     }
   };
 
+  const openEdit = (p: Product) => {
+    setEditing(p);
+    setForm({
+      name: p.name,
+      product_code: p.product_code,
+      paper_size: p.paper_size ?? "A4",
+      gsm: String(p.gsm ?? 80),
+      color: p.color ?? "White",
+      category_id: p.category_id ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("products")
+        .update({
+          name: form.name,
+          product_code: form.product_code,
+          paper_size: form.paper_size,
+          gsm: parseInt(form.gsm, 10),
+          color: form.color,
+          category_id: form.category_id || null,
+        })
+        .eq("id", editing.id);
+      if (error) throw error;
+      toast.success("Product updated");
+      setEditOpen(false);
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (p: Product) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("products")
+      .update({ is_active: !p.is_active })
+      .eq("id", p.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(p.is_active ? "Product deactivated" : "Product activated");
+      load();
+    }
+  };
+
+  const deleteProduct = async (p: Product) => {
+    if (!confirm(`Delete product ${p.product_code}? Prefer deactivating if used in transactions.`))
+      return;
+    const supabase = createClient();
+    const { error } = await supabase.from("products").delete().eq("id", p.id);
+    if (error) {
+      toast.error(error.message + " — try deactivating instead");
+    } else {
+      toast.success("Product deleted");
+      load();
+    }
+  };
+
   if (loading) return <LoadingState />;
 
   return (
     <div>
       <PageHeader
         title="Products"
-        description="Paper products catalog for Hope Design Group"
+        description="Full product master — create, edit, activate/deactivate, delete"
         actions={
           hasPermission("products.manage") && (
             <Dialog open={open} onOpenChange={setOpen}>
@@ -194,6 +264,7 @@ export default function ProductsPage() {
                 <TableHead>GSM</TableHead>
                 <TableHead>Color</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -212,12 +283,89 @@ export default function ProductsPage() {
                       {p.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    {hasPermission("products.manage") && (
+                      <div className="inline-flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => toggleActive(p)}>
+                          {p.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteProduct(p)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <form onSubmit={handleUpdate}>
+            <DialogHeader>
+              <DialogTitle>Edit product</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Product Code</Label>
+                <Input
+                  value={form.product_code}
+                  onChange={(e) =>
+                    setForm({ ...form, product_code: e.target.value })
+                  }
+                  required
+                  className="font-mono"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Size</Label>
+                  <Input
+                    value={form.paper_size}
+                    onChange={(e) =>
+                      setForm({ ...form, paper_size: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>GSM</Label>
+                  <Input
+                    type="number"
+                    value={form.gsm}
+                    onChange={(e) => setForm({ ...form, gsm: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Color</Label>
+                  <Input
+                    value={form.color}
+                    onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={saving}>
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

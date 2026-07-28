@@ -21,9 +21,12 @@ import {
   Tag,
   Bluetooth,
   ShoppingCart,
+  ShoppingBag,
   FileText,
   Contact,
   Network,
+  Briefcase,
+  Handshake,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -47,6 +50,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Package,
   Warehouse,
   ShieldCheck,
+  Shield,
   AlertTriangle,
   BarChart3,
   Box,
@@ -57,9 +61,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Tag,
   Bluetooth,
   ShoppingCart,
+  ShoppingBag,
   FileText,
   Contact,
   Network,
+  Briefcase,
+  Handshake,
 };
 
 export function Sidebar() {

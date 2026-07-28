@@ -29,19 +29,54 @@ export default function LoginPage() {
       });
 
       if (error) {
+        try {
+          await supabase.rpc("record_login_event", {
+            p_user_id: null,
+            p_email: email,
+            p_success: false,
+            p_failure_reason: error.message,
+            p_ip: null,
+            p_user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+          });
+        } catch {
+          /* non-fatal */
+        }
         toast.error(error.message);
         return;
       }
 
-      // Enterprise audit: last login
       if (data.user) {
         try {
-          await supabase.rpc("touch_user_login", {
+          await supabase.rpc("record_login_event", {
             p_user_id: data.user.id,
+            p_email: email,
+            p_success: true,
+            p_failure_reason: null,
             p_ip: null,
+            p_user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+          });
+          // Register app session for remote revoke
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("company_id")
+            .eq("id", data.user.id)
+            .maybeSingle();
+          await supabase.from("user_sessions").insert({
+            company_id: profile?.company_id ?? null,
+            user_id: data.user.id,
+            user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+            device_label:
+              typeof navigator !== "undefined"
+                ? navigator.platform || "Web"
+                : "Web",
+            is_active: true,
+            last_seen_at: new Date().toISOString(),
           });
         } catch {
-          /* non-fatal if RPC not yet migrated */
+          /* non-fatal if IAM tables not ready */
         }
       }
 

@@ -1,661 +1,259 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Warehouse,
+  Package,
+  ClipboardCheck,
   ArrowRightLeft,
-  Truck,
-  PackageCheck,
-  Search,
+  SlidersHorizontal,
+  MapPin,
+  Brain,
+  ArrowRight,
+  QrCode,
+  Boxes,
+  Gauge,
+  BookmarkPlus,
+  RefreshCw,
+  ClipboardList,
+  GitBranch,
+  Calculator,
+  FileBarChart,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { formatDateTime, formatNumber } from "@/lib/utils";
-import { useUser } from "@/hooks/use-user";
-import { toast } from "sonner";
-import type {
-  Ream,
-  Carton,
-  InventoryMovement,
-  Distributor,
-} from "@/types/database";
+import { formatNumber } from "@/lib/utils";
 
-const INVENTORY_STATUSES = [
-  "in_production",
-  "in_warehouse",
-  "in_transit",
-  "at_distributor",
-  "at_retailer",
-  "sold",
-  "returned",
-  "recalled",
-  "destroyed",
-] as const;
+const FLOW = [
+  "Procurement",
+  "Goods Receipt",
+  "Quality Inspection",
+  "Warehouse Storage",
+  "Inventory Control",
+  "Production / Sales",
+  "Dispatch",
+  "Finance",
+];
 
-type ItemKind = "ream" | "carton";
+const MODULES = [
+  { title: "Stock Control", href: "/dashboard/inventory/control", icon: Gauge, desc: "Available, reserved, safety, ABC/XYZ" },
+  { title: "Stock Balances", href: "/dashboard/inventory/balances", icon: Boxes, desc: "On-hand by warehouse, bin & batch" },
+  { title: "Serialized Stock", href: "/dashboard/inventory/stock", icon: QrCode, desc: "Reams, cartons & QR chain of custody" },
+  { title: "Goods Receipt (GRN)", href: "/dashboard/inventory/grn", icon: ClipboardCheck, desc: "Inbound receiving & QC acceptance" },
+  { title: "Reservations", href: "/dashboard/inventory/reservations", icon: BookmarkPlus, desc: "Sales, production, project holds" },
+  { title: "Replenishment", href: "/dashboard/inventory/replenishment", icon: RefreshCw, desc: "Reorder · PRs · AI recommendations" },
+  { title: "Transfers", href: "/dashboard/inventory/transfers", icon: ArrowRightLeft, desc: "Inter-warehouse movements" },
+  { title: "Cycle Counts", href: "/dashboard/inventory/cycle-counts", icon: ClipboardList, desc: "Stocktaking · variances · shrinkage" },
+  { title: "Adjustments", href: "/dashboard/inventory/adjustments", icon: SlidersHorizontal, desc: "Write-offs & corrections" },
+  { title: "Traceability", href: "/dashboard/inventory/traceability", icon: GitBranch, desc: "Batch & serial end-to-end" },
+  { title: "Valuation", href: "/dashboard/inventory/valuation", icon: Calculator, desc: "FIFO / avg cost · inventory value" },
+  { title: "Locations", href: "/dashboard/inventory/locations", icon: MapPin, desc: "Warehouses, zones, racks & bins" },
+  { title: "Reports", href: "/dashboard/inventory/reports", icon: FileBarChart, desc: "Balance, movement, ABC, reorder" },
+];
 
-export default function InventoryPage() {
-  const { auth, hasPermission } = useUser();
-  const [reams, setReams] = useState<Ream[]>([]);
-  const [cartons, setCartons] = useState<Carton[]>([]);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
-  const [distributors, setDistributors] = useState<Distributor[]>([]);
-  const [warehouses, setWarehouses] = useState<
-    { id: string; name: string; code: string }[]
-  >([]);
+interface Insight {
+  id: string;
+  title: string;
+  recommendation: string;
+  severity: string;
+  insight_type: string;
+}
+
+export default function InventoryHubPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    reams: 0,
-    cartons: 0,
-    production: 0,
-    transit: 0,
+    skus: 0,
+    warehouses: 0,
+    onHandValue: 0,
+    openGrn: 0,
+    openTransfers: 0,
+    openPr: 0,
+    activeReservations: 0,
+    reamsWh: 0,
   });
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedReams, setSelectedReams] = useState<Set<string>>(new Set());
-  const [selectedCartons, setSelectedCartons] = useState<Set<string>>(new Set());
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [moving, setMoving] = useState(false);
-  const [moveForm, setMoveForm] = useState({
-    itemType: "ream" as ItemKind,
-    action: "receive_warehouse",
-    warehouseId: "",
-    distributorId: "",
-    notes: "",
-  });
-
-  const load = async () => {
-    const supabase = createClient();
-    let reamQ = supabase
-      .from("reams")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    let cartonQ = supabase
-      .from("cartons")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-
-    if (statusFilter !== "all") {
-      reamQ = reamQ.eq("inventory_status", statusFilter);
-      cartonQ = cartonQ.eq("inventory_status", statusFilter);
-    }
-
-    const [
-      { data: reamData },
-      { data: cartonData },
-      { data: moveData },
-      { data: distData },
-      { data: whData },
-      reamCount,
-      cartonCount,
-      prodCount,
-      transitCount,
-    ] = await Promise.all([
-      reamQ,
-      cartonQ,
-      supabase
-        .from("inventory_movements")
-        .select("*")
-        .order("performed_at", { ascending: false })
-        .limit(80),
-      supabase.from("distributors").select("*").eq("is_active", true).order("name"),
-      supabase.from("warehouses").select("id,name,code").eq("is_active", true),
-      supabase
-        .from("reams")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_warehouse"),
-      supabase
-        .from("cartons")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_warehouse"),
-      supabase
-        .from("reams")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_production"),
-      supabase
-        .from("reams")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_transit"),
-    ]);
-
-    setReams((reamData as Ream[]) ?? []);
-    setCartons((cartonData as Carton[]) ?? []);
-    setMovements((moveData as InventoryMovement[]) ?? []);
-    setDistributors((distData as Distributor[]) ?? []);
-    setWarehouses(whData ?? []);
-    setStats({
-      reams: reamCount.count ?? 0,
-      cartons: cartonCount.count ?? 0,
-      production: prodCount.count ?? 0,
-      transit: transitCount.count ?? 0,
-    });
-    setLoading(false);
-  };
+  const [insights, setInsights] = useState<Insight[]>([]);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
-
-  const filterSerial = <T extends { serial_number: string }>(items: T[]) => {
-    if (!search) return items;
-    const s = search.toLowerCase();
-    return items.filter((i) => i.serial_number.toLowerCase().includes(s));
-  };
-
-  const toggle = (kind: ItemKind, id: string) => {
-    const set = kind === "ream" ? setSelectedReams : setSelectedCartons;
-    set((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const resolveStatus = (action: string) => {
-    switch (action) {
-      case "receive_warehouse":
-        return "in_warehouse";
-      case "dispatch_distributor":
-        return "in_transit";
-      case "arrive_distributor":
-        return "at_distributor";
-      case "retail":
-        return "at_retailer";
-      case "sold":
-        return "sold";
-      case "return":
-        return "returned";
-      case "recall":
-        return "recalled";
-      default:
-        return "in_warehouse";
-    }
-  };
-
-  const handleMove = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auth) return;
-
-    const ids =
-      moveForm.itemType === "ream"
-        ? Array.from(selectedReams)
-        : Array.from(selectedCartons);
-
-    if (ids.length === 0) {
-      toast.error("Select items first");
-      return;
-    }
-
-    if (
-      moveForm.action === "receive_warehouse" &&
-      !moveForm.warehouseId &&
-      warehouses.length > 0
-    ) {
-      toast.error("Select a warehouse");
-      return;
-    }
-
-    if (
-      (moveForm.action === "dispatch_distributor" ||
-        moveForm.action === "arrive_distributor") &&
-      !moveForm.distributorId
-    ) {
-      toast.error("Select a distributor");
-      return;
-    }
-
-    setMoving(true);
-    try {
+    async function load() {
       const supabase = createClient();
-      const newStatus = resolveStatus(moveForm.action);
-      const table = moveForm.itemType === "ream" ? "reams" : "cartons";
-      const idField = moveForm.itemType === "ream" ? "ream_id" : "carton_id";
-
-      const updates: Record<string, unknown> = {
-        inventory_status: newStatus,
-      };
-      if (moveForm.warehouseId) {
-        updates.warehouse_id = moveForm.warehouseId;
-      }
-
-      const { error } = await supabase.from(table).update(updates).in("id", ids);
-      if (error) throw error;
-
-      // Mirror status on linked QR codes where possible
-      if (moveForm.itemType === "ream") {
-        const { data: reamRows } = await supabase
+      const [
+        products,
+        warehouses,
+        balances,
+        grn,
+        transfers,
+        pr,
+        resv,
+        reams,
+        { data: insightData },
+      ] = await Promise.all([
+        supabase.from("products").select("*", { count: "exact", head: true }),
+        supabase.from("warehouses").select("*", { count: "exact", head: true }).eq("is_active", true),
+        supabase.from("stock_balances").select("total_value, quantity_on_hand, quantity_reserved"),
+        supabase
+          .from("goods_receipts")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["draft", "pending_inspection", "partially_accepted"]),
+        supabase
+          .from("stock_transfers")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["draft", "in_transit"]),
+        supabase
+          .from("purchase_requisitions")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["draft", "submitted", "approved"]),
+        supabase
+          .from("stock_reservations")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "active"),
+        supabase
           .from("reams")
-          .select("qr_code_id")
-          .in("id", ids);
-        const qrIds = (reamRows ?? [])
-          .map((r) => r.qr_code_id)
-          .filter(Boolean) as string[];
-        if (qrIds.length) {
-          const qrStatus =
-            newStatus === "in_warehouse"
-              ? "packed"
-              : newStatus === "in_transit" || newStatus === "at_distributor"
-                ? "dispatched"
-                : newStatus === "sold"
-                  ? "sold"
-                  : newStatus === "recalled"
-                    ? "recalled"
-                    : undefined;
-          if (qrStatus) {
-            await supabase
-              .from("qr_codes")
-              .update({ status: qrStatus })
-              .in("id", qrIds);
-          }
-        }
-      }
+          .select("*", { count: "exact", head: true })
+          .eq("inventory_status", "in_warehouse"),
+        supabase
+          .from("inventory_insights")
+          .select("*")
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(6),
+      ]);
 
-      const movements = ids.map((id) => ({
-        company_id: auth.profile.company_id,
-        movement_type: moveForm.action,
-        item_type: moveForm.itemType,
-        [idField]: id,
-        to_warehouse_id: moveForm.warehouseId || null,
-        distributor_id: moveForm.distributorId || null,
-        quantity: 1,
-        notes: moveForm.notes || null,
-        performed_by: auth.profile.id,
-      }));
-
-      const { error: moveErr } = await supabase
-        .from("inventory_movements")
-        .insert(movements);
-      if (moveErr) throw moveErr;
-
-      toast.success(
-        `Updated ${ids.length} ${moveForm.itemType}${ids.length > 1 ? "s" : ""} → ${newStatus.replace(/_/g, " ")}`
+      const onHandValue = (balances.data ?? []).reduce(
+        (s, b) => s + Number(b.total_value || 0),
+        0
       );
-      setMoveOpen(false);
-      setSelectedReams(new Set());
-      setSelectedCartons(new Set());
-      load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Move failed");
-    } finally {
-      setMoving(false);
+
+      setStats({
+        skus: products.count ?? 0,
+        warehouses: warehouses.count ?? 0,
+        onHandValue,
+        openGrn: grn.count ?? 0,
+        openTransfers: transfers.count ?? 0,
+        openPr: pr.count ?? 0,
+        activeReservations: resv.count ?? 0,
+        reamsWh: reams.count ?? 0,
+      });
+      setInsights((insightData as Insight[]) ?? []);
+      setLoading(false);
     }
-  };
+    load();
+  }, []);
 
-  if (loading) return <LoadingState />;
-
-  const canMove =
-    hasPermission("inventory.move") || hasPermission("inventory.manage");
+  if (loading) return <LoadingState message="Loading inventory command centre…" />;
 
   return (
     <div>
       <PageHeader
-        title="Inventory Control"
-        description="Warehouse stock, transfers, distributor dispatch, and full movement history"
+        title="Inventory & Stock Management"
+        description="Real-time multi-warehouse control · GRN · reservations · replenishment · valuation · traceability"
         actions={
-          canMove && (
-            <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <ArrowRightLeft className="mr-2 h-4 w-4" />
-                  Move / Dispatch
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <form onSubmit={handleMove}>
-                  <DialogHeader>
-                    <DialogTitle>Inventory movement</DialogTitle>
-                    <DialogDescription>
-                      Apply status change to selected reams or cartons
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Item type</Label>
-                      <Select
-                        value={moveForm.itemType}
-                        onValueChange={(v) =>
-                          setMoveForm({
-                            ...moveForm,
-                            itemType: v as ItemKind,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ream">
-                            Reams ({selectedReams.size} selected)
-                          </SelectItem>
-                          <SelectItem value="carton">
-                            Cartons ({selectedCartons.size} selected)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Action</Label>
-                      <Select
-                        value={moveForm.action}
-                        onValueChange={(v) =>
-                          setMoveForm({ ...moveForm, action: v })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="receive_warehouse">
-                            Receive into warehouse
-                          </SelectItem>
-                          <SelectItem value="dispatch_distributor">
-                            Dispatch to distributor
-                          </SelectItem>
-                          <SelectItem value="arrive_distributor">
-                            Arrive at distributor
-                          </SelectItem>
-                          <SelectItem value="retail">
-                            Send to retailer
-                          </SelectItem>
-                          <SelectItem value="sold">Mark sold</SelectItem>
-                          <SelectItem value="return">Return</SelectItem>
-                          <SelectItem value="recall">Recall</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {(moveForm.action === "receive_warehouse" ||
-                      moveForm.action === "dispatch_distributor") && (
-                      <div className="space-y-2">
-                        <Label>Warehouse</Label>
-                        <Select
-                          value={moveForm.warehouseId}
-                          onValueChange={(v) =>
-                            setMoveForm({ ...moveForm, warehouseId: v })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select warehouse" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {warehouses.map((w) => (
-                              <SelectItem key={w.id} value={w.id}>
-                                {w.name} ({w.code})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {(moveForm.action === "dispatch_distributor" ||
-                      moveForm.action === "arrive_distributor") && (
-                      <div className="space-y-2">
-                        <Label>Distributor</Label>
-                        <Select
-                          value={moveForm.distributorId}
-                          onValueChange={(v) =>
-                            setMoveForm({ ...moveForm, distributorId: v })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select distributor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {distributors.map((d) => (
-                              <SelectItem key={d.id} value={d.id}>
-                                {d.name} ({d.code})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label>Notes</Label>
-                      <Input
-                        value={moveForm.notes}
-                        onChange={(e) =>
-                          setMoveForm({ ...moveForm, notes: e.target.value })
-                        }
-                        placeholder="Reference / waybill"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={moving}>
-                      {moving ? "Processing…" : "Apply movement"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/inventory/grn">New GRN</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/inventory/replenishment">Replenish</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/dashboard/inventory/control">Stock control</Link>
+            </Button>
+          </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <StatCard
-          title="Warehouse reams"
-          value={formatNumber(stats.reams)}
-          icon={Warehouse}
-        />
-        <StatCard
-          title="Warehouse cartons"
-          value={formatNumber(stats.cartons)}
-          icon={PackageCheck}
-        />
-        <StatCard
-          title="In production"
-          value={formatNumber(stats.production)}
-        />
-        <StatCard
-          title="In transit"
-          value={formatNumber(stats.transit)}
-          icon={Truck}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-4">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Search serial…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {INVENTORY_STATUSES.map((s) => (
-              <SelectItem key={s} value={s} className="capitalize">
-                {s.replace(/_/g, " ")}
-              </SelectItem>
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Inventory flow
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-2">
+            {FLOW.map((step, i) => (
+              <div key={step} className="flex items-center gap-2">
+                <Badge variant="secondary" className="font-normal">
+                  {step}
+                </Badge>
+                {i < FLOW.length - 1 && (
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </div>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="mb-2 text-sm font-medium text-muted-foreground">
+        Executive / warehouse KPIs
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 mb-6">
+        <StatCard title="Active SKUs" value={formatNumber(stats.skus)} icon={Package} />
+        <StatCard title="Warehouses" value={formatNumber(stats.warehouses)} icon={Warehouse} />
+        <StatCard
+          title="Inventory value (UGX)"
+          value={formatNumber(Math.round(stats.onHandValue))}
+        />
+        <StatCard title="Reams in warehouse" value={formatNumber(stats.reamsWh)} icon={QrCode} />
+        <StatCard title="Open GRNs" value={formatNumber(stats.openGrn)} />
+        <StatCard title="Open transfers" value={formatNumber(stats.openTransfers)} />
+        <StatCard title="Open PRs" value={formatNumber(stats.openPr)} />
+        <StatCard title="Active reservations" value={formatNumber(stats.activeReservations)} />
       </div>
 
-      <Tabs defaultValue="reams">
-        <TabsList>
-          <TabsTrigger value="reams">
-            Reams ({filterSerial(reams).length})
-          </TabsTrigger>
-          <TabsTrigger value="cartons">
-            Cartons ({filterSerial(cartons).length})
-          </TabsTrigger>
-          <TabsTrigger value="movements">Movements</TabsTrigger>
-        </TabsList>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-8">
+        {MODULES.map((m) => (
+          <Link key={m.href} href={m.href}>
+            <Card className="h-full transition-colors hover:border-hope-teal/50 hover:bg-muted/30">
+              <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-2">
+                <div className="rounded-lg bg-hope-navy/10 p-2">
+                  <m.icon className="h-5 w-5 text-hope-teal" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">{m.title}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{m.desc}</p>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
+      </div>
 
-        <TabsContent value="reams" className="mt-4">
-          {filterSerial(reams).length === 0 ? (
-            <EmptyState icon={Warehouse} title="No reams match" />
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-hope-gold" />
+            <CardTitle>AI inventory intelligence</CardTitle>
+          </div>
+          <Badge variant="outline">Demand · stockout · dead stock · ABC</Badge>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {insights.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No open insights. Reorder, stockout, and overstock signals appear here.
+            </p>
           ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {canMove && <TableHead className="w-10" />}
-                    <TableHead>Serial</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>GSM</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filterSerial(reams).map((r) => (
-                    <TableRow key={r.id}>
-                      {canMove && (
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedReams.has(r.id)}
-                            onCheckedChange={() => toggle("ream", r.id)}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell className="font-mono text-sm">
-                        {r.serial_number}
-                      </TableCell>
-                      <TableCell>{r.paper_size}</TableCell>
-                      <TableCell>{r.gsm}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={r.inventory_status} />
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDateTime(r.created_at)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            insights.map((ins) => (
+              <div key={ins.id} className="rounded-lg border p-4 space-y-2 bg-card">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={ins.severity} />
+                  <Badge variant="secondary" className="capitalize">
+                    {ins.insight_type.replace(/_/g, " ")}
+                  </Badge>
+                  <span className="font-medium">{ins.title}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{ins.recommendation}</p>
+              </div>
+            ))
           )}
-        </TabsContent>
-
-        <TabsContent value="cartons" className="mt-4">
-          {filterSerial(cartons).length === 0 ? (
-            <EmptyState icon={Warehouse} title="No cartons match" />
-          ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {canMove && <TableHead className="w-10" />}
-                    <TableHead>Serial</TableHead>
-                    <TableHead>Reams</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Packed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filterSerial(cartons).map((c) => (
-                    <TableRow key={c.id}>
-                      {canMove && (
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedCartons.has(c.id)}
-                            onCheckedChange={() => toggle("carton", c.id)}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell className="font-mono text-sm">
-                        {c.serial_number}
-                      </TableCell>
-                      <TableCell>{c.ream_count}</TableCell>
-                      <TableCell>{c.paper_size}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={c.inventory_status} />
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {c.packed_at ? formatDateTime(c.packed_at) : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="movements" className="mt-4">
-          {movements.length === 0 ? (
-            <EmptyState title="No inventory movements yet" />
-          ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>When</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {movements.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="capitalize">
-                        {m.movement_type.replace(/_/g, " ")}
-                      </TableCell>
-                      <TableCell className="capitalize">{m.item_type}</TableCell>
-                      <TableCell>{m.quantity}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {m.notes ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDateTime(m.performed_at)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }
