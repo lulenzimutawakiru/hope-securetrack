@@ -38,13 +38,14 @@ import { ENTERPRISE_PIPELINE } from "@/lib/workflows";
 
 const WORKSPACES = [
   { title: "Production", href: "/dashboard/production", icon: Factory, description: "MES · batches · OEE", badge: "Ops" },
+  { title: "Advanced Labels", href: "/dashboard/labels", icon: Printer, description: "Templates · GS1 · print", badge: "Labels" },
   { title: "Inventory", href: "/dashboard/inventory", icon: Warehouse, description: "Stock · GRN · transfers", badge: "WMS" },
   { title: "Finance", href: "/dashboard/finance", icon: Landmark, description: "GL · treasury · costing", badge: "ERP" },
   { title: "Projects", href: "/dashboard/projects", icon: FolderKanban, description: "PPM · Gantt · billing", badge: "PPM" },
   { title: "Fleet", href: "/dashboard/fleet", icon: Car, description: "Vehicles · GPS · fuel", badge: "TMS" },
   { title: "Attendance", href: "/dashboard/attendance", icon: Clock, description: "Geofence · biometrics", badge: "WFM" },
   { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, description: "Routes · POD · drivers", badge: "Logistics" },
-  { title: "Sales & CRM", href: "/dashboard/sales", icon: ShoppingCart, description: "Pipeline · quotes · orders", badge: "Rev" },
+  { title: "Advanced Sales", href: "/dashboard/sales", icon: ShoppingCart, description: "Pipeline · quotes · orders", badge: "Rev" },
   { title: "HR", href: "/dashboard/hr", icon: Users, description: "People · leave · payroll", badge: "HCM" },
   { title: "Reports & BI", href: "/dashboard/reports", icon: BarChart3, description: "KPIs · AI · board packs", badge: "BI" },
   { title: "Security", href: "/dashboard/fraud", icon: ShieldCheck, description: "QR · fraud · verify", badge: "IAM" },

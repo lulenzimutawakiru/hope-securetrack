@@ -28,7 +28,9 @@ export const SALES_MENU = [
   { title: "Credit Holds", href: "/dashboard/sales/credit-holds", group: "Credit" },
   { title: "Payment Terms", href: "/dashboard/sales/payment-terms", group: "Credit" },
 
-  { title: "Contracts", href: "/dashboard/sales/contracts", group: "Contracts" },
+  { title: "Contracts Hub", href: "/dashboard/contracts", group: "Contracts" },
+  { title: "Sales Contracts", href: "/dashboard/contracts/sales", group: "Contracts" },
+  { title: "Contract Detail (sales)", href: "/dashboard/sales/contracts", group: "Contracts" },
   { title: "Contract Lines", href: "/dashboard/sales/contract-lines", group: "Contracts" },
   { title: "Rebates", href: "/dashboard/sales/rebates", group: "Contracts" },
 

@@ -61,6 +61,10 @@ export const DOC_TYPES = [
 
 export const COMM_MENU = [
   { title: "Communication Hub", href: "/dashboard/communications", group: "Overview" },
+  { title: "Live Board", href: "/dashboard/communications/live", group: "Overview" },
+  { title: "Analytics", href: "/dashboard/communications/analytics", group: "Overview" },
+  { title: "All Messages", href: "/dashboard/communications/messages", group: "Messages" },
+  { title: "Compose", href: "/dashboard/communications/compose", group: "Messages" },
   { title: "Notification Center", href: "/dashboard/notifications", group: "Inbox" },
   { title: "Email Center", href: "/dashboard/communications/email", group: "Channels" },
   { title: "SMS Center", href: "/dashboard/communications/sms", group: "Channels" },

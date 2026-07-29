@@ -360,6 +360,7 @@ export const NAV_ITEMS = [
   { title: "Supply Chain", href: "/dashboard/scm", icon: "Network", permission: PERMISSIONS.SCM_VIEW },
   { title: "CRM", href: "/dashboard/crm", icon: "Handshake", permission: PERMISSIONS.CRM_VIEW },
   { title: "Advanced Sales", href: "/dashboard/sales", icon: "ShoppingCart", permission: PERMISSIONS.SALES_VIEW },
+  { title: "Contracts", href: "/dashboard/contracts", icon: "FileText", permission: PERMISSIONS.SALES_VIEW },
   { title: "Finance", href: "/dashboard/finance", icon: "Landmark", permission: PERMISSIONS.FINANCE_VIEW },
   { title: "Billing", href: "/dashboard/billing", icon: "Receipt", permission: PERMISSIONS.BILLING_VIEW },
   { title: "Invoices", href: "/dashboard/invoices", icon: "FileText", permission: PERMISSIONS.INVOICES_VIEW },

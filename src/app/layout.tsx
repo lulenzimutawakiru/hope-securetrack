@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | Hope SecureTrack",
   },
   description:
-    "Enterprise QR Authentication, Manufacturing Traceability & Batch Printing Platform",
+    "Enterprise ERP — QR authentication, manufacturing, advanced labels, sales, finance, fleet, attendance & BI for Hope Design Group",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",

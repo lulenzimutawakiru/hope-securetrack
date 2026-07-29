@@ -64,7 +64,7 @@ export default function ComposeMessagePage() {
         },
       });
       toast.success(`Queued ${msg.message_number}`);
-      router.push("/dashboard/communications/email");
+      router.push(`/dashboard/communications/messages/${msg.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Send failed");
     } finally {
