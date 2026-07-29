@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Boxes, Search } from "lucide-react";
+import { Boxes } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { StatCard } from "@/components/ui/stat-card";
+import { KpiMetric } from "@/components/enterprise/kpi-metric";
+import {
+  EnterpriseDataGrid,
+  type DataGridColumn,
+} from "@/components/enterprise/data-grid";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/utils";
 
@@ -36,7 +35,6 @@ export default function StockBalancesPage() {
   const [rows, setRows] = useState<BalanceRow[]>([]);
   const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
   const [whFilter, setWhFilter] = useState("all");
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -47,7 +45,7 @@ export default function StockBalancesPage() {
         "*, products(name, product_code, item_category, uom), warehouses(name, code), warehouse_bins(code)"
       )
       .order("updated_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
 
     if (whFilter !== "all") q = q.eq("warehouse_id", whFilter);
 
@@ -65,50 +63,116 @@ export default function StockBalancesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [whFilter]);
 
+  const totalQty = rows.reduce((s, r) => s + Number(r.quantity_on_hand || 0), 0);
+  const totalVal = rows.reduce((s, r) => s + Number(r.total_value || 0), 0);
+  const quarantine = rows.reduce((s, r) => s + Number(r.quantity_quarantine || 0), 0);
+
+  const columns = useMemo<DataGridColumn<BalanceRow>[]>(
+    () => [
+      {
+        id: "sku",
+        header: "SKU",
+        defaultPinned: "left",
+        accessorFn: (r) => r.products?.product_code ?? "—",
+        cell: ({ row }) => (
+          <span className="font-mono text-sm">
+            {row.original.products?.product_code ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "product",
+        header: "Product",
+        accessorFn: (r) => r.products?.name ?? "—",
+        cell: ({ row }) => (
+          <span className="font-medium text-sm">
+            {row.original.products?.name ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "warehouse",
+        header: "Warehouse",
+        accessorFn: (r) => r.warehouses?.name ?? "—",
+      },
+      {
+        id: "bin",
+        header: "Bin",
+        accessorFn: (r) => r.warehouse_bins?.code ?? "—",
+      },
+      {
+        accessorKey: "batch_number",
+        header: "Batch",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs">{String(getValue() ?? "—")}</span>
+        ),
+      },
+      {
+        accessorKey: "quantity_on_hand",
+        header: "On hand",
+        cell: ({ getValue }) => formatNumber(Number(getValue() ?? 0)),
+      },
+      {
+        accessorKey: "quantity_reserved",
+        header: "Reserved",
+        cell: ({ getValue }) => formatNumber(Number(getValue() ?? 0)),
+      },
+      {
+        accessorKey: "quantity_available",
+        header: "Available",
+        cell: ({ getValue }) => (
+          <span className="font-medium">{formatNumber(Number(getValue() ?? 0))}</span>
+        ),
+      },
+      {
+        accessorKey: "quantity_quarantine",
+        header: "Quarantine",
+        cell: ({ getValue }) => formatNumber(Number(getValue() ?? 0)),
+      },
+      {
+        accessorKey: "total_value",
+        header: "Value (UGX)",
+        cell: ({ getValue }) => formatNumber(Math.round(Number(getValue() ?? 0))),
+      },
+    ],
+    []
+  );
+
   if (loading) return <LoadingState />;
 
-  const filtered = rows.filter((r) => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (
-      r.products?.name?.toLowerCase().includes(s) ||
-      r.products?.product_code?.toLowerCase().includes(s) ||
-      r.batch_number?.toLowerCase().includes(s)
-    );
-  });
-
-  const totalQty = filtered.reduce((s, r) => s + Number(r.quantity_on_hand || 0), 0);
-  const totalVal = filtered.reduce((s, r) => s + Number(r.total_value || 0), 0);
-  const quarantine = filtered.reduce((s, r) => s + Number(r.quantity_quarantine || 0), 0);
-
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title="Stock Balances"
-        description="On-hand · reserved · available · quarantine · batch & bin location"
+        description="Enterprise grid · on-hand · reserved · quarantine · virtual scroll · export"
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/inventory">Back to hub</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/inventory">Hub</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/boards">Boards</Link>
+            </Button>
+          </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <StatCard title="Lines" value={formatNumber(filtered.length)} icon={Boxes} />
-        <StatCard title="Total on hand" value={formatNumber(totalQty)} />
-        <StatCard title="Inventory value (UGX)" value={formatNumber(Math.round(totalVal))} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiMetric title="Lines" value={formatNumber(rows.length)} icon={Boxes} />
+        <KpiMetric title="Total on hand" value={formatNumber(totalQty)} />
+        <KpiMetric
+          title="Inventory value"
+          value={formatNumber(Math.round(totalVal))}
+          description="UGX"
+        />
+        <KpiMetric
+          title="Quarantine qty"
+          value={formatNumber(quarantine)}
+          tone={quarantine > 0 ? "warning" : "default"}
+        />
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-4">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Search SKU, name, batch…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      <div className="flex flex-wrap gap-3">
         <Select value={whFilter} onValueChange={setWhFilter}>
           <SelectTrigger className="w-[220px]">
             <SelectValue placeholder="Warehouse" />
@@ -124,72 +188,14 @@ export default function StockBalancesPage() {
         </Select>
       </div>
 
-      {quarantine > 0 && (
-        <p className="text-sm text-amber-700 mb-3">
-          Quarantine quantity across view: {formatNumber(quarantine)}
-        </p>
-      )}
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={Boxes}
-          title="No stock balances"
-          description="Balances appear after GRN acceptance or production output"
-        />
-      ) : (
-        <div className="rounded-lg border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Warehouse</TableHead>
-                <TableHead>Bin</TableHead>
-                <TableHead>Batch</TableHead>
-                <TableHead className="text-right">On hand</TableHead>
-                <TableHead className="text-right">Available</TableHead>
-                <TableHead className="text-right">Unit cost</TableHead>
-                <TableHead className="text-right">Value</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-sm">
-                    {r.products?.product_code ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{r.products?.name ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground capitalize">
-                      {(r.products?.item_category ?? "").replace(/_/g, " ")} ·{" "}
-                      {r.products?.uom ?? "EA"}
-                    </div>
-                  </TableCell>
-                  <TableCell>{r.warehouses?.name ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {r.warehouse_bins?.code ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {r.batch_number ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatNumber(Number(r.quantity_on_hand))}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatNumber(Number(r.quantity_available))}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatNumber(Number(r.unit_cost))}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatNumber(Math.round(Number(r.total_value)))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <EnterpriseDataGrid
+        data={rows}
+        columns={columns}
+        storageKey="grid:stock-balances"
+        height={520}
+        exportFilename="stock-balances"
+        emptyMessage="No stock balance lines"
+      />
     </div>
   );
 }

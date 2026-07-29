@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Package, Scan } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,11 @@ export default function PackingPage() {
       <PageHeader
         title="Packing Station"
         description={`Scan ${REAMS_PER_CARTON} reams of the same product/batch to form a carton`}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/packaging">Enterprise Packaging</Link>
+          </Button>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-2">

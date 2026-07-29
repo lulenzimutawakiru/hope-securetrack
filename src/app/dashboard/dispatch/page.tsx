@@ -1,436 +1,148 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Truck, Plus } from "lucide-react";
+import Link from "next/link";
+import {
+  Truck, ClipboardList, Route, Users, MapPin, PackageCheck,
+  ScanLine, FileSignature, AlertTriangle, RotateCcw, FileText,
+  BarChart3, Wand2, Smartphone, ArrowRight, Warehouse, Navigation,
+  Globe,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
-import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
-import type { BusinessDocument } from "@/lib/documents";
-import { toast } from "sonner";
+import { DISPATCH_LIFECYCLE } from "@/lib/dispatch";
 
-interface Dispatch {
-  id: string;
-  dispatch_number: string;
-  status: string;
-  dispatch_date: string;
-  vehicle_reg: string | null;
-  driver_name: string | null;
-  waybill_number: string | null;
-  destination_address: string | null;
-  delivered_at: string | null;
-  customers?: { name: string } | null;
-  sales_orders?: { order_number: string } | null;
-  distributors?: { name: string } | null;
-}
+const MODULES = [
+  { title: "Requests", href: "/dashboard/dispatch/requests", icon: ClipboardList, desc: "SO · transfers · collections" },
+  { title: "Planning", href: "/dashboard/dispatch/planning", icon: Warehouse, desc: "Group · schedule · bays" },
+  { title: "Fleet", href: "/dashboard/dispatch/fleet", icon: Truck, desc: "Trucks · vans · GPS units" },
+  { title: "Drivers", href: "/dashboard/dispatch/drivers", icon: Users, desc: "Licenses · scores · trips" },
+  { title: "Routes", href: "/dashboard/dispatch/routes", icon: Route, desc: "AI multi-stop optimize" },
+  { title: "Loading", href: "/dashboard/dispatch/loading", icon: ScanLine, desc: "QR verify · seal · bay" },
+  { title: "Live Tracking", href: "/dashboard/dispatch/tracking", icon: Navigation, desc: "GPS · ETA · map" },
+  { title: "Proof of Delivery", href: "/dashboard/dispatch/pod", icon: FileSignature, desc: "Signature · photos · GPS" },
+  { title: "Exceptions", href: "/dashboard/dispatch/exceptions", icon: AlertTriangle, desc: "Failed · delayed · SD" },
+  { title: "Returns", href: "/dashboard/dispatch/returns", icon: RotateCcw, desc: "RMA · restock · credit" },
+  { title: "Documents", href: "/dashboard/dispatch/documents", icon: FileText, desc: "DN · BOL · waybill · QR" },
+  { title: "Customer Portal", href: "/dashboard/dispatch/portal", icon: Globe, desc: "Track · ETA · issues" },
+  { title: "Mobile Driver", href: "/dashboard/dispatch/mobile", icon: Smartphone, desc: "Offline PWA · POD" },
+  { title: "Analytics", href: "/dashboard/dispatch/analytics", icon: BarChart3, desc: "OTD · utilization · cost" },
+  { title: "AI Assistant", href: "/dashboard/dispatch/ai", icon: Wand2, desc: "Delay · fleet · routes" },
+  { title: "Legacy Dispatch", href: "/dashboard/dispatch/legacy", icon: PackageCheck, desc: "Classic SO dispatch list" },
+];
 
-interface SalesOrder {
-  id: string;
-  order_number: string;
-  customer_id: string | null;
-  distributor_id: string | null;
-}
-
-interface Distributor {
-  id: string;
-  name: string;
-  code: string;
-}
-
-export default function DispatchPage() {
-  const { auth } = useUser();
-  const [rows, setRows] = useState<Dispatch[]>([]);
-  const [orders, setOrders] = useState<SalesOrder[]>([]);
-  const [distributors, setDistributors] = useState<Distributor[]>([]);
+export default function DispatchHubPage() {
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    sales_order_id: "",
-    distributor_id: "",
-    vehicle_reg: "",
-    driver_name: "",
-    driver_phone: "",
-    waybill_number: "",
-    destination_address: "",
-    notes: "",
+  const [stats, setStats] = useState({
+    pending: 0,
+    vehicles: 0,
+    drivers: 0,
+    loading: 0,
+    inTransit: 0,
+    delivered: 0,
+    failed: 0,
+    exceptions: 0,
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: so }, { data: dist }] = await Promise.all([
-      supabase
-        .from("dispatches")
-        .select("*, customers(name), sales_orders(order_number), distributors(name)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase
-        .from("sales_orders")
-        .select("id,order_number,customer_id,distributor_id")
-        .in("status", ["confirmed", "picking", "invoiced", "dispatched"])
-        .order("created_at", { ascending: false }),
-      supabase.from("distributors").select("id,name,code").eq("is_active", true),
-    ]);
-    setRows((data as Dispatch[]) ?? []);
-    setOrders((so as SalesOrder[]) ?? []);
-    setDistributors((dist as Distributor[]) ?? []);
-    setLoading(false);
-  };
-
   useEffect(() => {
-    load();
+    async function load() {
+      const sb = createClient();
+      const [pending, vehicles, drivers, loadingSess, inTransit, delivered, failed, exceptions] =
+        await Promise.all([
+          sb.from("dsp_requests").select("*", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
+          sb.from("fleet_vehicles").select("*", { count: "exact", head: true }).eq("status", "available"),
+          sb.from("dsp_drivers").select("*", { count: "exact", head: true }).eq("status", "available"),
+          sb.from("dsp_requests").select("*", { count: "exact", head: true }).eq("status", "loading"),
+          sb.from("dsp_requests").select("*", { count: "exact", head: true }).eq("status", "in_transit"),
+          sb.from("dsp_requests").select("*", { count: "exact", head: true }).eq("status", "delivered"),
+          sb.from("dsp_requests").select("*", { count: "exact", head: true }).eq("status", "failed"),
+          sb.from("dsp_exceptions").select("*", { count: "exact", head: true }).eq("status", "open"),
+        ]);
+      setStats({
+        pending: pending.count ?? 0,
+        vehicles: vehicles.count ?? 0,
+        drivers: drivers.count ?? 0,
+        loading: loadingSess.count ?? 0,
+        inTransit: inTransit.count ?? 0,
+        delivered: delivered.count ?? 0,
+        failed: failed.count ?? 0,
+        exceptions: exceptions.count ?? 0,
+      });
+      setLoading(false);
+    }
+    load().catch(() => setLoading(false));
   }, []);
 
-  const create = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auth) return;
-    setSaving(true);
-    try {
-      const supabase = createClient();
-      const order = orders.find((o) => o.id === form.sales_order_id);
-      const num = `DSP-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
-
-      const { data: wh } = await supabase
-        .from("warehouses")
-        .select("id")
-        .eq("company_id", auth.profile.company_id)
-        .limit(1)
-        .maybeSingle();
-
-      const { error } = await supabase.from("dispatches").insert({
-        company_id: auth.profile.company_id,
-        dispatch_number: num,
-        sales_order_id: form.sales_order_id || null,
-        customer_id: order?.customer_id || null,
-        distributor_id: form.distributor_id || order?.distributor_id || null,
-        warehouse_id: wh?.id || null,
-        status: "ready",
-        dispatch_date: new Date().toISOString().slice(0, 10),
-        vehicle_reg: form.vehicle_reg || null,
-        driver_name: form.driver_name || null,
-        driver_phone: form.driver_phone || null,
-        waybill_number: form.waybill_number || null,
-        destination_address: form.destination_address || null,
-        notes: form.notes || null,
-        dispatched_by: auth.profile.id,
-      });
-      if (error) throw error;
-
-      if (form.sales_order_id) {
-        await supabase
-          .from("sales_orders")
-          .update({ status: "dispatched" })
-          .eq("id", form.sales_order_id);
-      }
-
-      toast.success(`Dispatch ${num} created`);
-      setOpen(false);
-      load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    const updates: Record<string, unknown> = { status };
-    if (status === "delivered") updates.delivered_at = new Date().toISOString();
-    if (status === "in_transit") {
-      // also mark related inventory if needed later
-    }
-    const { error } = await supabase.from("dispatches").update(updates).eq("id", id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Dispatch updated");
-      load();
-    }
-  };
-
-  if (loading) return <LoadingState />;
-
-  const inTransit = rows.filter((r) => r.status === "in_transit").length;
+  if (loading) return <LoadingState message="Loading dispatch & delivery platform…" />;
 
   return (
     <div>
       <PageHeader
-        title="Dispatch"
-        description="Outbound shipments to distributors and customers"
+        title="Enterprise Dispatch & Delivery"
+        description="Plan · assign · load · track · POD · returns · AI routes · nationwide logistics"
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> New dispatch
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
-              <form onSubmit={create}>
-                <DialogHeader>
-                  <DialogTitle>Create dispatch note</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-3 py-4 max-h-[60vh] overflow-y-auto">
-                  <div className="space-y-2">
-                    <Label>Sales order</Label>
-                    <Select
-                      value={form.sales_order_id}
-                      onValueChange={(v) =>
-                        setForm({ ...form, sales_order_id: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Optional order" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orders.map((o) => (
-                          <SelectItem key={o.id} value={o.id}>
-                            {o.order_number}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Distributor</Label>
-                    <Select
-                      value={form.distributor_id}
-                      onValueChange={(v) =>
-                        setForm({ ...form, distributor_id: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select distributor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {distributors.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>
-                            {d.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Vehicle reg</Label>
-                      <Input
-                        value={form.vehicle_reg}
-                        onChange={(e) =>
-                          setForm({ ...form, vehicle_reg: e.target.value })
-                        }
-                        placeholder="KDA 123A"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Waybill #</Label>
-                      <Input
-                        value={form.waybill_number}
-                        onChange={(e) =>
-                          setForm({ ...form, waybill_number: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Driver</Label>
-                      <Input
-                        value={form.driver_name}
-                        onChange={(e) =>
-                          setForm({ ...form, driver_name: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Driver phone</Label>
-                      <Input
-                        value={form.driver_phone}
-                        onChange={(e) =>
-                          setForm({ ...form, driver_phone: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Destination</Label>
-                    <Input
-                      value={form.destination_address}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          destination_address: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={saving}>
-                    Create
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/dispatch/tracking">Live map</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/dashboard/dispatch/requests">New request</Link>
+            </Button>
+          </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <StatCard title="Dispatches" value={formatNumber(rows.length)} icon={Truck} />
-        <StatCard title="In transit" value={formatNumber(inTransit)} />
-        <StatCard
-          title="Delivered"
-          value={formatNumber(rows.filter((r) => r.status === "delivered").length)}
-        />
+      <div className="mb-6 flex flex-wrap gap-1.5">
+        {DISPATCH_LIFECYCLE.map((s) => (
+          <Badge key={s} variant="outline" className="text-[10px] font-normal">{s}</Badge>
+        ))}
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState icon={Truck} title="No dispatches" />
-      ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Dispatch #</TableHead>
-                <TableHead>Order</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>Vehicle / Driver</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Update</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-mono text-sm">
-                    {d.dispatch_number}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {d.sales_orders?.order_number ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {d.distributors?.name ||
-                      d.customers?.name ||
-                      d.destination_address ||
-                      "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <div>{d.vehicle_reg ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {d.driver_name}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(d.dispatch_date)}
-                    {d.delivered_at && (
-                      <div className="text-[10px] text-muted-foreground">
-                        Del {formatDateTime(d.delivered_at)}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={d.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <DocumentActions
-                        showLabel={false}
-                        size="sm"
-                        variant="ghost"
-                        doc={(): BusinessDocument => ({
-                          title: `Delivery Note ${d.dispatch_number}`,
-                          docType: "Delivery Note / Dispatch",
-                          number: d.dispatch_number,
-                          date: d.dispatch_date,
-                          status: d.status,
-                          billToLabel: "Deliver to",
-                          billToName:
-                            d.distributors?.name ||
-                            d.customers?.name ||
-                            d.destination_address ||
-                            "Destination",
-                          billToMeta: [
-                            d.destination_address,
-                            d.waybill_number
-                              ? `Waybill: ${d.waybill_number}`
-                              : undefined,
-                          ].filter(Boolean) as string[],
-                          meta: [
-                            {
-                              label: "Sales order",
-                              value: d.sales_orders?.order_number ?? "—",
-                            },
-                            {
-                              label: "Vehicle",
-                              value: d.vehicle_reg ?? "—",
-                            },
-                            {
-                              label: "Driver",
-                              value: d.driver_name ?? "—",
-                            },
-                          ],
-                          lines: [
-                            {
-                              description: `Dispatch of order ${d.sales_orders?.order_number ?? d.dispatch_number}`,
-                              quantity: 1,
-                              unit: "load",
-                              unit_price: 0,
-                              amount: 0,
-                            },
-                          ],
-                          notes: "Please sign and retain for proof of delivery.",
-                          footerNote:
-                            "Proof of delivery · Hope Design Group Ltd logistics",
-                        })}
-                      />
-                      <Select
-                        value={d.status}
-                        onValueChange={(v) => setStatus(d.id, v)}
-                      >
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            "draft",
-                            "ready",
-                            "in_transit",
-                            "delivered",
-                            "failed",
-                            "cancelled",
-                          ].map((s) => (
-                            <SelectItem key={s} value={s} className="capitalize">
-                              {s.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <Card className="mb-6 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardContent className="pt-4 text-sm flex items-start gap-3">
+          <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <strong>End-to-end outbound logistics:</strong> sales/production → packaging →
+            dispatch request → route optimization → QR loading seal → GPS transit → digital POD →
+            invoice. Chain of custody with shipment QR at every handoff.
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <StatCard title="Pending requests" value={String(stats.pending)} icon={ClipboardList} />
+        <StatCard title="Vehicles ready" value={String(stats.vehicles)} icon={Truck} />
+        <StatCard title="Drivers available" value={String(stats.drivers)} icon={Users} />
+        <StatCard title="Awaiting loading" value={String(stats.loading)} icon={ScanLine} />
+        <StatCard title="In transit" value={String(stats.inTransit)} icon={Navigation} />
+        <StatCard title="Delivered" value={String(stats.delivered)} icon={PackageCheck} />
+        <StatCard title="Failed" value={String(stats.failed)} icon={AlertTriangle} />
+        <StatCard title="Open exceptions" value={String(stats.exceptions)} icon={AlertTriangle} />
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {MODULES.map((m) => (
+          <Link
+            key={m.href}
+            href={m.href}
+            className="group flex items-center gap-3 rounded-lg border p-4 hover:border-primary/40 hover:bg-muted/40 transition"
+          >
+            <div className="rounded-md bg-primary/10 p-2">
+              <m.icon className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm group-hover:text-primary">{m.title}</p>
+              <p className="text-xs text-muted-foreground truncate">{m.desc}</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

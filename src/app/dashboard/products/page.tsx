@@ -1,19 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Box, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Plus, Box, Pencil, Archive, RotateCcw, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -23,21 +16,28 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import {
+  EnterpriseDataGrid,
+  type DataGridColumn,
+} from "@/components/enterprise/data-grid";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { softDeleteMany, restoreMany } from "@/lib/soft-delete";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types/database";
 
+type ProductRow = Product & { deleted_at?: string | null };
+
 export default function ProductsPage() {
   const { auth, hasPermission } = useUser();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editing, setEditing] = useState<Product | null>(null);
+  const [editing, setEditing] = useState<ProductRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -50,21 +50,24 @@ export default function ProductsPage() {
 
   const load = async () => {
     const supabase = createClient();
+    let pq = supabase
+      .from("products")
+      .select("*, product_categories(name, code)")
+      .order("name");
+    if (!showArchived) pq = pq.is("deleted_at", null);
     const [{ data }, { data: cats }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("*, product_categories(name, code)")
-        .order("name"),
+      pq,
       supabase.from("product_categories").select("*").eq("is_active", true),
     ]);
-    setProducts((data as Product[]) ?? []);
+    setProducts((data as ProductRow[]) ?? []);
     setCategories((cats as ProductCategory[]) ?? []);
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showArchived]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +105,7 @@ export default function ProductsPage() {
     }
   };
 
-  const openEdit = (p: Product) => {
+  const openEdit = (p: ProductRow) => {
     setEditing(p);
     setForm({
       name: p.name,
@@ -144,166 +147,246 @@ export default function ProductsPage() {
     }
   };
 
-  const toggleActive = async (p: Product) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("products")
-      .update({ is_active: !p.is_active })
-      .eq("id", p.id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(p.is_active ? "Product deactivated" : "Product activated");
-      load();
-    }
-  };
-
-  const deleteProduct = async (p: Product) => {
-    if (!confirm(`Delete product ${p.product_code}? Prefer deactivating if used in transactions.`))
-      return;
-    const supabase = createClient();
-    const { error } = await supabase.from("products").delete().eq("id", p.id);
-    if (error) {
-      toast.error(error.message + " — try deactivating instead");
-    } else {
-      toast.success("Product deleted");
-      load();
-    }
-  };
+  const columns = useMemo<DataGridColumn<ProductRow>[]>(
+    () => [
+      {
+        accessorKey: "product_code",
+        header: "Code",
+        defaultPinned: "left",
+        cell: ({ row }) => (
+          <span className="font-mono text-sm">{row.original.product_code}</span>
+        ),
+      },
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.name}</span>
+        ),
+      },
+      {
+        id: "category",
+        header: "Category",
+        accessorFn: (r) => r.product_categories?.name ?? "—",
+      },
+      { accessorKey: "paper_size", header: "Size" },
+      { accessorKey: "gsm", header: "GSM" },
+      { accessorKey: "color", header: "Color" },
+      {
+        id: "status",
+        header: "Status",
+        accessorFn: (r) =>
+          r.deleted_at ? "archived" : r.is_active ? "active" : "inactive",
+        cell: ({ row }) => {
+          const p = row.original;
+          if (p.deleted_at) return <Badge variant="outline">Archived</Badge>;
+          return (
+            <Badge variant={p.is_active ? "default" : "secondary"}>
+              {p.is_active ? "Active" : "Inactive"}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const p = row.original;
+          if (!hasPermission("products.manage") && !hasPermission("settings.manage"))
+            return null;
+          return (
+            <div className="flex justify-end gap-1">
+              {!p.deleted_at && (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      if (!confirm(`Archive ${p.product_code}?`)) return;
+                      const supabase = createClient();
+                      const { error } = await softDeleteMany(
+                        supabase,
+                        "products",
+                        [p.id],
+                        { is_active: false }
+                      );
+                      if (error) toast.error(error.message);
+                      else {
+                        toast.success("Archived");
+                        load();
+                      }
+                    }}
+                  >
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              {p.deleted_at && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    const supabase = createClient();
+                    const { error } = await restoreMany(supabase, "products", [p.id], {
+                      is_active: true,
+                    });
+                    if (error) toast.error(error.message);
+                    else {
+                      toast.success("Restored");
+                      load();
+                    }
+                  }}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hasPermission]
+  );
 
   if (loading) return <LoadingState />;
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title="Products"
-        description="Full product master — create, edit, activate/deactivate, delete"
+        description="Enterprise product master · grid · bulk archive · soft delete · export"
         actions={
-          hasPermission("products.manage") && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Product
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <form onSubmit={handleCreate}>
-                  <DialogHeader>
-                    <DialogTitle>Add Product</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Name</Label>
-                      <Input
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Product Code</Label>
-                      <Input
-                        value={form.product_code}
-                        onChange={(e) =>
-                          setForm({ ...form, product_code: e.target.value })
-                        }
-                        required
-                        className="font-mono"
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/recycle-bin">
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Recycle bin
+              </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowArchived(!showArchived)}
+            >
+              {showArchived ? "Hide archived" : "Show archived"}
+            </Button>
+            {hasPermission("products.manage") && (
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Product
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <form onSubmit={handleCreate}>
+                    <DialogHeader>
+                      <DialogTitle>Add Product</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
                       <div className="space-y-2">
-                        <Label>Size</Label>
+                        <Label>Name</Label>
                         <Input
-                          value={form.paper_size}
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Product Code</Label>
+                        <Input
+                          value={form.product_code}
                           onChange={(e) =>
-                            setForm({ ...form, paper_size: e.target.value })
+                            setForm({ ...form, product_code: e.target.value })
                           }
+                          required
+                          className="font-mono"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>GSM</Label>
-                        <Input
-                          type="number"
-                          value={form.gsm}
-                          onChange={(e) => setForm({ ...form, gsm: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Color</Label>
-                        <Input
-                          value={form.color}
-                          onChange={(e) => setForm({ ...form, color: e.target.value })}
-                        />
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                          <Label>Size</Label>
+                          <Input
+                            value={form.paper_size}
+                            onChange={(e) =>
+                              setForm({ ...form, paper_size: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>GSM</Label>
+                          <Input
+                            type="number"
+                            value={form.gsm}
+                            onChange={(e) => setForm({ ...form, gsm: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Color</Label>
+                          <Input
+                            value={form.color}
+                            onChange={(e) => setForm({ ...form, color: e.target.value })}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={saving}>
-                      {saving ? "Saving..." : "Create"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )
+                    <DialogFooter>
+                      <Button type="submit" disabled={saving}>
+                        {saving ? "Saving..." : "Create"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         }
       />
 
-      {products.length === 0 ? (
-        <EmptyState icon={Box} title="No products" description="Add your first product" />
-      ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>GSM</TableHead>
-                <TableHead>Color</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-mono text-sm">{p.product_code}</TableCell>
-                  <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell>
-                    {p.product_categories?.name ?? "—"}
-                  </TableCell>
-                  <TableCell>{p.paper_size}</TableCell>
-                  <TableCell>{p.gsm}</TableCell>
-                  <TableCell>{p.color}</TableCell>
-                  <TableCell>
-                    <Badge variant={p.is_active ? "default" : "secondary"}>
-                      {p.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {hasPermission("products.manage") && (
-                      <div className="inline-flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => toggleActive(p)}>
-                          {p.is_active ? "Deactivate" : "Activate"}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => deleteProduct(p)}>
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <EnterpriseDataGrid
+        data={products}
+        columns={columns}
+        storageKey="grid:products"
+        height={520}
+        exportFilename="products"
+        emptyMessage="No products — add your first product"
+        bulkArchive={async (selected) => {
+          const ids = selected.filter((r) => !r.deleted_at).map((r) => r.id);
+          if (!ids.length) return;
+          if (!confirm(`Archive ${ids.length} product(s)?`)) return;
+          const supabase = createClient();
+          const { error } = await softDeleteMany(supabase, "products", ids, {
+            is_active: false,
+          });
+          if (error) toast.error(error.message);
+          else {
+            toast.success(`Archived ${ids.length}`);
+            load();
+          }
+        }}
+        bulkRestore={async (selected) => {
+          const ids = selected.filter((r) => r.deleted_at).map((r) => r.id);
+          if (!ids.length) return;
+          const supabase = createClient();
+          const { error } = await restoreMany(supabase, "products", ids, {
+            is_active: true,
+          });
+          if (error) toast.error(error.message);
+          else {
+            toast.success(`Restored ${ids.length}`);
+            load();
+          }
+        }}
+      />
+      <p className="text-caption flex items-center gap-1">
+        <Box className="h-3 w-3" />
+        Soft-deleted products appear in Recycle Bin · hard delete disabled for audit safety
+      </p>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>

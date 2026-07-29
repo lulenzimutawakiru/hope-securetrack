@@ -1,10 +1,20 @@
 {
   "name": "Hope SecureTrack",
   "short_name": "SecureTrack",
-  "description": "Enterprise QR Authentication & Manufacturing Traceability",
-  "start_url": "/",
+  "description": "Enterprise QR Authentication, Manufacturing Traceability & ERP — Hope Design Group Ltd",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0B1F3A",
   "theme_color": "#0B1F3A",
-  "icons": []
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
 }

@@ -1,28 +1,55 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Factory,
   QrCode,
   ShieldCheck,
   AlertTriangle,
   Package,
-  Printer,
   Warehouse,
+  Landmark,
+  Users,
+  ShoppingCart,
+  BarChart3,
+  Bell,
+  Sparkles,
+  Car,
+  FolderKanban,
+  Clock,
+  Truck,
+  Printer,
   TrendingUp,
+  ArrowRight,
 } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { StatCard } from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
+import { KpiMetric } from "@/components/enterprise/kpi-metric";
+import { ModuleTile } from "@/components/enterprise/module-tile";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import type { DashboardStats, ProductionBatch, FraudAlert, VerificationLog } from "@/types/database";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { ENTERPRISE_PIPELINE } from "@/lib/workflows";
+
+const WORKSPACES = [
+  { title: "Production", href: "/dashboard/production", icon: Factory, description: "MES · batches · OEE", badge: "Ops" },
+  { title: "Inventory", href: "/dashboard/inventory", icon: Warehouse, description: "Stock · GRN · transfers", badge: "WMS" },
+  { title: "Finance", href: "/dashboard/finance", icon: Landmark, description: "GL · treasury · costing", badge: "ERP" },
+  { title: "Projects", href: "/dashboard/projects", icon: FolderKanban, description: "PPM · Gantt · billing", badge: "PPM" },
+  { title: "Fleet", href: "/dashboard/fleet", icon: Car, description: "Vehicles · GPS · fuel", badge: "TMS" },
+  { title: "Attendance", href: "/dashboard/attendance", icon: Clock, description: "Geofence · biometrics", badge: "WFM" },
+  { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, description: "Routes · POD · drivers", badge: "Logistics" },
+  { title: "Sales & CRM", href: "/dashboard/sales", icon: ShoppingCart, description: "Pipeline · quotes · orders", badge: "Rev" },
+  { title: "HR", href: "/dashboard/hr", icon: Users, description: "People · leave · payroll", badge: "HCM" },
+  { title: "Reports & BI", href: "/dashboard/reports", icon: BarChart3, description: "KPIs · AI · board packs", badge: "BI" },
+  { title: "Security", href: "/dashboard/fraud", icon: ShieldCheck, description: "QR · fraud · verify", badge: "IAM" },
+  { title: "Notifications", href: "/dashboard/notifications", icon: Bell, description: "Inbox · rules · Resend", badge: "Comms" },
+];
 
 export default function DashboardPage() {
   const { auth } = useUser();
@@ -59,9 +86,7 @@ export default function DashboardPage() {
           .from("production_batches")
           .select("*", { count: "exact", head: true })
           .in("production_status", ["in_progress", "qc_pending"]),
-        supabase
-          .from("qr_codes")
-          .select("*", { count: "exact", head: true }),
+        supabase.from("qr_codes").select("*", { count: "exact", head: true }),
         supabase
           .from("qr_codes")
           .select("*", { count: "exact", head: true })
@@ -123,78 +148,166 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  if (loading) return <LoadingState message="Loading dashboard..." />;
+  if (loading) return <LoadingState message="Loading executive workspace…" />;
 
   return (
-    <div>
-      <PageHeader
-        title={`Welcome back${auth ? `, ${auth.profile.first_name}` : ""}`}
-        description="Production, authentication, and supply chain overview"
-        actions={
-          <div className="flex gap-2">
-            <Link href="/dashboard/production">
-              <Button>New Batch</Button>
-            </Link>
-            <Link href="/verify">
-              <Button variant="outline">Verify Product</Button>
-            </Link>
+    <div className="space-y-6 sm:space-y-8">
+      {/* Hero */}
+      <section className="hero-band relative overflow-hidden rounded-2xl p-5 sm:p-7 text-white shadow-enterprise-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,0.18),transparent_50%)]" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2 max-w-2xl">
+            <p className="text-overline text-white/60">Hope Design Group Ltd</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
+              Welcome back
+              {auth ? `, ${auth.profile.first_name}` : ""}
+            </h1>
+            <p className="text-sm sm:text-base text-white/70 max-w-xl">
+              Security printing · manufacturing · logistics · finance · people — one enterprise workspace.
+              Press{" "}
+              <kbd className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-xs">
+                ⌘K
+              </kbd>{" "}
+              to search anything.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Badge className="bg-white/10 text-white border-white/20 hover:bg-white/15">
+                Multi-company ready
+              </Badge>
+              <Badge className="bg-white/10 text-white border-white/20 hover:bg-white/15">
+                Real-time ops
+              </Badge>
+              <Badge className="bg-white/10 text-white border-white/20 hover:bg-white/15">
+                AI-assisted BI
+              </Badge>
+            </div>
           </div>
-        }
-      />
+          <div className="flex flex-wrap gap-2">
+            <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+              <Link href="/dashboard/production">
+                <Factory className="h-4 w-4 mr-2" />
+                New batch
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
+              <Link href="/dashboard/attendance/clock">
+                <Clock className="h-4 w-4 mr-2" />
+                Clock in
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
+              <Link href="/dashboard/reports/assistant">
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI assistant
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
+              <Link href="/verify">Verify product</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatCard
-          title="Batches Today"
+      {/* KPIs */}
+      <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 xl:grid-cols-4">
+        <KpiMetric
+          title="Batches today"
           value={formatNumber(stats?.batchesToday ?? 0)}
           description={`${stats?.batchesInProgress ?? 0} in progress`}
           icon={Factory}
+          trend="up"
+          trendLabel="Live"
+          tone="info"
         />
-        <StatCard
-          title="QR Codes"
+        <KpiMetric
+          title="QR codes"
           value={formatNumber(stats?.qrGenerated ?? 0)}
           description={`${stats?.qrPrinted ?? 0} printed`}
           icon={QrCode}
+          tone="default"
         />
-        <StatCard
-          title="Verifications Today"
+        <KpiMetric
+          title="Verifications today"
           value={formatNumber(stats?.verificationsToday ?? 0)}
           icon={ShieldCheck}
+          tone="success"
         />
-        <StatCard
-          title="Open Fraud Alerts"
+        <KpiMetric
+          title="Open fraud alerts"
           value={formatNumber(stats?.openFraudAlerts ?? 0)}
           description={stats?.openFraudAlerts ? "Requires attention" : "All clear"}
           icon={AlertTriangle}
-          className={stats?.openFraudAlerts ? "border-red-200" : undefined}
+          tone={stats?.openFraudAlerts ? "danger" : "success"}
+          trend={stats?.openFraudAlerts ? "down" : "flat"}
+          trendLabel={stats?.openFraudAlerts ? "Action" : "Stable"}
         />
-      </div>
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatCard
-          title="Warehouse Reams"
+      <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 xl:grid-cols-4">
+        <KpiMetric
+          title="Warehouse reams"
           value={formatNumber(stats?.inventoryReams ?? 0)}
           icon={Package}
         />
-        <StatCard
-          title="Warehouse Cartons"
+        <KpiMetric
+          title="Warehouse cartons"
           value={formatNumber(stats?.inventoryCartons ?? 0)}
           icon={Warehouse}
         />
-        <StatCard
-          title="Pending Print Jobs"
+        <KpiMetric
+          title="Pending print jobs"
           value={formatNumber(stats?.pendingPrintJobs ?? 0)}
           icon={Printer}
+          tone={stats?.pendingPrintJobs ? "warning" : "default"}
         />
-        <StatCard
-          title="System Health"
+        <KpiMetric
+          title="System health"
           value="Operational"
-          description="All services online"
+          description="Services online"
           icon={TrendingUp}
+          tone="success"
+          trend="up"
+          trendLabel="99.9%"
         />
-      </div>
+      </section>
 
-      <Card className="mb-6">
-        <CardHeader>
+      {/* Workspaces */}
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-2">
+          <div>
+            <p className="text-overline">Workspaces</p>
+            <h2 className="text-lg font-semibold tracking-tight">Enterprise modules</h2>
+          </div>
+          <Link
+            href="/dashboard/reports"
+            className="text-xs font-medium text-accent inline-flex items-center gap-1 hover:underline"
+          >
+            Analytics hub
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {WORKSPACES.map((w) => (
+            <ModuleTile key={w.href} {...w} />
+          ))}
+        </div>
+      </section>
+
+      {/* Pipeline */}
+      <Card className="surface-card border shadow-sm">
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">Enterprise production pipeline</CardTitle>
         </CardHeader>
         <CardContent>
@@ -203,38 +316,37 @@ export default function DashboardPage() {
               <Link
                 key={step.stage}
                 href={step.href}
-                className="rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                className="rounded-xl border bg-muted/30 p-3 hover:bg-muted/60 hover:border-accent/30 transition-colors"
               >
                 <p className="text-sm font-semibold">{step.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {step.description}
-                </p>
+                <p className="text-caption mt-1 line-clamp-2">{step.description}</p>
               </Link>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Recent Batches</CardTitle>
-            <Link href="/dashboard/production" className="text-xs text-primary hover:underline">
+      {/* Activity columns */}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Card className="surface-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">Recent batches</CardTitle>
+            <Link href="/dashboard/production" className="text-xs text-accent hover:underline">
               View all
             </Link>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {recentBatches.length === 0 ? (
               <p className="text-sm text-muted-foreground">No batches yet</p>
             ) : (
               recentBatches.map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
+                  className="flex items-center justify-between gap-2 rounded-lg border bg-background/50 p-3"
                 >
-                  <div>
-                    <p className="font-medium text-sm">{b.batch_number}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{b.batch_number}</p>
+                    <p className="text-caption truncate">
                       {b.quantity_reams} reams · {b.product_code}
                     </p>
                   </div>
@@ -245,58 +357,54 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Fraud Alerts</CardTitle>
-            <Link href="/dashboard/fraud" className="text-xs text-primary hover:underline">
+        <Card className="surface-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">Fraud alerts</CardTitle>
+            <Link href="/dashboard/fraud" className="text-xs text-accent hover:underline">
               View all
             </Link>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {recentAlerts.length === 0 ? (
               <p className="text-sm text-muted-foreground">No recent alerts</p>
             ) : (
               recentAlerts.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
+                  className="flex items-center justify-between gap-2 rounded-lg border bg-background/50 p-3"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">{a.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDateTime(a.created_at)}
-                    </p>
+                    <p className="text-caption">{formatDateTime(a.created_at)}</p>
                   </div>
-                  <div className="flex gap-1 ml-2">
-                    <StatusBadge status={a.severity} />
-                  </div>
+                  <StatusBadge status={a.severity} />
                 </div>
               ))
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Recent Verifications</CardTitle>
-            <Link href="/dashboard/verification" className="text-xs text-primary hover:underline">
+        <Card className="surface-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">Verifications</CardTitle>
+            <Link href="/dashboard/verification" className="text-xs text-accent hover:underline">
               View all
             </Link>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {recentVerifications.length === 0 ? (
               <p className="text-sm text-muted-foreground">No verifications yet</p>
             ) : (
               recentVerifications.map((v) => (
                 <div
                   key={v.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
+                  className="flex items-center justify-between gap-2 rounded-lg border bg-background/50 p-3"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs truncate">
                       {v.public_uuid?.slice(0, 8) ?? "—"}…
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption">
                       {formatDateTime(v.verified_at)} · {v.scan_source}
                     </p>
                   </div>
@@ -306,7 +414,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </section>
     </div>
   );
 }

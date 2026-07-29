@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ShoppingCart,
@@ -14,16 +14,22 @@ import {
   Users,
   Truck,
   Receipt,
+  TrendingUp,
+  Handshake,
+  MapPin,
+  Activity,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { useUser } from "@/hooks/use-user";
+import { SALES_MENU, getSalesDashboardStats } from "@/lib/sales";
 import { formatNumber } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const LIFECYCLE = [
   "Lead",
@@ -38,181 +44,182 @@ const LIFECYCLE = [
   "Support",
 ];
 
-const MODULES = [
+const QUICK = [
   { title: "Pipeline", href: "/dashboard/sales/pipeline", icon: Target, desc: "Leads & opportunities" },
-  { title: "Quotations", href: "/dashboard/sales/quotations", icon: FileSignature, desc: "Quotes, revisions, convert" },
-  { title: "Orders", href: "/dashboard/sales/orders", icon: ShoppingCart, desc: "Order-to-cash orders" },
-  { title: "Credit", href: "/dashboard/sales/credit", icon: CreditCard, desc: "Limits, holds, approvals" },
-  { title: "Returns", href: "/dashboard/sales/returns", icon: RotateCcw, desc: "RMA, claims, credit notes" },
+  { title: "Quotations", href: "/dashboard/sales/quotations", icon: FileSignature, desc: "Quotes & convert" },
+  { title: "Orders", href: "/dashboard/sales/orders", icon: ShoppingCart, desc: "Order-to-cash" },
+  { title: "Credit", href: "/dashboard/sales/credit", icon: CreditCard, desc: "Limits & holds" },
+  { title: "Returns", href: "/dashboard/sales/returns", icon: RotateCcw, desc: "RMA & credit notes" },
   { title: "Commissions", href: "/dashboard/sales/commissions", icon: Trophy, desc: "Rep incentives" },
-  { title: "Invoices", href: "/dashboard/invoices", icon: Receipt, desc: "Tax invoices & payments" },
-  { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, desc: "Delivery & logistics" },
+  { title: "Contracts", href: "/dashboard/sales/contracts", icon: Handshake, desc: "Framework deals" },
+  { title: "Forecasts", href: "/dashboard/sales/forecasts", icon: TrendingUp, desc: "Commit & targets" },
+  { title: "Price Lists", href: "/dashboard/sales/price-lists", icon: Receipt, desc: "Pricing books" },
+  { title: "Field Visits", href: "/dashboard/sales/visit-plans", icon: MapPin, desc: "Visit plans" },
+  { title: "Invoices", href: "/dashboard/invoices", icon: Receipt, desc: "Tax invoices" },
+  { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, desc: "Delivery" },
 ];
 
-interface Insight {
-  id: string;
-  title: string;
-  recommendation: string;
-  severity: string;
-  insight_type: string;
-  product_code: string | null;
-}
-
 export default function SalesCommandCenterPage() {
+  const { auth } = useUser();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    customers: 0,
-    openOrders: 0,
-    quotes: 0,
-    pipelineValue: 0,
-    invoices: 0,
-    outstanding: 0,
-  });
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const [q, setQ] = useState("");
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof getSalesDashboardStats>> | null>(null);
+  const [recentOrders, setRecentOrders] = useState<Array<Record<string, unknown>>>([]);
+  const [insights, setInsights] = useState<Array<Record<string, unknown>>>([]);
+
+  const companyId = auth?.profile?.company_id as string | undefined;
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const [
-        cust,
-        orders,
-        quotes,
-        opps,
-        inv,
-        { data: insightData },
-        { data: openInvoices },
-      ] = await Promise.all([
-        supabase.from("customers").select("*", { count: "exact", head: true }),
-        supabase
-          .from("sales_orders")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["confirmed", "picking", "dispatched"]),
-        supabase
-          .from("quotations")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["draft", "sent"]),
-        supabase
-          .from("sales_opportunities")
-          .select("expected_value, stage")
-          .not("stage", "in", '("won","lost")'),
-        supabase.from("invoices").select("*", { count: "exact", head: true }),
-        supabase
-          .from("sales_insights")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("invoices")
-          .select("total_amount, amount_paid, status")
-          .not("status", "in", '("paid","void","cancelled")'),
-      ]);
-
-      const pipelineValue = (opps.data ?? []).reduce(
-        (s, o) => s + Number(o.expected_value || 0),
-        0
-      );
-      const outstanding = (openInvoices ?? []).reduce(
-        (s, i) => s + (Number(i.total_amount) - Number(i.amount_paid)),
-        0
-      );
-
-      setStats({
-        customers: cust.count ?? 0,
-        openOrders: orders.count ?? 0,
-        quotes: quotes.count ?? 0,
-        pipelineValue,
-        invoices: inv.count ?? 0,
-        outstanding,
-      });
-      setInsights((insightData as Insight[]) ?? []);
-      setLoading(false);
+      if (!companyId) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const sb = createClient();
+        const [s, { data: orders }, { data: ai }] = await Promise.all([
+          getSalesDashboardStats(companyId),
+          sb
+            .from("sales_orders")
+            .select("id,order_number,status,total_amount,currency,order_date")
+            .eq("company_id", companyId)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false })
+            .limit(8),
+          sb
+            .from("sales_ai_insights")
+            .select("title,severity,summary,score")
+            .eq("company_id", companyId)
+            .order("created_at", { ascending: false })
+            .limit(5),
+        ]);
+        setStats(s);
+        setRecentOrders((orders as Array<Record<string, unknown>>) || []);
+        setInsights((ai as Array<Record<string, unknown>>) || []);
+      } catch {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, []);
+  }, [companyId]);
 
-  if (loading) return <LoadingState message="Loading sales command center…" />;
+  const menu = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return SALES_MENU.filter(
+      (m) => !s || m.title.toLowerCase().includes(s) || m.group.toLowerCase().includes(s)
+    );
+  }, [q]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, (typeof SALES_MENU)[number][]>();
+    for (const m of menu) {
+      const list = map.get(m.group) || [];
+      list.push(m);
+      map.set(m.group, list);
+    }
+    return map;
+  }, [menu]);
+
+  if (loading) return <LoadingState message="Loading Advanced Sales Platform…" />;
 
   return (
     <div>
       <PageHeader
-        title="Sales & Revenue Management"
-        description="Hope Design Group Ltd — Security Printing · Paper · Engineering · Quote-to-cash"
+        title="Advanced Sales"
+        description="Quote-to-cash · Pipeline · Pricing · Contracts · Forecast · Commissions · Field · AI"
         actions={
-          <div className="flex gap-2">
-            <Link href="/dashboard/sales/quotations">
-              <Button>New quotation</Button>
-            </Link>
-            <Link href="/dashboard/sales/orders">
-              <Button variant="outline">Sales orders</Button>
-            </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/dashboard/sales/live">
+                <Activity className="h-4 w-4 mr-1" /> Live Pipeline
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/dashboard/sales/ai">
+                <Brain className="h-4 w-4 mr-1" /> AI Assistant
+              </Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link href="/dashboard/sales/orders">
+                <ShoppingCart className="h-4 w-4 mr-1" /> Orders
+              </Link>
+            </Button>
           </div>
         }
       />
 
-      <div className="rounded-lg border bg-gradient-to-r from-hope-navy via-[#0d2847] to-hope-teal text-white p-4 mb-6">
-        <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide">
-          Sales lifecycle
-        </p>
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {LIFECYCLE.map((step, i) => (
-            <span
-              key={step}
-              className="inline-flex items-center text-[10px] sm:text-xs bg-white/10 border border-white/15 rounded-full px-2 py-0.5"
-            >
-              {i + 1}. {step}
-            </span>
-          ))}
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 mb-6">
+        <StatCard title="Customers" value={String(stats?.customers ?? 0)} icon={Users} />
+        <StatCard title="Open Leads" value={String(stats?.openLeads ?? 0)} icon={Target} />
+        <StatCard title="Open Opps" value={String(stats?.openOpps ?? 0)} icon={TrendingUp} />
+        <StatCard title="Pipeline" value={formatNumber(stats?.pipelineValue ?? 0)} icon={Target} />
+        <StatCard title="Weighted" value={formatNumber(stats?.weightedPipeline ?? 0)} icon={TrendingUp} />
+        <StatCard title="Open Quotes" value={String(stats?.openQuotes ?? 0)} icon={FileSignature} />
+        <StatCard title="Quote Value" value={formatNumber(stats?.quoteValue ?? 0)} icon={FileSignature} />
+        <StatCard title="Open Orders" value={String(stats?.openOrders ?? 0)} icon={ShoppingCart} />
+        <StatCard title="Order Value" value={formatNumber(stats?.orderValue ?? 0)} icon={ShoppingCart} />
+        <StatCard title="Credit Holds" value={String(stats?.creditHolds ?? 0)} icon={CreditCard} />
+        <StatCard title="Open Returns" value={String(stats?.returnsOpen ?? 0)} icon={RotateCcw} />
+        <StatCard title="Commissions Due" value={formatNumber(stats?.commissionsDue ?? 0)} icon={Trophy} />
+        <StatCard title="Active Contracts" value={String(stats?.contractsActive ?? 0)} icon={Handshake} />
+        <StatCard title="Forecast (mo)" value={formatNumber(stats?.forecastMonth ?? 0)} icon={TrendingUp} />
+        <StatCard title="Target Ach %" value={`${stats?.targetAchievement ?? 0}%`} icon={Trophy} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6 mb-6">
-        <StatCard title="Customers" value={formatNumber(stats.customers)} icon={Users} />
-        <StatCard title="Open orders" value={formatNumber(stats.openOrders)} icon={ShoppingCart} />
-        <StatCard title="Open quotes" value={formatNumber(stats.quotes)} />
-        <StatCard
-          title="Pipeline"
-          value={`UGX ${formatNumber(Math.round(stats.pipelineValue))}`}
-        />
-        <StatCard title="Invoices" value={formatNumber(stats.invoices)} />
-        <StatCard
-          title="Receivables"
-          value={`UGX ${formatNumber(Math.round(stats.outstanding))}`}
-        />
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Quote-to-Cash Lifecycle</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {LIFECYCLE.map((step, i) => (
+              <div key={step} className="flex items-center gap-2">
+                <Badge variant={i < 4 ? "default" : "outline"}>{step}</Badge>
+                {i < LIFECYCLE.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-8">
+        {QUICK.map((m) => (
+          <Link key={m.href} href={m.href}>
+            <Card className="h-full hover:border-primary/50 transition-colors">
+              <CardContent className="pt-4 flex gap-3 items-start">
+                <m.icon className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-medium text-sm">{m.title}</div>
+                  <div className="text-xs text-muted-foreground">{m.desc}</div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3 mb-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Brain className="h-4 w-4 text-hope-teal" />
-              AI Sales Intelligence
-            </CardTitle>
+      <div className="grid gap-6 lg:grid-cols-2 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Recent Orders</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {insights.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Insights appear as pipeline and order volume grows.
-              </p>
+          <CardContent className="space-y-2">
+            {recentOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No orders yet.</p>
             ) : (
-              insights.map((i) => (
-                <div key={i.id} className="rounded-lg border p-3">
-                  <div className="flex justify-between gap-2">
-                    <p className="font-medium text-sm">{i.title}</p>
-                    <StatusBadge status={i.severity} />
+              recentOrders.map((o) => (
+                <div key={String(o.id)} className="flex items-center justify-between text-sm border-b pb-2 last:border-0">
+                  <div>
+                    <div className="font-medium">{String(o.order_number)}</div>
+                    <div className="text-xs text-muted-foreground">{String(o.order_date ?? "")}</div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {i.recommendation}
-                  </p>
-                  <div className="flex gap-2 mt-2">
-                    <Badge variant="secondary" className="text-[10px] capitalize">
-                      {i.insight_type.replace(/_/g, " ")}
-                    </Badge>
-                    {i.product_code && (
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        {i.product_code}
-                      </Badge>
-                    )}
+                  <div className="text-right">
+                    <Badge variant="outline">{String(o.status)}</Badge>
+                    <div className="text-xs mt-1">
+                      {formatNumber(Number(o.total_amount || 0))} {String(o.currency || "UGX")}
+                    </div>
                   </div>
                 </div>
               ))
@@ -221,38 +228,59 @@ export default function SalesCommandCenterPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Channels</CardTitle>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-base">AI Insights</CardTitle>
+            <Button size="sm" variant="ghost" asChild>
+              <Link href="/dashboard/sales/ai">Open</Link>
+            </Button>
           </CardHeader>
-          <CardContent className="text-sm space-y-2 text-muted-foreground">
-            <p>B2B · B2C · Distributors · Dealers</p>
-            <p>Wholesale · Retail · Government · Export</p>
-            <p className="text-xs pt-2">
-              Integrates with Inventory, Manufacturing, Finance, Warehouse,
-              Logistics, CRM, and SecureTrack product verification.
-            </p>
+          <CardContent className="space-y-2">
+            {insights.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No stored insights. Open the AI assistant to generate them.
+              </p>
+            ) : (
+              insights.map((ins, i) => (
+                <div key={i} className="border-b pb-2 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{String(ins.severity)}</Badge>
+                    <span className="text-sm font-medium">{String(ins.title)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{String(ins.summary || "")}</p>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {MODULES.map((m) => {
-          const Icon = m.icon;
-          return (
-            <Link
-              key={m.href}
-              href={m.href}
-              className="group rounded-xl border p-4 hover:border-hope-teal/40 hover:bg-muted/40 transition-colors"
-            >
-              <div className="flex justify-between mb-2">
-                <Icon className="h-5 w-5 text-hope-teal" />
-                <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
-              </div>
-              <p className="font-semibold text-sm">{m.title}</p>
-              <p className="text-xs text-muted-foreground mt-1">{m.desc}</p>
-            </Link>
-          );
-        })}
+      <div className="mb-3 flex items-center gap-2">
+        <Input
+          className="max-w-sm"
+          placeholder="Filter sales modules…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-6">
+        {[...groups.entries()].map(([group, items]) => (
+          <div key={group}>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-2">{group}</h3>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {items.map((m) => (
+                <Link
+                  key={m.href + m.title}
+                  href={m.href}
+                  className="rounded-md border px-3 py-2 text-sm hover:bg-muted/50 flex items-center justify-between"
+                >
+                  <span>{m.title}</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

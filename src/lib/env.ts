@@ -34,6 +34,13 @@ export const env = {
   },
   companyId:
     process.env.DEFAULT_COMPANY_ID || "a0000000-0000-4000-8000-000000000001",
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || "",
+    fromEmail: process.env.RESEND_FROM_EMAIL || "",
+    fromName: process.env.RESEND_FROM_NAME || "",
+    replyTo: process.env.RESEND_REPLY_TO || "",
+    configured: Boolean(process.env.RESEND_API_KEY?.trim()),
+  },
 };
 
 export function assertServerEnv(): { ok: boolean; missing: string[] } {

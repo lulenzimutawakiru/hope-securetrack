@@ -11,10 +11,24 @@ import {
   Truck,
   Users,
   Brain,
-  ArrowRight,
   Award,
   PackageCheck,
   FileBarChart,
+  UserPlus,
+  ShieldAlert,
+  ClipboardCheck,
+  Globe,
+  MessageSquare,
+  FolderOpen,
+  Scale,
+  BarChart3,
+  Contact,
+  Tags,
+  Smartphone,
+  ShieldCheck,
+  BookCheck,
+  Handshake,
+  GitBranch,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -23,35 +37,35 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { getSrmDashboardStats, LIFECYCLE_STAGES } from "@/lib/srm";
 import { formatNumber } from "@/lib/utils";
 
-const FLOW = [
-  "Demand",
-  "Requisition",
-  "Budget",
-  "Approval",
-  "RFQ",
-  "PO",
-  "Inbound",
-  "GRN",
-  "Inventory",
-  "Dispatch",
-  "Delivery",
-];
-
 const MODULES = [
-  { title: "Suppliers", href: "/dashboard/procurement/suppliers", icon: Users, desc: "Vendor master & risk" },
-  { title: "Requisitions", href: "/dashboard/procurement/requisitions", icon: ClipboardList, desc: "Material & CAPEX requests" },
-  { title: "RFQ / Tenders", href: "/dashboard/procurement/rfq", icon: FileQuestion, desc: "Sourcing & bid comparison" },
-  { title: "Purchase Orders", href: "/dashboard/procurement/orders", icon: FileText, desc: "PO lifecycle & acknowledgements" },
-  { title: "Contracts", href: "/dashboard/procurement/contracts", icon: Award, desc: "Framework & blanket agreements" },
-  { title: "Inbound Logistics", href: "/dashboard/procurement/inbound", icon: Ship, desc: "Shipments & goods in transit" },
-  { title: "Fleet", href: "/dashboard/procurement/fleet", icon: Truck, desc: "Vehicles, fuel, maintenance" },
-  { title: "Performance", href: "/dashboard/procurement/performance", icon: ShoppingBag, desc: "Supplier scorecards" },
-  { title: "Goods Receipt", href: "/dashboard/inventory/grn", icon: PackageCheck, desc: "GRN & QC (inventory)" },
-  { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, desc: "Outbound delivery orders" },
-  { title: "Reports", href: "/dashboard/procurement/reports", icon: FileBarChart, desc: "Spend & logistics reports" },
+  { title: "Suppliers 360°", href: "/dashboard/procurement/suppliers", icon: Users, desc: "Master vendor profiles" },
+  { title: "Contacts", href: "/dashboard/procurement/contacts", icon: Contact, desc: "Multi-contact management" },
+  { title: "Categories", href: "/dashboard/procurement/categories", icon: Tags, desc: "Unlimited spend categories" },
+  { title: "Onboarding", href: "/dashboard/procurement/onboarding", icon: UserPlus, desc: "Digital qualification" },
+  { title: "Documents", href: "/dashboard/procurement/documents", icon: FolderOpen, desc: "Certificates & expiry" },
+  { title: "Timeline", href: "/dashboard/procurement/timeline", icon: MessageSquare, desc: "Supplier activity feed" },
+  { title: "Requisitions", href: "/dashboard/procurement/requisitions", icon: ClipboardList, desc: "Demand & CAPEX" },
+  { title: "RFQ / RFP / RFI", href: "/dashboard/procurement/rfq", icon: FileQuestion, desc: "Sourcing & evaluation" },
+  { title: "Purchase Orders", href: "/dashboard/procurement/orders", icon: FileText, desc: "PO lifecycle" },
+  { title: "Contracts", href: "/dashboard/procurement/contracts", icon: Award, desc: "Framework & SLAs" },
+  { title: "Inbound Logistics", href: "/dashboard/procurement/inbound", icon: Ship, desc: "Shipments & GRN link" },
+  { title: "Quality / NCR", href: "/dashboard/procurement/quality", icon: ClipboardCheck, desc: "Inspection & CAPA" },
+  { title: "Invoice Matching", href: "/dashboard/procurement/matching", icon: Scale, desc: "3-way PO+GRN+Invoice" },
+  { title: "Performance", href: "/dashboard/procurement/performance", icon: BarChart3, desc: "Scorecards & KPIs" },
+  { title: "Risk Management", href: "/dashboard/procurement/risk", icon: ShieldAlert, desc: "Disruption & ESG" },
+  { title: "Supplier Portal", href: "/dashboard/procurement/portal", icon: Globe, desc: "Self-service admin" },
+  { title: "AI Intelligence", href: "/dashboard/procurement/ai", icon: Brain, desc: "Recommend · predict · negotiate" },
+  { title: "Analytics", href: "/dashboard/procurement/analytics", icon: FileBarChart, desc: "Spend · risk heatmap · savings" },
+  { title: "Compliance", href: "/dashboard/procurement/compliance", icon: ShieldCheck, desc: "Certs · CAPA · contracts · ESG" },
+  { title: "Approved Registry", href: "/dashboard/procurement/registry", icon: BookCheck, desc: "Approved material suppliers" },
+  { title: "Traceability", href: "/dashboard/procurement/traceability", icon: GitBranch, desc: "Lot → batch → product" },
+  { title: "Collaboration", href: "/dashboard/procurement/collaboration", icon: Handshake, desc: "CPFR · capacity · slots" },
+  { title: "Mobile SRM", href: "/dashboard/procurement/mobile", icon: Smartphone, desc: "Field approve · scan · inspect" },
+  { title: "Fleet", href: "/dashboard/procurement/fleet", icon: Truck, desc: "Vehicles & maintenance" },
+  { title: "Goods Receipt", href: "/dashboard/inventory/grn", icon: PackageCheck, desc: "GRN & warehouse" },
 ];
 
 interface Insight {
@@ -62,184 +76,176 @@ interface Insight {
   insight_type: string;
 }
 
-export default function ProcurementHubPage() {
+export default function SrmHubPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    suppliers: 0,
-    openPr: 0,
-    openPo: 0,
-    poSpend: 0,
-    inTransit: 0,
-    fleetAvailable: 0,
-    openRfq: 0,
+    activeSuppliers: 0,
+    pendingOnboarding: 0,
+    openNcrs: 0,
+    openRisks: 0,
+    activeContracts: 0,
+    openPoSpend: 0,
+    openRfqs: 0,
   });
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [topSpend, setTopSpend] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const [
-        sup,
-        pr,
-        po,
-        poAmt,
-        ship,
-        fleet,
-        rfq,
-        { data: ins },
-      ] = await Promise.all([
-        supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase
-          .from("purchase_requisitions")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["draft", "submitted", "approved"]),
-        supabase
-          .from("purchase_orders")
-          .select("*", { count: "exact", head: true })
-          .not("status", "in", '("closed","cancelled")'),
-        supabase
-          .from("purchase_orders")
-          .select("total_amount")
-          .not("status", "in", '("cancelled")'),
-        supabase
-          .from("inbound_shipments")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["booked", "in_transit", "customs", "delayed"]),
-        supabase
-          .from("fleet_vehicles")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "available"),
-        supabase
-          .from("rfqs")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["draft", "published"]),
-        supabase
-          .from("procurement_insights")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
-
-      const poSpend = (poAmt.data ?? []).reduce(
-        (s, r) => s + Number(r.total_amount || 0),
-        0
-      );
-
-      setStats({
-        suppliers: sup.count ?? 0,
-        openPr: pr.count ?? 0,
-        openPo: po.count ?? 0,
-        poSpend,
-        inTransit: ship.count ?? 0,
-        fleetAvailable: fleet.count ?? 0,
-        openRfq: rfq.count ?? 0,
-      });
-      setInsights((ins as Insight[]) ?? []);
-      setLoading(false);
+      try {
+        const s = await getSrmDashboardStats();
+        setStats({
+          activeSuppliers: s.activeSuppliers,
+          pendingOnboarding: s.pendingOnboarding,
+          openNcrs: s.openNcrs,
+          openRisks: s.openRisks,
+          activeContracts: s.activeContracts,
+          openPoSpend: s.openPoSpend,
+          openRfqs: s.openRfqs,
+        });
+        setInsights((s.insights as Insight[]) || []);
+        setTopSpend(s.topSpend || []);
+      } catch {
+        /* migration may be pending */
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
 
-  if (loading) return <LoadingState message="Loading procurement & logistics…" />;
+  if (loading) return <LoadingState message="Loading Enterprise SRM…" />;
 
   return (
     <div>
       <PageHeader
-        title="Procurement & Logistics"
-        description="Source-to-pay · inbound logistics · fleet · supplier performance · AI supply chain insights"
+        title="Enterprise SRM"
+        description="Supplier Relationship Management · Vendor lifecycle · Procurement collaboration · AI intelligence"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/procurement/orders">New PO</Link>
-            </Button>
             <Button asChild size="sm">
-              <Link href="/dashboard/procurement/rfq">RFQs</Link>
+              <Link href="/dashboard/procurement/suppliers">Suppliers</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/procurement/onboarding">Onboard</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/procurement/rfq">RFQ</Link>
             </Button>
           </div>
         }
       />
 
-      <Card className="mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Source-to-delivery flow
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-2">
-            {FLOW.map((step, i) => (
-              <div key={step} className="flex items-center gap-2">
-                <Badge variant="secondary" className="font-normal">
-                  {step}
-                </Badge>
-                {i < FLOW.length - 1 && (
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
+      <div className="rounded-lg border bg-gradient-to-r from-hope-navy to-hope-teal text-white p-4 mb-6">
+        <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide">
+          Complete supplier lifecycle
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {LIFECYCLE_STAGES.map((s, i) => (
+            <span
+              key={s}
+              className="text-[10px] sm:text-xs bg-white/10 border border-white/15 rounded-full px-2 py-0.5"
+            >
+              {i + 1}. {s}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mb-6">
+        <StatCard title="Active suppliers" value={formatNumber(stats.activeSuppliers)} icon={Users} />
+        <StatCard title="Pending onboarding" value={formatNumber(stats.pendingOnboarding)} icon={UserPlus} />
+        <StatCard title="Open POs spend" value={formatNumber(Math.round(stats.openPoSpend))} icon={ShoppingBag} />
+        <StatCard title="Open RFQs" value={formatNumber(stats.openRfqs)} icon={FileQuestion} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 mb-6">
+        <StatCard title="Active contracts" value={formatNumber(stats.activeContracts)} />
+        <StatCard title="Open NCRs" value={formatNumber(stats.openNcrs)} />
+        <StatCard title="Open risks" value={formatNumber(stats.openRisks)} />
+        <StatCard title="Modules" value={String(MODULES.length)} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3 mb-6">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="h-4 w-4 text-hope-teal" />
+              AI Procurement Intelligence
+            </CardTitle>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/dashboard/procurement/ai">Open AI hub</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {insights.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Insights appear after migration 00045 (seed intelligence included).
+              </p>
+            ) : (
+              insights.map((i) => (
+                <div key={i.id} className="rounded-lg border p-3">
+                  <div className="flex justify-between gap-2">
+                    <p className="font-medium text-sm">{i.title}</p>
+                    <StatusBadge status={i.severity} />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{i.recommendation}</p>
+                  <Badge variant="secondary" className="text-[10px] mt-2 capitalize">
+                    {i.insight_type?.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Top spend suppliers</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {topSpend.length === 0 && (
+              <p className="text-sm text-muted-foreground">No spend data yet.</p>
+            )}
+            {topSpend.map((s) => (
+              <div key={String(s.id)} className="flex justify-between text-sm border-b last:border-0 pb-2">
+                <div>
+                  <p className="font-medium">{String(s.name)}</p>
+                  <p className="text-[10px] text-muted-foreground capitalize">
+                    {String(s.supplier_class || "—")} · score {String(s.overall_score ?? "—")}
+                  </p>
+                </div>
+                <span className="font-semibold text-xs">{formatNumber(Number(s.spend_ytd || 0))}</span>
               </div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 mb-6">
-        <StatCard title="Suppliers" value={formatNumber(stats.suppliers)} icon={Users} />
-        <StatCard title="Open PRs" value={formatNumber(stats.openPr)} />
-        <StatCard title="Open RFQs" value={formatNumber(stats.openRfq)} />
-        <StatCard title="Open POs" value={formatNumber(stats.openPo)} icon={FileText} />
-        <StatCard
-          title="PO spend (UGX)"
-          value={formatNumber(Math.round(stats.poSpend))}
-        />
-        <StatCard title="In transit" value={formatNumber(stats.inTransit)} icon={Ship} />
-        <StatCard title="Fleet available" value={formatNumber(stats.fleetAvailable)} icon={Truck} />
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-8">
-        {MODULES.map((m) => (
-          <Link key={m.href} href={m.href}>
-            <Card className="h-full transition-colors hover:border-hope-teal/50 hover:bg-muted/30">
-              <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-2">
-                <div className="rounded-lg bg-hope-navy/10 p-2">
-                  <m.icon className="h-5 w-5 text-hope-teal" />
+      <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+        SRM modules
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {MODULES.map((m) => {
+          const Icon = m.icon;
+          return (
+            <Link
+              key={m.href + m.title}
+              href={m.href}
+              className="group rounded-lg border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="rounded-md bg-primary/10 p-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">{m.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{m.desc}</p>
+                  <p className="font-medium text-sm">{m.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{m.desc}</p>
                 </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-hope-gold" />
-            <CardTitle>AI procurement & logistics intelligence</CardTitle>
-          </div>
-          <Badge variant="outline">Risk · freight · contracts</Badge>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {insights.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No open insights.</p>
-          ) : (
-            insights.map((ins) => (
-              <div key={ins.id} className="rounded-lg border p-4 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={ins.severity} />
-                  <Badge variant="secondary" className="capitalize">
-                    {ins.insight_type.replace(/_/g, " ")}
-                  </Badge>
-                  <span className="font-medium">{ins.title}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{ins.recommendation}</p>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

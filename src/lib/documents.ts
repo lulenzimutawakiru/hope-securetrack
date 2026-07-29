@@ -198,18 +198,100 @@ export function buildDocumentHtml(doc: BusinessDocument): string {
 </html>`;
 }
 
-/** Open print dialog (user can Save as PDF) */
+/**
+ * Open the system print dialog for a business document.
+ * Uses a hidden iframe (not window.open) so it works after async data loads
+ * and is not blocked by popup blockers. Falls back to blob tab + HTML download.
+ */
 export function printDocument(doc: BusinessDocument): void {
-  const html = buildDocumentHtml(doc);
-  const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
-  if (!w) {
-    throw new Error("Pop-up blocked. Allow pop-ups to print documents.");
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    throw new Error("Print is only available in the browser");
   }
-  w.document.open();
-  w.document.write(html.replace("</body>", "").replace("</html>", ""));
-  // force autoprint behavior
-  w.document.write(`<script>setTimeout(function(){window.print();},300);</script></body></html>`);
-  w.document.close();
+
+  const html = buildDocumentHtml(doc);
+
+  // Primary: hidden iframe print (reliable after async, no popup)
+  try {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.setAttribute("title", "Print document");
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+    document.body.appendChild(iframe);
+
+    const frameDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    const frameWin = iframe.contentWindow;
+    if (!frameDoc || !frameWin) {
+      document.body.removeChild(iframe);
+      throw new Error("Print frame unavailable");
+    }
+
+    frameDoc.open();
+    frameDoc.write(html);
+    frameDoc.close();
+
+    const cleanup = () => {
+      try {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const doPrint = () => {
+      try {
+        frameWin.focus();
+        frameWin.print();
+      } catch (e) {
+        cleanup();
+        // Fallback: open blob URL in new tab
+        printViaBlob(html, doc);
+        return;
+      }
+      // Remove frame after print dialog (afterprint or timeout)
+      frameWin.addEventListener?.("afterprint", cleanup);
+      setTimeout(cleanup, 60_000);
+    };
+
+    // Wait for images/fonts if any
+    if (frameDoc.readyState === "complete") {
+      setTimeout(doPrint, 150);
+    } else {
+      iframe.onload = () => setTimeout(doPrint, 150);
+      setTimeout(doPrint, 400);
+    }
+    return;
+  } catch {
+    /* try fallbacks */
+  }
+
+  printViaBlob(html, doc);
+}
+
+function printViaBlob(html: string, doc: BusinessDocument): void {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  // Note: do NOT use "noopener" — we need a usable window reference for print
+  const w = window.open(url, "_blank", "width=900,height=1000");
+  if (!w) {
+    // Last resort: download HTML so user can open and print
+    downloadDocumentHtml(doc);
+    URL.revokeObjectURL(url);
+    throw new Error(
+      "Pop-up blocked. HTML file downloaded — open it and use Print (Ctrl+P)."
+    );
+  }
+  const trigger = () => {
+    try {
+      w.focus();
+      w.print();
+    } catch {
+      /* user can print from the open tab */
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+  // Blob documents may load async
+  setTimeout(trigger, 400);
 }
 
 /** Download HTML file (open in browser → Print → Save as PDF) */

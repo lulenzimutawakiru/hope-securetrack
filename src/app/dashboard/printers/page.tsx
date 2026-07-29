@@ -65,6 +65,7 @@ import {
   type DiscoveredPrinter,
 } from "@/lib/niimbot";
 import Link from "next/link";
+// Enterprise hub: /dashboard/print
 
 interface PrinterRow {
   id: string;
@@ -301,6 +302,9 @@ export default function PrintersPage() {
         description="Discover Niimbot label printers over Bluetooth and manage print devices"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/print">
+              <Button variant="outline">Enterprise Print Ops</Button>
+            </Link>
             <Link href="/dashboard/labels">
               <Button variant="outline">Print labels</Button>
             </Link>

@@ -32,6 +32,7 @@ export async function GET() {
     }
   }
 
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
   const healthy = envCheck.ok && supabaseOk;
   const body = {
     status: healthy ? "healthy" : "degraded",
@@ -48,6 +49,11 @@ export async function GET() {
         ok: supabaseOk,
         latencyMs: supabaseLatencyMs,
         error: supabaseError,
+      },
+      resend: {
+        ok: resendConfigured,
+        configured: resendConfigured,
+        // degraded mail does not fail overall health
       },
     },
     durationMs: Date.now() - started,

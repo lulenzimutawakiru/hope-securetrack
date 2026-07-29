@@ -11,9 +11,19 @@ import {
   Heart,
   Megaphone,
   Brain,
-  ArrowRight,
   Target,
   ShoppingCart,
+  TrendingUp,
+  CreditCard,
+  Globe,
+  Truck,
+  Gavel,
+  MessageSquare,
+  BarChart3,
+  Smartphone,
+  Layers,
+  Sparkles,
+  Contact,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -22,30 +32,35 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { getCrmDashboardStats } from "@/lib/crm";
+import { LIFECYCLE_STAGES } from "@/lib/crm/types";
 import { formatNumber } from "@/lib/utils";
-
-const LIFECYCLE = [
-  "Lead",
-  "Qualify",
-  "Opportunity",
-  "Quotation",
-  "Order",
-  "Delivery",
-  "Invoice",
-  "Support",
-  "Loyalty",
-];
 
 const MODULES = [
   { title: "Accounts 360°", href: "/dashboard/crm/accounts", icon: Building2, desc: "Full customer profiles" },
+  { title: "Contacts", href: "/dashboard/crm/contacts", icon: Contact, desc: "Unlimited contacts & roles" },
+  { title: "Leads", href: "/dashboard/crm/leads", icon: Target, desc: "Capture & score leads" },
+  { title: "Opportunities", href: "/dashboard/crm/opportunities", icon: TrendingUp, desc: "Deal tracking" },
+  { title: "Pipeline", href: "/dashboard/crm/pipeline", icon: Layers, desc: "Kanban & forecast" },
   { title: "Activities", href: "/dashboard/crm/activities", icon: Calendar, desc: "Calls, visits, follow-ups" },
-  { title: "Contracts", href: "/dashboard/crm/contracts", icon: FileText, desc: "Agreements & renewals" },
-  { title: "Service Desk", href: "/dashboard/crm/service", icon: Headphones, desc: "Tickets & complaints" },
-  { title: "Loyalty", href: "/dashboard/crm/loyalty", icon: Heart, desc: "Points & tiers" },
-  { title: "Campaigns", href: "/dashboard/crm/campaigns", icon: Megaphone, desc: "Marketing automation" },
-  { title: "Sales Pipeline", href: "/dashboard/sales/pipeline", icon: Target, desc: "Leads & opportunities" },
+  { title: "Timeline", href: "/dashboard/crm/timeline", icon: MessageSquare, desc: "Customer activity feed" },
+  { title: "Quotations", href: "/dashboard/sales/quotations", icon: FileText, desc: "Branded quotes" },
   { title: "Sales Orders", href: "/dashboard/sales/orders", icon: ShoppingCart, desc: "Quote-to-cash" },
+  { title: "Credit", href: "/dashboard/crm/credit", icon: CreditCard, desc: "Limits, holds, aging" },
+  { title: "Contracts", href: "/dashboard/crm/contracts", icon: FileText, desc: "Agreements & renewals" },
+  { title: "Campaigns", href: "/dashboard/crm/campaigns", icon: Megaphone, desc: "Marketing automation" },
+  { title: "Segments", href: "/dashboard/crm/segments", icon: Users, desc: "Audience targeting" },
+  { title: "Loyalty", href: "/dashboard/crm/loyalty", icon: Heart, desc: "Points & tiers" },
+  { title: "Feedback", href: "/dashboard/crm/feedback", icon: Sparkles, desc: "CSAT · NPS · sentiment" },
+  { title: "Communications", href: "/dashboard/crm/communications", icon: MessageSquare, desc: "Email · SMS · WhatsApp" },
+  { title: "Documents", href: "/dashboard/crm/documents", icon: FileText, desc: "Contracts & certificates" },
+  { title: "Dealers", href: "/dashboard/crm/dealers", icon: Truck, desc: "Channel partners" },
+  { title: "Tenders", href: "/dashboard/crm/tenders", icon: Gavel, desc: "Government & institutional" },
+  { title: "Customer Portal", href: "/dashboard/crm/portal", icon: Globe, desc: "Self-service" },
+  { title: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, desc: "Support tickets" },
+  { title: "AI Intelligence", href: "/dashboard/crm/ai", icon: Brain, desc: "Health · churn · NBA" },
+  { title: "Analytics", href: "/dashboard/crm/analytics", icon: BarChart3, desc: "CLV · funnel · targets" },
+  { title: "Mobile CRM", href: "/dashboard/crm/mobile", icon: Smartphone, desc: "Field sales" },
 ];
 
 interface Insight {
@@ -61,92 +76,69 @@ export default function CrmHubPage() {
   const [stats, setStats] = useState({
     customers: 0,
     contacts: 0,
-    activitiesToday: 0,
-    openTickets: 0,
-    activeContracts: 0,
     openLeads: 0,
+    openOpps: 0,
+    pipelineValue: 0,
+    weightedForecast: 0,
+    activeContracts: 0,
+    openTickets: 0,
+    activeCampaigns: 0,
   });
   const [insights, setInsights] = useState<Insight[]>([]);
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const today = new Date().toISOString().slice(0, 10);
-      const [
-        cust,
-        contacts,
-        acts,
-        tickets,
-        contracts,
-        leads,
-        { data: ins },
-      ] = await Promise.all([
-        supabase.from("customers").select("*", { count: "exact", head: true }),
-        supabase.from("crm_contacts").select("*", { count: "exact", head: true }),
-        supabase
-          .from("crm_activities")
-          .select("*", { count: "exact", head: true })
-          .gte("scheduled_at", `${today}T00:00:00`)
-          .lte("scheduled_at", `${today}T23:59:59`),
-        supabase
-          .from("support_tickets")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["open", "assigned", "in_progress"]),
-        supabase
-          .from("crm_contracts")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "active"),
-        supabase
-          .from("sales_leads")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["new", "contacted", "qualified"]),
-        supabase
-          .from("crm_insights")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
-
-      setStats({
-        customers: cust.count ?? 0,
-        contacts: contacts.count ?? 0,
-        activitiesToday: acts.count ?? 0,
-        openTickets: tickets.count ?? 0,
-        activeContracts: contracts.count ?? 0,
-        openLeads: leads.count ?? 0,
-      });
-      setInsights((ins as Insight[]) ?? []);
-      setLoading(false);
+      try {
+        const s = await getCrmDashboardStats();
+        setStats({
+          customers: s.customers,
+          contacts: s.contacts,
+          openLeads: s.openLeads,
+          openOpps: s.openOpps,
+          pipelineValue: s.pipelineValue,
+          weightedForecast: s.weightedForecast,
+          activeContracts: s.activeContracts,
+          openTickets: s.openTickets,
+          activeCampaigns: s.activeCampaigns,
+        });
+        setInsights((s.insights as Insight[]) || []);
+      } catch {
+        /* tables may not be migrated yet */
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
 
-  if (loading) return <LoadingState message="Loading CRM…" />;
+  if (loading) return <LoadingState message="Loading Enterprise CRM…" />;
 
   return (
     <div>
       <PageHeader
         title="Enterprise CRM"
-        description="Hope Design Group Ltd — 360° customer lifecycle · B2B · Government · Export · Distributors"
+        description="Customer 360° · Sales · Marketing · Loyalty · Portal · AI — full lifecycle inside Hope SecureTrack"
         actions={
-          <div className="flex gap-2">
-            <Link href="/dashboard/crm/accounts">
-              <Button>Accounts</Button>
-            </Link>
-            <Link href="/dashboard/crm/activities">
-              <Button variant="outline">Log activity</Button>
-            </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href="/dashboard/crm/accounts">Accounts</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/crm/leads">New lead</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/crm/pipeline">Pipeline</Link>
+            </Button>
           </div>
         }
       />
 
       <div className="rounded-lg border bg-gradient-to-r from-hope-navy to-hope-teal text-white p-4 mb-6">
         <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide">
-          CRM lifecycle
+          Complete customer lifecycle
         </p>
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {LIFECYCLE.map((s, i) => (
+          {LIFECYCLE_STAGES.map((s, i) => (
             <span
               key={s}
               className="text-[10px] sm:text-xs bg-white/10 border border-white/15 rounded-full px-2 py-0.5"
@@ -157,27 +149,40 @@ export default function CrmHubPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6 mb-6">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
         <StatCard title="Accounts" value={formatNumber(stats.customers)} icon={Building2} />
         <StatCard title="Contacts" value={formatNumber(stats.contacts)} icon={Users} />
-        <StatCard title="Today's activities" value={formatNumber(stats.activitiesToday)} />
-        <StatCard title="Open leads" value={formatNumber(stats.openLeads)} />
+        <StatCard title="Open leads" value={formatNumber(stats.openLeads)} icon={Target} />
+        <StatCard title="Open opps" value={formatNumber(stats.openOpps)} icon={TrendingUp} />
+        <StatCard
+          title="Weighted forecast"
+          value={formatNumber(Math.round(stats.weightedForecast))}
+          icon={BarChart3}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 mb-6">
+        <StatCard title="Pipeline value" value={formatNumber(Math.round(stats.pipelineValue))} />
         <StatCard title="Active contracts" value={formatNumber(stats.activeContracts)} />
         <StatCard title="Open tickets" value={formatNumber(stats.openTickets)} />
+        <StatCard title="Campaigns" value={formatNumber(stats.activeCampaigns)} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3 mb-6">
         <Card className="lg:col-span-2">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Brain className="h-4 w-4 text-hope-teal" />
               AI Customer Intelligence
             </CardTitle>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/dashboard/crm/ai">Open AI hub</Link>
+            </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {insights.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Insights appear as interactions and sales history grow.
+                Insights appear as interactions, orders, and feedback accumulate. Apply migration 00044 for seed intelligence.
               </p>
             ) : (
               insights.map((i) => (
@@ -186,11 +191,9 @@ export default function CrmHubPage() {
                     <p className="font-medium text-sm">{i.title}</p>
                     <StatusBadge status={i.severity} />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {i.recommendation}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{i.recommendation}</p>
                   <Badge variant="secondary" className="text-[10px] mt-2 capitalize">
-                    {i.insight_type.replace(/_/g, " ")}
+                    {i.insight_type?.replace(/_/g, " ")}
                   </Badge>
                 </div>
               ))
@@ -199,34 +202,42 @@ export default function CrmHubPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Segments</CardTitle>
+            <CardTitle className="text-base">ERP integrations</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-1">
-            <p>Corporate · Government · Education · NGO</p>
-            <p>Dealers · Distributors · Export · Strategic</p>
+          <CardContent className="text-sm text-muted-foreground space-y-1.5">
+            <p>Sales · Quotations · Orders · Invoicing</p>
+            <p>Production · Packaging · Dispatch</p>
+            <p>Finance · Credit · Commissions</p>
+            <p>Service Desk · HopeChat · QR Auth</p>
+            <p>Inventory · Documents · BI · Portal</p>
             <p className="text-xs pt-2 border-t">
-              Integrated with Sales, Finance, Manufacturing, Inventory, Service,
-              and SecureTrack product verification.
+              Multi-company RLS · Uganda DPA / GDPR consent · Full audit trail
             </p>
           </CardContent>
         </Card>
       </div>
 
+      <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+        CRM modules
+      </h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {MODULES.map((m) => {
           const Icon = m.icon;
           return (
             <Link
-              key={m.href}
+              key={m.href + m.title}
               href={m.href}
-              className="group rounded-xl border p-4 hover:border-hope-teal/40 hover:bg-muted/40 transition-colors"
+              className="group rounded-lg border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all"
             >
-              <div className="flex justify-between mb-2">
-                <Icon className="h-5 w-5 text-hope-teal" />
-                <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 text-muted-foreground" />
+              <div className="flex items-start gap-3">
+                <div className="rounded-md bg-primary/10 p-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{m.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{m.desc}</p>
+                </div>
               </div>
-              <p className="font-semibold text-sm">{m.title}</p>
-              <p className="text-xs text-muted-foreground mt-1">{m.desc}</p>
             </Link>
           );
         })}

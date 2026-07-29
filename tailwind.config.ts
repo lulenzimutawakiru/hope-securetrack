@@ -60,15 +60,54 @@ const config: Config = {
           teal: "#0D7377",
           slate: "#64748B",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          foreground: "hsl(var(--danger-foreground))",
+        },
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
+      },
+      fontSize: {
+        "display-xxl": ["var(--text-display-xxl)", { lineHeight: "1.1", letterSpacing: "-0.03em" }],
+        "display-xl": ["var(--text-display-xl)", { lineHeight: "1.15", letterSpacing: "-0.025em" }],
+        overline: ["var(--text-overline)", { lineHeight: "1.4", letterSpacing: "0.08em" }],
+      },
+      boxShadow: {
+        enterprise: "var(--shadow-md)",
+        "enterprise-lg": "var(--shadow-lg)",
+      },
+      screens: {
+        xs: "360px",
+        "3xl": "1920px",
+        "4xl": "2560px",
+      },
+      maxWidth: {
+        content: "var(--content-max)",
       },
       keyframes: {
         "accordion-down": {

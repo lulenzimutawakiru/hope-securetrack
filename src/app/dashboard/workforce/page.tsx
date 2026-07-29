@@ -33,10 +33,16 @@ const MODULES = [
     desc: "Templates, assignments, coverage",
   },
   {
-    title: "Attendance",
+    title: "Enterprise Attendance",
+    href: "/dashboard/attendance",
+    icon: ClipboardCheck,
+    desc: "Geofence clock · devices · AI",
+  },
+  {
+    title: "Legacy attendance",
     href: "/dashboard/workforce/attendance",
     icon: ClipboardCheck,
-    desc: "Clock-in/out, late, overtime",
+    desc: "Simple clock list (legacy)",
   },
   {
     title: "Overtime",

@@ -27,7 +27,7 @@ export default function UsersPage() {
       const supabase = createClient();
       const { data } = await supabase
         .from("user_profiles")
-        .select("*, roles(name, slug)")
+        .select("*, roles!user_profiles_role_id_fkey(name, slug)")
         .order("last_name");
       setUsers((data as UserProfile[]) ?? []);
       setLoading(false);
