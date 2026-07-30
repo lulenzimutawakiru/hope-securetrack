@@ -3,16 +3,18 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, sendTemplatedEmail, isResendConfigured } from "@/lib/email";
+import { requireApiAuth } from "@/lib/security/api-auth";
+import { sanitizeHtml } from "@/lib/security/shared";
+import { clientIp, rateLimit } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
-  to: z.union([z.string().email(), z.array(z.string().email()).min(1)]),
+  to: z.union([z.string().email(), z.array(z.string().email()).min(1).max(20)]),
   subject: z.string().min(1).max(500).optional(),
-  html: z.string().optional(),
-  text: z.string().optional(),
-  /** Use notification_templates row */
+  html: z.string().max(100_000).optional(),
+  text: z.string().max(100_000).optional(),
   template_key: z.string().optional(),
   vars: z.record(z.union([z.string(), z.number(), z.null()])).optional(),
   replyTo: z.union([z.string().email(), z.array(z.string().email())]).optional(),
@@ -23,13 +25,27 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ip = clientIp(req);
+  const rl = rateLimit(`email-send:${ip}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec || 60) } }
+    );
   }
+
+  const auth = await requireApiAuth({
+    permissions: [
+      "communications.manage",
+      "comm.manage",
+      "notifications.manage",
+      "settings.manage",
+      "iam.manage",
+    ],
+    allowPlatformAdmin: true,
+  });
+  if ("response" in auth) return auth.response;
+  const { ctx } = auth;
 
   if (!isResendConfigured()) {
     return NextResponse.json(
@@ -57,18 +73,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = parsed.data;
+  const supabase = await createClient();
   let result;
   let subjectUsed = body.subject || "";
   let templateKey: string | null = body.template_key || null;
 
   if (body.template_key) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
-
-    const companyId = profile?.company_id;
+    const companyId = ctx.companyId;
     let q = supabase
       .from("notification_templates")
       .select("*")
@@ -117,7 +128,7 @@ export async function POST(req: NextRequest) {
     result = await sendEmail({
       to: body.to,
       subject: body.subject,
-      html: body.html,
+      html: body.html ? sanitizeHtml(body.html) : undefined,
       text: body.text,
       replyTo: body.replyTo,
       tags: body.tags,
@@ -125,21 +136,14 @@ export async function POST(req: NextRequest) {
     subjectUsed = body.subject;
   }
 
-  // Best-effort outbox log (service role if available)
   if (body.log !== false) {
     try {
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
       const admin = process.env.SUPABASE_SERVICE_ROLE_KEY
         ? createAdminClient()
         : supabase;
 
       await admin.from("email_outbox").insert({
-        company_id: profile?.company_id || null,
+        company_id: ctx.companyId || null,
         provider: "resend",
         to_addresses: Array.isArray(body.to) ? body.to : [body.to],
         subject: subjectUsed,
@@ -147,13 +151,12 @@ export async function POST(req: NextRequest) {
         status: result.ok ? "sent" : "failed",
         provider_message_id: result.ok ? result.id : null,
         error_message: result.ok ? null : result.error,
-        sent_by: user.id,
+        sent_by: ctx.user.id,
         payload: { vars: body.vars || {} },
       });
 
-      // Also mirror into bi_notification_queue if present
       await admin.from("bi_notification_queue").insert({
-        company_id: profile?.company_id,
+        company_id: ctx.companyId,
         channel: "email",
         recipient: Array.isArray(body.to) ? body.to.join(",") : body.to,
         subject: subjectUsed,
@@ -166,7 +169,7 @@ export async function POST(req: NextRequest) {
         payload: { provider: "resend", id: result.ok ? result.id : null },
       });
     } catch {
-      // non-fatal if tables missing
+      /* non-fatal */
     }
   }
 

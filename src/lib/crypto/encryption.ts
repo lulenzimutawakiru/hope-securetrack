@@ -1,8 +1,18 @@
 function getKeyBytes(): Uint8Array {
-  const hex = process.env.QR_ENCRYPTION_KEY ?? "";
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  const hex = (process.env.QR_ENCRYPTION_KEY ?? "").trim();
+  if (!hex || hex.length < 64) {
+    // Fail closed: 32-byte hex key required for AES-256-GCM
+    throw new Error(
+      "QR_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). Refusing weak encryption."
+    );
+  }
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 64; i += 2) {
+    const n = parseInt(hex.substr(i, 2), 16);
+    if (Number.isNaN(n)) {
+      throw new Error("QR_ENCRYPTION_KEY contains non-hex characters");
+    }
+    bytes[i / 2] = n;
   }
   return bytes;
 }

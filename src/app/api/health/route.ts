@@ -33,27 +33,56 @@ export async function GET() {
   }
 
   const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+  const redisConfigured = Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
+  const aiConfigured = Boolean(
+    process.env.SECURETRACK_AI_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      process.env.XAI_API_KEY
+  );
+  const workerSecretConfigured = Boolean(
+    process.env.JOB_WORKER_SECRET || process.env.CRON_SECRET
+  );
+  const mfaEnforce = process.env.MFA_ENFORCE_PRIVILEGED === "true";
+  const dualControl = process.env.DUAL_CONTROL_REQUIRED === "true";
+  const paymentSandbox = process.env.PAYMENT_SANDBOX === "true";
+
   const healthy = envCheck.ok && supabaseOk;
   const body = {
     status: healthy ? "healthy" : "degraded",
-    service: "hope-securetrack",
+    service: "securetrack-erp",
     version: process.env.npm_package_version || "1.0.0",
     time: new Date().toISOString(),
     uptimeSec: Math.floor(process.uptime()),
     checks: {
       env: {
         ok: envCheck.ok,
-        missing: envCheck.missing,
+        // Do not list missing secret names publicly — only count
+        missingCount: envCheck.missing?.length ?? 0,
       },
       supabase: {
         ok: supabaseOk,
         latencyMs: supabaseLatencyMs,
-        error: supabaseError,
+        // Avoid leaking internal error detail to unauthenticated clients
+        error: supabaseOk ? null : "unreachable",
       },
       resend: {
         ok: resendConfigured,
         configured: resendConfigured,
-        // degraded mail does not fail overall health
+      },
+      /** Feature posture flags (no secret values) */
+      platform: {
+        redisRateLimit: redisConfigured,
+        aiCopilot: aiConfigured && process.env.SECURETRACK_AI_DISABLED !== "true",
+        jobWorkerSecret: workerSecretConfigured,
+        mfaEnforcePrivileged: mfaEnforce,
+        dualControlRequired: dualControl,
+        paymentSandbox,
+        productionSafe:
+          process.env.NODE_ENV === "production"
+            ? !paymentSandbox && mfaEnforce && dualControl
+            : null,
       },
     },
     durationMs: Date.now() - started,

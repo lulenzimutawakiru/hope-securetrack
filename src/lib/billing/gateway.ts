@@ -1,10 +1,15 @@
 /**
  * Payment gateway intents — MTN, Airtel, Pesapal, Stripe, PayPal, Flutterwave, Bank API.
- * Creates trackable payment links; provider webhooks can complete intents.
+ * Creates trackable payment links; provider webhooks complete intents.
+ *
+ * SECURITY: completePaymentIntent must only be called from trusted server paths
+ * (webhook with secret, or sandbox with PAYMENT_SANDBOX=true). Never from browser
+ * production code without sandbox gate.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nextBillNumber, recordPayment } from "./service";
+import { isPaymentSandboxEnabled } from "@/lib/security/shared";
 
 export const GATEWAY_PROVIDERS = [
   { code: "MTN", label: "MTN Mobile Money", provider: "mtn_momo" },
@@ -69,7 +74,7 @@ export async function createPaymentIntent(
       notify_customer: true,
       provider_payload: {
         provider: input.gateway_code,
-        created_via: "hope_securetrack",
+        created_via: "securetrack_erp",
       },
     })
     .select()
@@ -78,18 +83,41 @@ export async function createPaymentIntent(
   return data;
 }
 
-/** Simulate or record successful gateway callback */
+/**
+ * Record successful gateway settlement.
+ * @param opts.allowSandbox - only when PAYMENT_SANDBOX / non-prod demo
+ * @param opts.webhookVerified - set true after gateway signature verification
+ * @param opts.serviceTrusted - set true for server service-role webhook handlers
+ */
 export async function completePaymentIntent(
   supabase: SupabaseClient,
   externalRef: string,
-  opts?: { actor_id?: string | null; force_fail?: boolean }
+  opts?: {
+    actor_id?: string | null;
+    force_fail?: boolean;
+    allowSandbox?: boolean;
+    webhookVerified?: boolean;
+    serviceTrusted?: boolean;
+  }
 ) {
+  const sandboxOk = opts?.allowSandbox && isPaymentSandboxEnabled();
+  const trusted = Boolean(opts?.webhookVerified || opts?.serviceTrusted || sandboxOk);
+  if (!trusted) {
+    throw new Error(
+      "Payment completion denied: requires verified webhook or PAYMENT_SANDBOX=true"
+    );
+  }
+
   const { data: intent, error } = await supabase
     .from("bill_payment_intents")
     .select("*")
     .eq("external_ref", externalRef)
     .maybeSingle();
   if (error || !intent) throw error || new Error("Payment intent not found");
+
+  if (intent.status === "succeeded") {
+    return intent;
+  }
 
   if (opts?.force_fail) {
     const { data } = await supabase
@@ -116,7 +144,9 @@ export async function completePaymentIntent(
     gateway: intent.gateway_code,
     mobile_money_msisdn: intent.phone_msisdn || undefined,
     recorded_by: opts?.actor_id || null,
-    notes: `Gateway payment ${intent.intent_number}`,
+    notes: sandboxOk
+      ? `SANDBOX settlement ${intent.intent_number}`
+      : `Gateway payment ${intent.intent_number}`,
   });
 
   const { data } = await supabase
@@ -125,12 +155,17 @@ export async function completePaymentIntent(
       status: "succeeded",
       paid_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      provider_payload: {
+        ...(typeof intent.provider_payload === "object" && intent.provider_payload
+          ? (intent.provider_payload as object)
+          : {}),
+        settled_via: sandboxOk ? "sandbox" : "webhook",
+      },
     })
     .eq("id", intent.id)
     .select()
     .single();
 
-  // notify
   await supabase.from("bill_communications").insert({
     company_id: intent.company_id,
     invoice_id: intent.invoice_id,

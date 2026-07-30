@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Lock, Unlock, FileText, Building2 } from "lucide-react";
+import { Play, Lock, Unlock, FileText, Building2, Banknote } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,10 +15,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import {
-  processPayrollRun, publishPayslips, generatePaymentBatch,
-  lockPayrollRun, unlockPayrollRun,
-} from "@/lib/payroll";
+import { lockPayrollRun, unlockPayrollRun, publishPayslips } from "@/lib/payroll";
+import { apiPost, promptDualControlId } from "@/lib/api-client";
 
 export default function PayrollRunsPage() {
   const { auth } = useUser();
@@ -55,15 +53,32 @@ export default function PayrollRunsPage() {
     load().catch(() => setLoading(false));
   }, []);
 
+  /** Server API — preferred production path */
   const process = async () => {
     if (!companyId) return;
     setBusy(true);
     try {
-      const run = await processPayrollRun({
-        company_id: companyId,
-        created_by: auth?.user?.id,
-      });
-      toast.success(`Payroll processed: ${run.run_number} · ${run.employee_count} employees`);
+      const res = await apiPost<{
+        run?: {
+          run_number?: string;
+          employee_count?: number;
+          net_total?: number;
+        };
+        queued?: boolean;
+        job_id?: string;
+      }>("/api/payroll/process", {});
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      if (res.data.queued) {
+        toast.success(`Payroll queued (job ${res.data.job_id || "…"})`);
+      } else {
+        const run = res.data.run;
+        toast.success(
+          `Payroll processed: ${run?.run_number || "run"} · ${run?.employee_count ?? 0} employees`
+        );
+      }
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Process failed");
@@ -76,7 +91,10 @@ export default function PayrollRunsPage() {
     if (!companyId || !selected) return;
     setBusy(true);
     try {
-      const r = await publishPayslips({ company_id: companyId, payroll_run_id: selected });
+      const r = await publishPayslips({
+        company_id: companyId,
+        payroll_run_id: selected,
+      });
       toast.success(`Published ${r.count} payslips`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
@@ -85,27 +103,86 @@ export default function PayrollRunsPage() {
     }
   };
 
-  const bankFile = async () => {
-    if (!companyId || !selected) return;
+  const bankFile = async (dualControlId?: string | null) => {
+    if (!selected) return;
     setBusy(true);
     try {
-      const batch = await generatePaymentBatch({
-        company_id: companyId,
+      const res = await apiPost<{
+        batch?: {
+          batch_number?: string;
+          file_format?: string;
+        };
+        file_content?: string;
+        csv_preview?: string;
+      }>("/api/payroll/bank-file", {
         payroll_run_id: selected,
-        created_by: auth?.user?.id,
+        dual_control_id: dualControlId || undefined,
       });
-      if (batch.file_content) {
-        const blob = new Blob([batch.file_content], { type: "text/csv" });
+
+      if (!res.ok) {
+        if (res.status === 403 && (res.code === "FORBIDDEN" || /dual-control/i.test(res.error))) {
+          const id = promptDualControlId(
+            "Bank file requires dual-control. Paste approved request UUID:"
+          );
+          if (id) {
+            setBusy(false);
+            return bankFile(id);
+          }
+        }
+        toast.error(res.error);
+        return;
+      }
+
+      const batchNo = res.data.batch?.batch_number || "bank-file";
+      const csv = res.data.file_content || res.data.csv_preview;
+      if (csv) {
+        const blob = new Blob([csv], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${batch.batch_number}.csv`;
+        a.download = `${batchNo}.csv`;
         a.click();
         URL.revokeObjectURL(url);
       }
-      toast.success(`Bank batch ${batch.batch_number} generated`);
+      toast.success(`Bank batch ${batchNo} generated (server)`);
+      await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Batch failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const releasePay = async (dualControlId?: string | null) => {
+    if (!selected) return;
+    const active = runs.find((r) => String(r.id) === selected);
+    const net = Number(active?.net_total || 0);
+    if (!confirm("Release payroll payment for this run? This marks the run paid.")) return;
+    setBusy(true);
+    try {
+      const res = await apiPost("/api/payroll/release", {
+        payroll_run_id: selected,
+        dual_control_id: dualControlId || undefined,
+        post_gl: true,
+        net_total: net > 0 ? net : undefined,
+      });
+      if (!res.ok) {
+        if (res.status === 403 && /dual-control/i.test(res.error)) {
+          const id = promptDualControlId(
+            "Payroll release requires dual-control. Paste approved request UUID:"
+          );
+          if (id) {
+            setBusy(false);
+            return releasePay(id);
+          }
+        }
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Payroll released (server)");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Release failed");
     } finally {
       setBusy(false);
     }
@@ -135,17 +212,38 @@ export default function PayrollRunsPage() {
     <div>
       <PageHeader
         title="Payroll Runs"
-        description="Select period · calculate · approve · pay · lock"
+        description="Server-side process · bank file · release · dual-control gated"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={process} disabled={busy}>
+            <Button size="sm" onClick={process} disabled={busy} aria-label="Run payroll on server">
               <Play className="h-4 w-4 mr-1" /> {busy ? "Working…" : "Run payroll"}
             </Button>
-            <Button size="sm" variant="outline" onClick={publish} disabled={!selected || busy}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={publish}
+              disabled={!selected || busy}
+              aria-label="Publish payslips"
+            >
               <FileText className="h-4 w-4 mr-1" /> Publish payslips
             </Button>
-            <Button size="sm" variant="outline" onClick={bankFile} disabled={!selected || busy}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => bankFile()}
+              disabled={!selected || busy}
+              aria-label="Generate bank file"
+            >
               <Building2 className="h-4 w-4 mr-1" /> Bank file
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => releasePay()}
+              disabled={!selected || busy}
+              aria-label="Release payroll payment"
+            >
+              <Banknote className="h-4 w-4 mr-1" /> Release pay
             </Button>
           </div>
         }
@@ -163,7 +261,11 @@ export default function PayrollRunsPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-md border lg:col-span-1 max-h-[520px] overflow-y-auto">
           {runs.length === 0 ? (
-            <EmptyState icon={Play} title="No runs" description="Click Run payroll to calculate this period." />
+            <EmptyState
+              icon={Play}
+              title="No runs"
+              description="Click Run payroll to calculate this period via the server API."
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -179,18 +281,47 @@ export default function PayrollRunsPage() {
                     key={String(r.id)}
                     className={selected === String(r.id) ? "bg-muted/50" : "cursor-pointer"}
                     onClick={() => loadLines(String(r.id))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        void loadLines(String(r.id));
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-selected={selected === String(r.id)}
                   >
                     <TableCell>
                       <div className="font-medium text-sm">{String(r.period_label)}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{String(r.run_number)}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {String(r.run_number)}
+                      </div>
                       <div className="text-[10px] text-muted-foreground">
                         {r.created_at ? formatDate(String(r.created_at)) : ""}
                       </div>
                     </TableCell>
-                    <TableCell><StatusBadge status={String(r.status || "draft")} /></TableCell>
                     <TableCell>
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); void toggleLock(r); }}>
-                        {r.locked_at || r.status === "locked" ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                      <StatusBadge status={String(r.status || "draft")} />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={
+                          r.locked_at || r.status === "locked"
+                            ? "Unlock payroll run"
+                            : "Lock payroll run"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void toggleLock(r);
+                        }}
+                      >
+                        {r.locked_at || r.status === "locked" ? (
+                          <Unlock className="h-3 w-3" />
+                        ) : (
+                          <Lock className="h-3 w-3" />
+                        )}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -202,7 +333,9 @@ export default function PayrollRunsPage() {
 
         <div className="rounded-md border lg:col-span-2 max-h-[520px] overflow-y-auto">
           {lines.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Select a run to view lines</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              Select a run to view lines
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -216,19 +349,35 @@ export default function PayrollRunsPage() {
               </TableHeader>
               <TableBody>
                 {lines.map((l) => {
-                  const emp = l.employees as { first_name?: string; last_name?: string; employee_number?: string } | null;
+                  const emp = l.employees as {
+                    first_name?: string;
+                    last_name?: string;
+                    employee_number?: string;
+                  } | null;
                   return (
                     <TableRow key={String(l.id)}>
                       <TableCell>
                         <div className="font-medium text-sm">
-                          {emp ? `${emp.first_name || ""} ${emp.last_name || ""}`.trim() : "—"}
+                          {emp
+                            ? `${emp.first_name || ""} ${emp.last_name || ""}`.trim()
+                            : "—"}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">{emp?.employee_number}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {emp?.employee_number}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right text-sm">{formatNumber(Number(l.gross_pay))}</TableCell>
-                      <TableCell className="text-right text-sm">{formatNumber(Number(l.paye))}</TableCell>
-                      <TableCell className="text-right text-sm">{formatNumber(Number(l.nssf_employee))}</TableCell>
-                      <TableCell className="text-right text-sm font-semibold">{formatNumber(Number(l.net_pay))}</TableCell>
+                      <TableCell className="text-right text-sm">
+                        {formatNumber(Number(l.gross_pay))}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {formatNumber(Number(l.paye))}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {formatNumber(Number(l.nssf_employee))}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-semibold">
+                        {formatNumber(Number(l.net_pay))}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

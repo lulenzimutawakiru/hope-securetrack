@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck · Lint · Tests · Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Unit · security · a11y tests
+        run: npm test
+        env:
+          INTEGRATION_TESTS: ${{ secrets.INTEGRATION_TESTS }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RLS_USER_A_EMAIL: ${{ secrets.RLS_USER_A_EMAIL }}
+          RLS_USER_A_PASSWORD: ${{ secrets.RLS_USER_A_PASSWORD }}
+          RLS_USER_B_EMAIL: ${{ secrets.RLS_USER_B_EMAIL }}
+          RLS_USER_B_PASSWORD: ${{ secrets.RLS_USER_B_PASSWORD }}
+          RLS_COMPANY_A_ID: ${{ secrets.RLS_COMPANY_A_ID }}
+          RLS_COMPANY_B_ID: ${{ secrets.RLS_COMPANY_B_ID }}
+
+      - name: Production readiness audit
+        run: npm run audit:readiness
+
+      - name: Dependency audit report
+        run: npm run audit:deps
+
+      - name: Fail on critical CVEs
+        run: |
+          node -e "const r=require('./docs/DEPENDENCY_AUDIT_REPORT.json'); if((r.counts||{}).critical>0){console.error('Critical CVEs present',r.counts); process.exit(1)} console.log('No critical CVEs',r.counts)"
+
+      - name: Generate SBOM
+        run: npm run sbom
+
+      - name: OpenAPI inventory
+        run: npm run openapi:generate
+
+      - name: Secret pattern scan (heuristic)
+        run: |
+          # Lightweight secret scan — fails on private key / AWS key patterns in tracked src
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=docs \
+            --exclude='*.json' --exclude='*lock*' \
+            '(BEGIN (RSA |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|sk_live_[0-9a-zA-Z]{20,})' \
+            src supabase scripts 2>/dev/null; then
+            echo "Potential secrets found in source"
+            exit 1
+          fi
+          echo "Secret heuristic scan clean"
+
+      - name: Upload compliance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-artifacts
+          path: |
+            docs/DEPENDENCY_AUDIT_REPORT.json
+            docs/SBOM.json
+            docs/openapi.json
+            docs/PRODUCTION_READINESS_AUDIT_REPORT.json
+          if-no-files-found: ignore
+
+      - name: Migration files present
+        run: |
+          test -d supabase/migrations
+          test $(ls supabase/migrations/*.sql | wc -l) -ge 1
+
+  integration-rls:
+    name: Live RLS integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality
+    # Only when explicitly enabled in secrets
+    if: ${{ secrets.INTEGRATION_TESTS == 'true' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Live RLS tests
+        run: npm run test:security
+        env:
+          INTEGRATION_TESTS: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RLS_USER_A_EMAIL: ${{ secrets.RLS_USER_A_EMAIL }}
+          RLS_USER_A_PASSWORD: ${{ secrets.RLS_USER_A_PASSWORD }}
+          RLS_USER_B_EMAIL: ${{ secrets.RLS_USER_B_EMAIL }}
+          RLS_USER_B_PASSWORD: ${{ secrets.RLS_USER_B_PASSWORD }}
+          RLS_COMPANY_A_ID: ${{ secrets.RLS_COMPANY_A_ID }}
+          RLS_COMPANY_B_ID: ${{ secrets.RLS_COMPANY_B_ID }}
+
+  e2e:
+    name: Playwright e2e · a11y
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: quality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder' }}
+        continue-on-error: true
+
+      - name: Public smoke + a11y (if build ok)
+        if: hashFiles('.next/**') != ''
+        run: npx playwright test e2e/smoke.spec.ts e2e/a11y.spec.ts --project=chromium
+        env:
+          CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder' }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        continue-on-error: true
+
+      - name: Authenticated e2e (if secrets)
+        if: ${{ secrets.E2E_EMAIL != '' && hashFiles('.next/**') != '' }}
+        run: npx playwright test e2e/authenticated.spec.ts --project=chromium
+        env:
+          CI: "true"
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        continue-on-error: true

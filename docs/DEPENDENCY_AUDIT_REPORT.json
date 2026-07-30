@@ -1,0 +1,298 @@
+{
+  "generatedAt": "2026-07-30T14:13:54.250Z",
+  "product": "SecureTrack ERP",
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 13,
+      "critical": 0,
+      "total": 14
+    },
+    "dependencies": {
+      "prod": 374,
+      "dev": 444,
+      "optional": 185,
+      "peer": 80,
+      "peerOptional": 0,
+      "total": 960
+    }
+  },
+  "counts": {
+    "critical": 0,
+    "high": 13,
+    "moderate": 1,
+    "low": 0,
+    "info": 0
+  },
+  "criticalAndHigh": [
+    {
+      "name": "@eslint/config-array",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": "<=0.22.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "@eslint/eslintrc",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": "0.0.1 || >=0.1.1",
+      "fixAvailable": true
+    },
+    {
+      "name": "brace-expansion",
+      "severity": "high",
+      "via": [
+        "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash"
+      ],
+      "range": "<=5.0.7",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint",
+      "severity": "high",
+      "via": [
+        "@eslint/config-array",
+        "@eslint/eslintrc",
+        "minimatch"
+      ],
+      "range": "0.12.0 - 2.0.0-rc.1 || 4.1.0 - 10.0.0-rc.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-config-next",
+      "severity": "high",
+      "via": [
+        "eslint-plugin-import",
+        "eslint-plugin-jsx-a11y",
+        "eslint-plugin-react"
+      ],
+      "range": ">=10.2.1-canary.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-plugin-import",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": ">=1.15.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-plugin-jsx-a11y",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": ">=6.5.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-plugin-react",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": ">=7.23.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "minimatch",
+      "severity": "high",
+      "via": [
+        "brace-expansion"
+      ],
+      "range": "2.0.0 - 10.0.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "next",
+      "severity": "high",
+      "via": [
+        "postcss",
+        "sharp"
+      ],
+      "range": "9.3.4-canary.0 - 16.3.0-preview.7",
+      "fixAvailable": true
+    },
+    {
+      "name": "postcss",
+      "severity": "high",
+      "via": [
+        "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+        "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+        "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure"
+      ],
+      "range": "<=8.5.17",
+      "fixAvailable": true
+    },
+    {
+      "name": "sharp",
+      "severity": "high",
+      "via": [
+        "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591"
+      ],
+      "range": "<0.35.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "vite",
+      "severity": "high",
+      "via": [
+        "Vite Vulnerable to Path Traversal in Optimized Deps `.map` Handling",
+        "launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows",
+        "vite: `server.fs.deny` bypass on Windows alternate paths",
+        "esbuild"
+      ],
+      "range": "<=6.4.2",
+      "fixAvailable": true
+    }
+  ],
+  "all": [
+    {
+      "name": "@eslint/config-array",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": "<=0.22.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "@eslint/eslintrc",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": "0.0.1 || >=0.1.1",
+      "fixAvailable": true
+    },
+    {
+      "name": "brace-expansion",
+      "severity": "high",
+      "via": [
+        "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash"
+      ],
+      "range": "<=5.0.7",
+      "fixAvailable": true
+    },
+    {
+      "name": "esbuild",
+      "severity": "moderate",
+      "via": [
+        "esbuild enables any website to send any requests to the development server and read the response"
+      ],
+      "range": "<=0.24.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint",
+      "severity": "high",
+      "via": [
+        "@eslint/config-array",
+        "@eslint/eslintrc",
+        "minimatch"
+      ],
+      "range": "0.12.0 - 2.0.0-rc.1 || 4.1.0 - 10.0.0-rc.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-config-next",
+      "severity": "high",
+      "via": [
+        "eslint-plugin-import",
+        "eslint-plugin-jsx-a11y",
+        "eslint-plugin-react"
+      ],
+      "range": ">=10.2.1-canary.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-plugin-import",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": ">=1.15.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-plugin-jsx-a11y",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": ">=6.5.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "eslint-plugin-react",
+      "severity": "high",
+      "via": [
+        "minimatch"
+      ],
+      "range": ">=7.23.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "minimatch",
+      "severity": "high",
+      "via": [
+        "brace-expansion"
+      ],
+      "range": "2.0.0 - 10.0.2",
+      "fixAvailable": true
+    },
+    {
+      "name": "next",
+      "severity": "high",
+      "via": [
+        "postcss",
+        "sharp"
+      ],
+      "range": "9.3.4-canary.0 - 16.3.0-preview.7",
+      "fixAvailable": true
+    },
+    {
+      "name": "postcss",
+      "severity": "high",
+      "via": [
+        "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+        "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+        "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure"
+      ],
+      "range": "<=8.5.17",
+      "fixAvailable": true
+    },
+    {
+      "name": "sharp",
+      "severity": "high",
+      "via": [
+        "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591"
+      ],
+      "range": "<0.35.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "vite",
+      "severity": "high",
+      "via": [
+        "Vite Vulnerable to Path Traversal in Optimized Deps `.map` Handling",
+        "launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows",
+        "vite: `server.fs.deny` bypass on Windows alternate paths",
+        "esbuild"
+      ],
+      "range": "<=6.4.2",
+      "fixAvailable": true
+    }
+  ],
+  "remediation": "Run `npm audit fix` for non-breaking fixes; review breaking changes with `npm audit fix --force` in a branch. Prefer dependency upgrades over force.",
+  "pass": false
+}

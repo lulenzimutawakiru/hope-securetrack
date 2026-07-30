@@ -128,7 +128,12 @@ export default function MessageDetailPage() {
               {message.body_html ? (
                 <div
                   className="prose prose-sm dark:prose-invert max-w-none rounded-lg border bg-muted/20 p-4"
-                  dangerouslySetInnerHTML={{ __html: String(message.body_html) }}
+                  dangerouslySetInnerHTML={{
+                    __html: String(message.body_html)
+                      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                      .replace(/on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+                      .replace(/javascript:/gi, ""),
+                  }}
                 />
               ) : (
                 <pre className="whitespace-pre-wrap text-sm rounded-lg border bg-muted/20 p-4">

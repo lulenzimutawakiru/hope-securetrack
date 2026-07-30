@@ -43,7 +43,7 @@ export default function EnterpriseHubPage() {
     <div>
       <PageHeader
         title="Enterprise Company Management"
-        description="Master organizational foundation · multi-company · multi-branch · multi-factory · governance"
+        description="SecureTrack ERP · multi-tenant · multi-company · multi-branch · multi-factory · governance"
         actions={
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">
@@ -59,9 +59,9 @@ export default function EnterpriseHubPage() {
       />
 
       <div className="rounded-lg border bg-gradient-to-r from-hope-navy to-[#0d2847] text-white p-4 mb-6 text-sm">
-        <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide">Enterprise hierarchy</p>
+        <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide">Multi-tenant hierarchy</p>
         <p className="text-white/70 text-xs mt-1">
-          Group → Holding → Company → Branch / Factory / Warehouse / Department / Business Unit · every ERP module references this structure
+          Tenant → Company → Branch / Factory / Warehouse / Department / Business Unit · switch companies from the header · every ERP module is company-scoped
         </p>
       </div>
 

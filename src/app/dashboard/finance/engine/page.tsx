@@ -16,11 +16,11 @@ import { useUser } from "@/hooks/use-user";
 import {
   listPostingRules,
   listAutoJournals,
-  postAccountingEvent,
   type AccountingEventType,
 } from "@/lib/finance/engine";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { apiPost, promptDualControlId } from "@/lib/api-client";
 
 const EVENTS: AccountingEventType[] = [
   "sales_invoice",
@@ -75,22 +75,38 @@ export default function AccountingEnginePage() {
     load();
   }, [companyId]);
 
-  const run = async () => {
+  const run = async (dualControlId?: string | null) => {
     if (!companyId) return toast.error("No company");
     const amount = Number(form.amount);
     if (!amount || amount <= 0) return toast.error("Enter amount");
     setBusy(true);
     try {
-      const row = await postAccountingEvent({
-        companyId,
-        eventType: form.eventType,
-        sourceModule: form.sourceModule,
-        sourceRef: form.sourceRef || `MANUAL-${Date.now()}`,
-        amount,
-        description: form.description || undefined,
-        actorId: auth?.user?.id,
-      });
-      toast.success(`Posted ${row.auto_number} · ${row.status}`);
+      const res = await apiPost<{ journal?: { auto_number?: string; status?: string } }>(
+        "/api/finance/post",
+        {
+          event_type: form.eventType,
+          source_module: form.sourceModule,
+          source_ref: form.sourceRef || `MANUAL-${Date.now()}`,
+          amount,
+          description: form.description || undefined,
+          dual_control_id: dualControlId || undefined,
+        }
+      );
+      if (!res.ok) {
+        if (res.status === 403 && /dual-control/i.test(res.error)) {
+          const id = promptDualControlId(
+            "GL post requires dual-control. Paste approved request UUID:"
+          );
+          if (id) {
+            setBusy(false);
+            return run(id);
+          }
+        }
+        toast.error(res.error);
+        return;
+      }
+      const row = res.data.journal;
+      toast.success(`Posted ${row?.auto_number || "journal"} · ${row?.status || "ok"} (server)`);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Post failed");
@@ -105,7 +121,7 @@ export default function AccountingEnginePage() {
     <div>
       <PageHeader
         title="Enterprise Accounting Engine"
-        description="Event-driven auto-journals · multi-book · accrual/cash · full ERP traceability"
+        description="Server-side GL post · dual-control gated · event-driven auto-journals"
         actions={
           <Button size="sm" variant="outline" onClick={() => { setLoading(true); load(); }}>
             <RefreshCw className="h-4 w-4" />
@@ -167,7 +183,7 @@ export default function AccountingEnginePage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </div>
-            <Button onClick={run} disabled={busy}>
+            <Button onClick={() => void run()} disabled={busy}>
               <Cog className="h-4 w-4 mr-1" /> {busy ? "Posting…" : "Generate journal"}
             </Button>
           </CardContent>

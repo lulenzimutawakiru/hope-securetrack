@@ -62,7 +62,7 @@ export default function PrintCodesPage() {
     phone: "+256700000000",
     email: "info@hopedesign.ug",
     ssid: "HopeGuest",
-    password: "secure",
+    password: "",
     encryption: "WPA",
     code: "AST-001",
     sku: "HDG-PPR-A4",

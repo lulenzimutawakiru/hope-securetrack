@@ -1,7 +1,7 @@
 {
-  "name": "Hope SecureTrack",
+  "name": "SecureTrack ERP",
   "short_name": "SecureTrack",
-  "description": "Enterprise QR Authentication, Manufacturing Traceability & ERP — Hope Design Group Ltd",
+  "description": "SecureTrack ERP — Secure · Intelligent · Connected. Multi-tenant enterprise operating system.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",

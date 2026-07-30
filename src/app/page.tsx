@@ -151,10 +151,10 @@ export default function LandingPage() {
             </div>
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[15px] font-semibold tracking-tight text-white">
-                Hope SecureTrack
+                SecureTrack ERP
               </div>
               <div className="truncate text-[11px] font-medium tracking-wide text-white/40">
-                Hope Design Group Ltd
+                Secure · Intelligent · Connected
               </div>
             </div>
           </Link>
@@ -185,6 +185,15 @@ export default function LandingPage() {
                 Verify
               </Button>
             </Link>
+            <Link href="/register" className="hidden sm:block">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-white/70 hover:bg-white/5 hover:text-white"
+              >
+                Register
+              </Button>
+            </Link>
             <Link href="/login">
               <Button
                 size="sm"
@@ -204,22 +213,22 @@ export default function LandingPage() {
             <div className="lg:col-span-7">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[#E8D48B]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#C9A227] shadow-[0_0_8px_#C9A227]" />
-                Enterprise operations platform
+                Multi-tenant enterprise ERP
               </div>
 
               <h1 className="text-balance text-[2.35rem] font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-[3.35rem]">
-                Authenticity, manufacturing,
+                One platform for every
                 <br className="hidden sm:block" />{" "}
-                and commerce —{" "}
+                company in your{" "}
                 <span className="bg-gradient-to-r from-[#E8D48B] via-[#C9A227] to-[#8fd4c8] bg-clip-text text-transparent">
-                  unified
+                  group
                 </span>
               </h1>
 
               <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/55 sm:text-lg">
-                Hope SecureTrack is the operational backbone for Hope Design Group —
-                secure product identity, production, labels, sales, finance, fleet,
-                and workforce in one governed workspace.
+                SecureTrack ERP is a multi-tenant enterprise system — manufacturing,
+                labels, sales, finance, payroll, fleet, attendance, and identity —
+                with company isolation, shared group structure, and governed workspaces.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -491,7 +500,7 @@ export default function LandingPage() {
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/35">
-                {["Multi-company", "Audit ready", "Mobile PWA", "Role-based"].map((t) => (
+                {["Multi-tenant", "Multi-company", "Audit ready", "Role-based"].map((t) => (
                   <span key={t} className="inline-flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-[#C9A227]/70" />
                     {t}
@@ -510,9 +519,9 @@ export default function LandingPage() {
               <Shield className="h-4 w-4 text-[#C9A227]" />
             </div>
             <div className="text-sm">
-              <div className="font-medium text-white/70">Hope SecureTrack</div>
+              <div className="font-medium text-white/70">SecureTrack ERP</div>
               <div className="text-xs text-white/35">
-                © {new Date().getFullYear()} Hope Design Group Ltd
+                © {new Date().getFullYear()} Multi-tenant enterprise platform
               </div>
             </div>
           </div>

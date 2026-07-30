@@ -710,3 +710,70 @@ export async function unlockPayrollRun(runId: string) {
     })
     .eq("id", runId);
 }
+
+export type PayrollDashboardStats = {
+  runs: number;
+  profiles: number;
+  pendingApprovals: number;
+  activeLoans: number;
+  pendingOt: number;
+  publishedPayslips: number;
+  openPeriods: number;
+  simulations: number;
+  pendingCorrections: number;
+  mobileMoneyPending: number;
+  latestGross: number;
+  latestNet: number;
+  latestRunLabel: string | null;
+  latestRunNumber: string | null;
+  latestRunStatus: string | null;
+  employeeCount: number;
+};
+
+export async function getPayrollDashboardStats(companyId: string): Promise<PayrollDashboardStats> {
+  const client = sb();
+  const [
+    runs,
+    profiles,
+    pending,
+    loans,
+    ot,
+    payslips,
+    periods,
+    sims,
+    corrections,
+    mm,
+    { data: lastRun },
+  ] = await Promise.all([
+    client.from("payroll_runs").select("*", { count: "exact", head: true }).eq("company_id", companyId),
+    client.from("pay_employee_profiles").select("*", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
+    client.from("pay_approvals").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
+    client.from("pay_loans").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "active"),
+    client.from("pay_overtime_claims").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
+    client.from("pay_payslips").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("is_published", true),
+    client.from("pay_periods").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "open"),
+    client.from("pay_simulations").select("*", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
+    client.from("pay_corrections").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
+    client.from("pay_mobile_money").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
+    client.from("payroll_runs").select("period_label,run_number,status,gross_total,net_total,employee_count").eq("company_id", companyId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  return {
+    runs: runs.count ?? 0,
+    profiles: profiles.count ?? 0,
+    pendingApprovals: pending.count ?? 0,
+    activeLoans: loans.count ?? 0,
+    pendingOt: ot.count ?? 0,
+    publishedPayslips: payslips.count ?? 0,
+    openPeriods: periods.count ?? 0,
+    simulations: sims.count ?? 0,
+    pendingCorrections: corrections.count ?? 0,
+    mobileMoneyPending: mm.count ?? 0,
+    latestGross: Number(lastRun?.gross_total || 0),
+    latestNet: Number(lastRun?.net_total || 0),
+    latestRunLabel: lastRun?.period_label ? String(lastRun.period_label) : null,
+    latestRunNumber: lastRun?.run_number ? String(lastRun.run_number) : null,
+    latestRunStatus: lastRun?.status ? String(lastRun.status) : null,
+    employeeCount: Number(lastRun?.employee_count || 0),
+  };
+}

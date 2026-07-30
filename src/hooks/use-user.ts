@@ -28,6 +28,13 @@ const SUPER_ADMIN_EXTRAS = [
   "dsp.track",
   "hr.view",
   "hr.manage",
+  "ta.view",
+  "ta.manage",
+  "ta.recruit",
+  "ta.approve",
+  "ta.ai",
+  "ta.admin",
+  "ta.portal",
   "printers.manage",
   "wfm.view",
   "wfm.manage",
@@ -267,6 +274,20 @@ const SUPER_ADMIN_EXTRAS = [
   "payroll.self",
   "payroll.ai",
   "payroll.tax",
+  "payroll.admin",
+  "payroll.costing",
+  "payroll.bank",
+  "tenant.view",
+  "tenant.manage",
+  "tenant.admin",
+  "tenant.switch",
+  "platform.view",
+  "platform.admin",
+  "platform.provision",
+  "platform.events",
+  "platform.flags",
+  "security.dual_control",
+  "security.admin",
   "print.view",
   "print.manage",
   "print.submit",
@@ -312,11 +333,9 @@ const SUPER_ADMIN_EXTRAS = [
 
 function enrichPermissions(base: string[], roleSlug: string | undefined | null): string[] {
   let permissions = [...base];
-  if (
-    roleSlug === "super_administrator" ||
-    permissions.includes("settings.manage") ||
-    permissions.length === 0
-  ) {
+  // Fail closed: only explicit super_administrator gets full extras.
+  // Never elevate on empty permissions or settings.manage alone (privilege inflation).
+  if (roleSlug === "super_administrator") {
     permissions = Array.from(new Set([...permissions, ...SUPER_ADMIN_EXTRAS]));
   }
   // Always ensure dashboard is visible once authenticated with a profile
@@ -374,6 +393,7 @@ async function loadProfileAndRole(userId: string) {
 export function useUser() {
   const [auth, setAuth] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const supabase = createClient();
@@ -413,13 +433,20 @@ export function useUser() {
 
         const permissions = enrichPermissions(base, role?.slug);
 
+        // Prefer active company for multi-tenant context
+        const activeCompanyId =
+          (profile.active_company_id as string | undefined) ||
+          (profile.company_id as string);
+        const normalizedProfile = {
+          ...(profile as unknown as UserProfile),
+          company_id: activeCompanyId,
+          roles: role as Role,
+          permissions,
+        };
+
         setAuth({
           user,
-          profile: {
-            ...(profile as unknown as UserProfile),
-            roles: role as Role,
-            permissions,
-          },
+          profile: normalizedProfile,
           permissions,
         });
       } catch {
@@ -438,7 +465,9 @@ export function useUser() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [reloadToken]);
+
+  const reload = () => setReloadToken((n) => n + 1);
 
   const hasPermission = (permission: string) =>
     auth?.permissions.includes(permission) ?? false;
@@ -446,5 +475,18 @@ export function useUser() {
   const hasAnyPermission = (perms: string[]) =>
     perms.some((p) => auth?.permissions.includes(p));
 
-  return { auth, loading, hasPermission, hasAnyPermission };
+  /** Active company for data scoping (multi-tenant) */
+  const companyId =
+    (auth?.profile as { active_company_id?: string } | undefined)?.active_company_id ||
+    auth?.profile?.company_id ||
+    null;
+
+  return {
+    auth,
+    loading,
+    hasPermission,
+    hasAnyPermission,
+    reload,
+    companyId,
+  };
 }

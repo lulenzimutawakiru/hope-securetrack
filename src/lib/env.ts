@@ -15,7 +15,7 @@ function required(name: string, value: string | undefined): string {
 
 export const env = {
   app: {
-    name: process.env.NEXT_PUBLIC_APP_NAME || "Hope SecureTrack",
+    name: process.env.NEXT_PUBLIC_APP_NAME || "SecureTrack ERP",
     company: process.env.NEXT_PUBLIC_COMPANY_NAME || "Hope Design Group Ltd",
     url:
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -31,15 +31,45 @@ export const env = {
     qrEncryptionKey: process.env.QR_ENCRYPTION_KEY || "",
     qrSigningPrivateKey: process.env.QR_SIGNING_PRIVATE_KEY || "",
     qrSigningPublicKey: process.env.QR_SIGNING_PUBLIC_KEY || "",
+    mfaEnforcePrivileged: process.env.MFA_ENFORCE_PRIVILEGED === "true",
+    dualControlRequired: process.env.DUAL_CONTROL_REQUIRED === "true",
   },
-  companyId:
-    process.env.DEFAULT_COMPANY_ID || "a0000000-0000-4000-8000-000000000001",
+  /** Prefer resolving company from product/context; env only as last resort */
+  companyId: process.env.DEFAULT_COMPANY_ID || "",
   resend: {
     apiKey: process.env.RESEND_API_KEY || "",
     fromEmail: process.env.RESEND_FROM_EMAIL || "",
     fromName: process.env.RESEND_FROM_NAME || "",
     replyTo: process.env.RESEND_REPLY_TO || "",
     configured: Boolean(process.env.RESEND_API_KEY?.trim()),
+  },
+  ai: {
+    apiKey:
+      process.env.SECURETRACK_AI_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      process.env.XAI_API_KEY ||
+      "",
+    baseUrl:
+      process.env.SECURETRACK_AI_BASE_URL ||
+      process.env.OPENAI_BASE_URL ||
+      "https://api.openai.com/v1",
+    model:
+      process.env.SECURETRACK_AI_MODEL ||
+      process.env.OPENAI_MODEL ||
+      "gpt-4o-mini",
+    disabled: process.env.SECURETRACK_AI_DISABLED === "true",
+    configured: Boolean(
+      process.env.SECURETRACK_AI_API_KEY ||
+        process.env.OPENAI_API_KEY ||
+        process.env.XAI_API_KEY
+    ),
+  },
+  redis: {
+    upstashUrl: process.env.UPSTASH_REDIS_REST_URL || "",
+    upstashToken: process.env.UPSTASH_REDIS_REST_TOKEN || "",
+    configured: Boolean(
+      process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ),
   },
 };
 

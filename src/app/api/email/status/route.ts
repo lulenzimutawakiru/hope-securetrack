@@ -1,19 +1,17 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { isResendConfigured, getResendFrom } from "@/lib/email";
+import { requireApiAuth } from "@/lib/security/api-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** Auth required — returns whether Resend is configured (never exposes API key). */
+/** Auth + settings permission — never exposes API key. */
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiAuth({
+    permissions: ["settings.manage", "communications.manage", "comm.manage", "iam.manage"],
+    allowPlatformAdmin: true,
+  });
+  if ("response" in auth) return auth.response;
 
   const configured = isResendConfigured();
   const from = getResendFrom();
@@ -24,7 +22,6 @@ export async function GET() {
     from: configured ? from.email : null,
     fromName: configured ? from.name : null,
     replyTo: process.env.RESEND_REPLY_TO || null,
-    // Hint for operators without leaking secrets
     envHints: {
       RESEND_API_KEY: configured ? "set" : "missing",
       RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL ? "set" : "default",

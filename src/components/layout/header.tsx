@@ -18,8 +18,10 @@ import { useUser } from "@/hooks/use-user";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { CommandPalette } from "@/components/enterprise/command-palette";
 import { LiveStatus } from "@/components/enterprise/live-status";
+import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "@/components/layout/sidebar";
+import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -70,13 +72,14 @@ export function Header({ title }: { title?: string }) {
           </h1>
         ) : (
           <div className="hidden sm:block min-w-0">
-            <p className="text-overline leading-none">Hope Design Group</p>
-            <p className="text-sm font-semibold truncate">Enterprise Workspace</p>
+            <p className="text-overline leading-none">{APP_NAME}</p>
+            <p className="text-sm font-semibold truncate">{APP_TAGLINE}</p>
           </div>
         )}
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
+        <TenantSwitcher />
         <CommandPalette />
         <LiveStatus />
 

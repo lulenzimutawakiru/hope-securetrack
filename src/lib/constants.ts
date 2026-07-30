@@ -1,5 +1,18 @@
-export const APP_NAME = "Hope SecureTrack";
+/** Product brand — multi-tenant ERP platform */
+export const APP_NAME = "SecureTrack ERP";
+export const APP_SHORT_NAME = "SecureTrack";
+export const APP_TAGLINE = "Secure • Intelligent • Connected";
+export const APP_SUBTITLE = "Enterprise Resource Planning Platform";
+/** Default demo / seed tenant legal name (not product brand) */
 export const COMPANY_NAME = "Hope Design Group Ltd";
+export const PRODUCT_VENDOR = "SecureTrack";
+
+/** Core platform module codes (catalog) */
+export const PLATFORM_MODULE_CODES = [
+  "executive", "bi", "finance", "payroll", "hr", "talent", "attendance",
+  "crm", "sales", "procurement", "inventory", "manufacturing", "fleet",
+  "assets", "projects", "identity", "audit", "platform",
+] as const;
 
 export const PRODUCTION_STATUSES = [
   "draft",
@@ -143,6 +156,13 @@ export const PERMISSIONS = {
   DSP_TRACK: "dsp.track",
   HR_VIEW: "hr.view",
   HR_MANAGE: "hr.manage",
+  TA_VIEW: "ta.view",
+  TA_MANAGE: "ta.manage",
+  TA_RECRUIT: "ta.recruit",
+  TA_APPROVE: "ta.approve",
+  TA_AI: "ta.ai",
+  TA_ADMIN: "ta.admin",
+  TA_PORTAL: "ta.portal",
   WID_VIEW: "wid.view",
   WID_MANAGE: "wid.manage",
   WID_DESIGN: "wid.design",
@@ -253,6 +273,18 @@ export const PERMISSIONS = {
   PAYROLL_SELF: "payroll.self",
   PAYROLL_AI: "payroll.ai",
   PAYROLL_TAX: "payroll.tax",
+  PAYROLL_ADMIN: "payroll.admin",
+  PAYROLL_COSTING: "payroll.costing",
+  PAYROLL_BANK: "payroll.bank",
+  TENANT_VIEW: "tenant.view",
+  TENANT_MANAGE: "tenant.manage",
+  TENANT_ADMIN: "tenant.admin",
+  TENANT_SWITCH: "tenant.switch",
+  PLATFORM_VIEW: "platform.view",
+  PLATFORM_ADMIN: "platform.admin",
+  PLATFORM_PROVISION: "platform.provision",
+  PLATFORM_EVENTS: "platform.events",
+  PLATFORM_FLAGS: "platform.flags",
   PRINT_VIEW: "print.view",
   PRINT_MANAGE: "print.manage",
   PRINT_SUBMIT: "print.submit",
@@ -369,6 +401,7 @@ export const NAV_ITEMS = [
   { title: "Projects (PPM)", href: "/dashboard/projects", icon: "FolderKanban", permission: PERMISSIONS.PPM_VIEW },
   { title: "Workforce", href: "/dashboard/workforce", icon: "Briefcase", permission: PERMISSIONS.WFM_VIEW },
   { title: "Attendance", href: "/dashboard/attendance", icon: "Clock", permission: PERMISSIONS.ATT_VIEW },
+  { title: "Talent Acquisition", href: "/dashboard/talent", icon: "UserPlus", permission: PERMISSIONS.TA_VIEW },
   { title: "HR", href: "/dashboard/hr", icon: "Contact", permission: PERMISSIONS.HR_VIEW },
   { title: "Payroll", href: "/dashboard/payroll", icon: "Wallet", permission: PERMISSIONS.PAYROLL_VIEW },
   { title: "Profiles", href: "/dashboard/profiles", icon: "UserCircle", permission: PERMISSIONS.PROFILE_VIEW },
@@ -386,6 +419,12 @@ export const NAV_ITEMS = [
   { title: "Distributors", href: "/dashboard/distributors", icon: "Network", permission: PERMISSIONS.DISTRIBUTORS_VIEW },
   { title: "Identity", href: "/dashboard/identity", icon: "Shield", permission: PERMISSIONS.IAM_VIEW },
   { title: "Enterprise", href: "/dashboard/enterprise", icon: "Building2", permission: PERMISSIONS.EC_VIEW },
+  { title: "Tenants", href: "/dashboard/tenants", icon: "Building2", permission: PERMISSIONS.TENANT_VIEW },
+  { title: "Platform Admin", href: "/dashboard/platform", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW },
+  { title: "Background Jobs", href: "/dashboard/platform/jobs", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW },
+  { title: "Platform Ops", href: "/dashboard/platform/ops", icon: "Activity", permission: PERMISSIONS.PLATFORM_VIEW },
+  { title: "Dual Control", href: "/dashboard/security/dual-control", icon: "Shield", permission: PERMISSIONS.PLATFORM_VIEW },
+  { title: "Workflows", href: "/dashboard/workflows", icon: "Activity", permission: PERMISSIONS.DASHBOARD_VIEW },
   { title: "Communications", href: "/dashboard/communications", icon: "Mail", permission: PERMISSIONS.COMM_VIEW },
   { title: "Media Library", href: "/dashboard/media", icon: "Image", permission: PERMISSIONS.MEDIA_VIEW },
   { title: "Branding", href: "/dashboard/branding", icon: "Palette", permission: PERMISSIONS.BRAND_VIEW },

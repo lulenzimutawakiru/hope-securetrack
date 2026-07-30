@@ -9,17 +9,14 @@ export const runtime = "nodejs";
 
 /**
  * Simplified ZKTeco ADMS/ICLOCK ATTLOG receiver
- * Device config example:
- *   Server: https://your-app/api/attendance/devices/zkteco/iclock
- *   Key/token as query ?token=
- *   SN as ?SN=
+ * Prefer header X-Device-Token; ?token= still accepted for legacy devices.
  */
 export async function POST(req: NextRequest) {
   try {
     const token =
+      req.headers.get("x-device-token") ||
       req.nextUrl.searchParams.get("token") ||
       req.nextUrl.searchParams.get("key") ||
-      req.headers.get("x-device-token") ||
       "";
 
     if (!token) {
@@ -41,14 +38,12 @@ export async function POST(req: NextRequest) {
     if (table === "ATTLOG" || table === "ATTENDANCELOG" || !table) {
       const results = await ingestZktecoAttLog(String(integ.company_id), text, sn || undefined);
       const ok = results.filter((r) => r.ok).length;
-      // ADMS devices often expect plain OK
       return new NextResponse(`OK: ${ok}`, {
         status: 200,
         headers: { "Content-Type": "text/plain" },
       });
     }
 
-    // Heartbeat / options
     return new NextResponse("OK", { status: 200, headers: { "Content-Type": "text/plain" } });
   } catch (e) {
     return new NextResponse(
@@ -59,7 +54,28 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  // Device registration / options probe
+  // Require token for options probe (prevents unauthenticated recon)
+  const token =
+    req.headers.get("x-device-token") ||
+    req.nextUrl.searchParams.get("token") ||
+    req.nextUrl.searchParams.get("key") ||
+    "";
+
+  if (!token) {
+    return new NextResponse("ERROR: missing token", {
+      status: 401,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+
+  const integ = await resolveCompanyByToken("zkteco", token);
+  if (!integ?.company_id) {
+    return new NextResponse("ERROR: invalid token", {
+      status: 401,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+
   const sn = req.nextUrl.searchParams.get("SN") || "";
   return new NextResponse(
     [
@@ -72,7 +88,8 @@ export async function GET(req: NextRequest) {
       "TransInterval=1",
       "TransFlag=1111000000",
       "Realtime=1",
-      "Encrypt=0",
+      // Prefer encrypted when device supports it
+      "Encrypt=1",
     ].join("\n"),
     { status: 200, headers: { "Content-Type": "text/plain" } }
   );

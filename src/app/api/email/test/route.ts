@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import {
   isResendConfigured,
   sendEmail,
   wrapEmailHtml,
   getResendFrom,
 } from "@/lib/email";
-import { env } from "@/lib/env";
+import { requireApiAuth } from "@/lib/security/api-auth";
+import { clientIp, rateLimit } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,16 +17,21 @@ const schema = z.object({
 });
 
 /**
- * Sends a test email via Resend to the current user (or provided address).
+ * Sends a test email via Resend to the current user only.
  */
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ip = clientIp(req);
+  const rl = rateLimit(`email-test:${ip}`, 5, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
+
+  const auth = await requireApiAuth({
+    permissions: ["communications.manage", "comm.manage", "settings.manage", "iam.manage"],
+    allowPlatformAdmin: true,
+  });
+  if ("response" in auth) return auth.response;
+  const { ctx } = auth;
 
   if (!isResendConfigured()) {
     return NextResponse.json(
@@ -38,62 +43,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let to = user.email || "";
+  let to = ctx.user.email || ctx.profile.email || "";
   try {
     const json = await req.json().catch(() => ({}));
     const parsed = schema.safeParse(json);
-    if (parsed.success && parsed.data.to) to = parsed.data.to;
+    if (parsed.success && parsed.data.to) {
+      if (parsed.data.to.toLowerCase() !== (to || "").toLowerCase()) {
+        return NextResponse.json(
+          { error: "Test email may only be sent to your own address" },
+          { status: 403 }
+        );
+      }
+      to = parsed.data.to;
+    }
   } catch {
     /* empty body ok */
   }
 
   if (!to) {
-    return NextResponse.json(
-      { error: "No recipient email available" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No email on account" }, { status: 400 });
   }
 
   const from = getResendFrom();
-  const html = wrapEmailHtml({
-    title: "Resend test — Hope SecureTrack",
-    preheader: "Your email integration is working",
-    bodyHtml: `
-      <p style="margin:0 0 12px;">Hello,</p>
-      <p style="margin:0 0 12px;">This is a <strong>test message</strong> from <strong>${env.app.name}</strong> for ${env.app.company}.</p>
-      <p style="margin:0 0 12px;">If you received this, Resend is correctly connected.</p>
-      <ul style="margin:0 0 12px;padding-left:18px;color:#475569;">
-        <li>Provider: Resend</li>
-        <li>From: ${from.email}</li>
-        <li>Time: ${new Date().toISOString()}</li>
-      </ul>
-      <p style="margin:0;color:#64748b;font-size:12px;">You can now send notifications, report packs, and transactional mail from Settings → Notifications.</p>
-    `,
-  });
-
   const result = await sendEmail({
     to,
-    subject: `[Test] ${env.app.name} email via Resend`,
-    html,
-    text: `Test email from ${env.app.name}. Resend is working. Time: ${new Date().toISOString()}`,
-    tags: [
-      { name: "category", value: "test" },
-      { name: "app", value: "hope-securetrack" },
-    ],
+    subject: `SecureTrack ERP test email`,
+    html: wrapEmailHtml({
+      title: "Test email",
+      bodyHtml: `<p>This is a test message from SecureTrack ERP.</p>`,
+    }),
+    text: "This is a test message from SecureTrack ERP.",
   });
 
   if (!result.ok) {
-    return NextResponse.json(
-      { error: result.error, code: result.code },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: result.error }, { status: 502 });
   }
-
-  return NextResponse.json({
-    ok: true,
-    id: result.id,
-    to,
-    provider: "resend",
-    from: from.email,
-  });
+  return NextResponse.json({ ok: true, id: result.id, to, from: from.email });
 }

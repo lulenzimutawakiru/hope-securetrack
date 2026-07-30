@@ -1,0 +1,56 @@
+# SecureTrack ERP — Kubernetes Deployment (reference)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: securetrack-erp
+  labels:
+    app: securetrack-erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: securetrack-erp
+  template:
+    metadata:
+      labels:
+        app: securetrack-erp
+    spec:
+      containers:
+        - name: web
+          image: securetrack-erp:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: securetrack-erp-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: securetrack-erp
+spec:
+  selector:
+    app: securetrack-erp
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP

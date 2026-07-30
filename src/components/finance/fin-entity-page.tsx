@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, Trash2, Copy, Download, RefreshCw, Search, Pencil, Archive,
+  Plus, Trash2, Copy, Download, RefreshCw, Search, Pencil, Archive, Upload,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
 import {
   finList, finCreate, finUpdate, finSoftDelete, finDuplicate,
-  finBulkStatus, finNextNumber, toCsv, downloadCsv,
+  finBulkStatus, finNextNumber, toCsv, downloadCsv, finImportCsv,
 } from "@/lib/finance/crud";
 import { toast } from "sonner";
 
@@ -64,6 +64,7 @@ export function FinEntityPage({ config }: { config: FinEntityConfig }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const companyId = auth?.profile?.company_id;
 
@@ -219,6 +220,39 @@ export function FinEntityPage({ config }: { config: FinEntityConfig }) {
     );
   };
 
+  const onImportFile = async (file: File) => {
+    if (!companyId || !auth) return;
+    const text = await file.text();
+    const columns: Record<string, string> = {};
+    for (const f of config.fields) {
+      if (f.autoNumber) continue;
+      columns[f.key] = f.key;
+      columns[f.label] = f.key;
+    }
+    setBusy(true);
+    try {
+      const result = await finImportCsv(config.table, text, {
+        companyId,
+        actorId: auth.user.id,
+        fieldMap: {
+          columns,
+          required: config.fields.filter((f) => f.required && !f.autoNumber).map((f) => f.key),
+          numberFields: config.fields.filter((f) => f.type === "number").map((f) => f.key),
+          defaults: config.defaults,
+          maxRows: 2000,
+        },
+      });
+      if (result.success) toast.success(`Imported ${result.success} row(s)`);
+      if (result.failed) toast.error(`${result.failed} row(s) failed`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   if (loading) return <LoadingState message={`Loading ${config.title}…`} />;
 
   return (
@@ -233,6 +267,19 @@ export function FinEntityPage({ config }: { config: FinEntityConfig }) {
             </Button>
             <Button size="sm" variant="outline" onClick={exportCsv}>
               <Download className="h-4 w-4 mr-1" /> Export
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onImportFile(f);
+              }}
+            />
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-1" /> Import
             </Button>
             <Button size="sm" onClick={openCreate}>
               <Plus className="h-4 w-4 mr-1" /> Create

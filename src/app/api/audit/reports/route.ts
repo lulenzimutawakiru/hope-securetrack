@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runAuditReport } from "@/lib/audit/reports";
+import { requireApiAuth } from "@/lib/security/api-auth";
+import { sanitizePostgrestFilter } from "@/lib/security/shared";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireApiAuth({
+      permissions: ["eal.view", "audit.view", "eal.export", "reports.view"],
+      allowPlatformAdmin: true,
+    });
+    if ("response" in auth) return auth.response;
 
+    const supabase = await createClient();
     const code = req.nextUrl.searchParams.get("code");
     if (!code) {
       const { data: defs } = await supabase
@@ -19,22 +22,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ reports: defs || [] });
     }
 
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("company_id, id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!profile?.company_id) {
-      return NextResponse.json({ error: "No company" }, { status: 400 });
+    const safeCode = sanitizePostgrestFilter(code, 60);
+    if (!safeCode) {
+      return NextResponse.json({ error: "Invalid report code" }, { status: 400 });
     }
 
     const result = await runAuditReport({
-      company_id: profile.company_id,
-      report_code: code,
+      company_id: auth.ctx.companyId,
+      report_code: safeCode,
       period_start: req.nextUrl.searchParams.get("from") || undefined,
       period_end: req.nextUrl.searchParams.get("to") || undefined,
-      run_by: profile.id,
+      run_by: auth.ctx.profile.id,
     });
 
     return NextResponse.json(result);

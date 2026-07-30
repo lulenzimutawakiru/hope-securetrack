@@ -219,7 +219,7 @@ function VerifyPortalInner() {
           <Shield className="h-8 w-8 text-hope-gold" />
           <div>
             <span className="text-lg font-bold text-white block leading-tight">
-              Hope SecureTrack
+              SecureTrack ERP
             </span>
             <span className="text-[10px] text-white/50 uppercase tracking-wider">
               Product Verification Portal

@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-07-30T14:22:43.771Z",
+  "product": "SecureTrack ERP",
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "total": 0
+  },
+  "info": [
+    "Dashboard pages: 978",
+    "API routes: 36",
+    "Pages with placeholder-like text (sample scan): 0",
+    "NAV hrefs checked: 55; missing pages: 0",
+    "Migrations: 70"
+  ],
+  "issues": []
+}

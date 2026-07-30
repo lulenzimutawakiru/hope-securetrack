@@ -63,32 +63,63 @@ export function formatForSiem(
 export async function enqueueSiemPush(input: {
   company_id: string;
   event: Record<string, unknown>;
+  /** Prefer durable job worker for delivery (default true on server) */
+  useJobQueue?: boolean;
 }) {
-  const { data: connectors } = await sb()
+  const client = sb();
+  const { data: connectors } = await client
     .from("eal_siem_connectors")
     .select("*")
     .eq("company_id", input.company_id)
     .eq("enabled", true);
 
-  if (!connectors?.length) return { enqueued: 0 };
+  if (!connectors?.length) return { enqueued: 0, jobId: null as string | null };
 
   let n = 0;
+  const outboxIds: string[] = [];
   for (const c of connectors) {
     const min = severityRank(String(c.min_severity || "info"));
     const ev = severityRank(String(input.event.severity || "info"));
     if (ev < min) continue;
 
     const payload = formatForSiem(String(c.provider), input.event);
-    await sb().from("eal_siem_outbox").insert({
-      company_id: input.company_id,
-      connector_id: c.id,
-      event_id: input.event.id as string,
-      payload,
-      status: "pending",
-    });
+    const { data: row } = await client
+      .from("eal_siem_outbox")
+      .insert({
+        company_id: input.company_id,
+        connector_id: c.id,
+        event_id: input.event.id as string,
+        payload,
+        status: "pending",
+      })
+      .select("id")
+      .maybeSingle();
+    if (row?.id) outboxIds.push(String(row.id));
     n += 1;
   }
-  return { enqueued: n };
+
+  let jobId: string | null = null;
+  if (n > 0 && input.useJobQueue !== false) {
+    try {
+      const { enqueueJob } = await import("@/lib/jobs/queue");
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const job = await enqueueJob(createAdminClient(), {
+        companyId: input.company_id,
+        jobType: "siem.forward",
+        payload: {
+          company_id: input.company_id,
+          outbox_ids: outboxIds,
+          event_id: input.event.id,
+        },
+        maxAttempts: 8,
+      });
+      jobId = job?.id || null;
+    } catch {
+      /* browser path may lack admin — outbox still pending */
+    }
+  }
+
+  return { enqueued: n, jobId };
 }
 
 function severityRank(s: string): number {

@@ -29,13 +29,33 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { requireApiAuth } = await import("@/lib/security/api-auth");
+  const { clientIp, rateLimit } = await import("@/lib/api");
+
+  const ip = clientIp(req);
+  const rl = rateLimit(`notif-dispatch:${ip}`, 40, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec || 60) } }
+    );
   }
+
+  const auth = await requireApiAuth({
+    permissions: [
+      "communications.manage",
+      "comm.manage",
+      "notifications.manage",
+      "settings.manage",
+      "iam.manage",
+    ],
+    allowPlatformAdmin: true,
+  });
+  if ("response" in auth) return auth.response;
+  const { ctx } = auth;
+
+  const supabase = await createClient();
+  const user = ctx.user;
 
   let json: unknown;
   try {
@@ -59,7 +79,7 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  const companyId = profile?.company_id;
+  const companyId = profile?.company_id || ctx.companyId;
   const vars = {
     name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "User",
     email: profile?.email || "",

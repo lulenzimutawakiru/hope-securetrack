@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { flushSiemOutbox } from "@/lib/audit/siem";
+import { requireApiAuth } from "@/lib/security/api-auth";
+import { clientIp, rateLimit } from "@/lib/api";
 
 /** List SIEM connectors / flush outbox */
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireApiAuth({
+      permissions: ["eal.view", "audit.view", "eal.security", "eal.export"],
+      allowPlatformAdmin: true,
+    });
+    if ("response" in auth) return auth.response;
 
+    const supabase = await createClient();
     const { data: connectors } = await supabase
       .from("eal_siem_connectors")
       .select("id, connector_code, name, provider, enabled, min_severity, last_push_at, last_status")
+      .eq("company_id", auth.ctx.companyId)
       .order("name");
 
     const { count: pending } = await supabase
       .from("eal_siem_outbox")
       .select("*", { count: "exact", head: true })
+      .eq("company_id", auth.ctx.companyId)
       .eq("status", "pending");
 
     return NextResponse.json({
@@ -36,25 +41,23 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const body = await req.json();
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const companyId = body.company_id || profile?.company_id;
-    if (!companyId) {
-      return NextResponse.json({ error: "company_id required" }, { status: 400 });
+    const ip = clientIp(req);
+    const rl = rateLimit(`siem-flush:${ip}`, 10, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
     }
 
-    if (body.action === "flush") {
+    const auth = await requireApiAuth({
+      permissions: ["eal.export", "eal.manage", "audit.manage", "eal.security"],
+      allowPlatformAdmin: true,
+    });
+    if ("response" in auth) return auth.response;
+
+    const body = await req.json().catch(() => ({}));
+    // Session company only — ignore body.company_id
+    const companyId = auth.ctx.companyId;
+
+    if ((body as { action?: string }).action === "flush") {
       const result = await flushSiemOutbox(companyId);
       return NextResponse.json({ ok: true, ...result });
     }

@@ -13,19 +13,13 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
-import {
-  buildInvoiceHtml,
-  printInvoiceHtml,
-  createPaymentIntent,
-  completePaymentIntent,
-} from "@/lib/billing";
+import { buildInvoiceHtml, printInvoiceHtml } from "@/lib/billing";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 /**
- * Customer portal — view invoices, pay online, history, disputes, statements.
- * Access via /portal/{access_token}
+ * Customer portal — token-based, loads via public API (service role server-side).
+ * Payments create intents only; real settlement is webhook/sandbox.
  */
 export default function CustomerPortalPage({
   params,
@@ -38,68 +32,39 @@ export default function CustomerPortalPage({
   const [invoices, setInvoices] = useState<Array<Record<string, unknown>>>([]);
   const [payments, setPayments] = useState<Array<Record<string, unknown>>>([]);
   const [contracts, setContracts] = useState<Array<Record<string, unknown>>>([]);
+  const [sandbox, setSandbox] = useState(false);
   const [disputeSubject, setDisputeSubject] = useState("");
   const [disputeBody, setDisputeBody] = useState("");
   const [disputeInvoice, setDisputeInvoice] = useState("");
   const [tab, setTab] = useState<"invoices" | "payments" | "contracts" | "dispute">("invoices");
+  const [paying, setPaying] = useState<string | null>(null);
 
   const load = async () => {
-    const supabase = createClient();
-    const { data: user } = await supabase
-      .from("bill_portal_users")
-      .select("*, customers(*)")
-      .eq("access_token", token)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!user) {
+    try {
+      const res = await fetch(`/api/public/portal?token=${encodeURIComponent(token)}`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setPortalUser(null);
+        setLoading(false);
+        return;
+      }
+      setPortalUser(json.portal_user as Record<string, unknown>);
+      setInvoices((json.invoices as Array<Record<string, unknown>>) || []);
+      setPayments((json.payments as Array<Record<string, unknown>>) || []);
+      setContracts((json.contracts as Array<Record<string, unknown>>) || []);
+      setSandbox(Boolean(json.payment_sandbox));
+    } catch {
       setPortalUser(null);
+    } finally {
       setLoading(false);
-      return;
     }
-    setPortalUser(user);
-    await supabase
-      .from("bill_portal_users")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("id", user.id);
-
-    const customerId = user.customer_id;
-    const [{ data: inv }, { data: pays }, { data: ctr }] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("*")
-        .eq("customer_id", customerId)
-        .not("status", "eq", "void")
-        .order("invoice_date", { ascending: false })
-        .limit(100),
-      supabase
-        .from("invoice_payments")
-        .select("*, invoices!inner(invoice_number,customer_id)")
-        .eq("invoices.customer_id", customerId)
-        .order("payment_date", { ascending: false })
-        .limit(50),
-      supabase
-        .from("bill_contracts")
-        .select("*")
-        .eq("customer_id", customerId)
-        .is("deleted_at", null),
-    ]);
-    setInvoices(inv ?? []);
-    setPayments((pays as unknown as Array<Record<string, unknown>>) ?? []);
-    setContracts(ctr ?? []);
-    setLoading(false);
   };
 
   useEffect(() => {
-    load().catch(() => setLoading(false));
+    load();
   }, [token]);
 
-  const downloadInvoice = async (inv: Record<string, unknown>) => {
-    const supabase = createClient();
-    const { data: lines } = await supabase
-      .from("invoice_lines")
-      .select("*")
-      .eq("invoice_id", inv.id);
+  const printInv = (inv: Record<string, unknown>) => {
     const cust = portalUser?.customers as Record<string, unknown> | undefined;
     const html = buildInvoiceHtml({
       invoice_number: String(inv.invoice_number),
@@ -110,13 +75,7 @@ export default function CustomerPortalPage({
       currency: String(inv.currency || "UGX"),
       customer_name: String(cust?.name || ""),
       customer_address: String(cust?.billing_address || ""),
-      lines: (lines || []).map((l) => ({
-        description: l.description || "",
-        quantity: l.quantity,
-        unit: l.unit,
-        unit_price: l.unit_price,
-        tax_rate: l.tax_rate,
-      })),
+      lines: [],
       subtotal: Number(inv.subtotal),
       tax_amount: Number(inv.tax_amount),
       total_amount: Number(inv.total_amount),
@@ -131,28 +90,45 @@ export default function CustomerPortalPage({
 
   const payOnline = async (inv: Record<string, unknown>, gateway = "MTN") => {
     if (!portalUser) return;
+    const balance = Number(inv.total_amount) - Number(inv.amount_paid || 0);
+    if (balance <= 0) {
+      toast.message("Invoice already paid");
+      return;
+    }
+    setPaying(String(inv.id));
     try {
-      const supabase = createClient();
-      const balance =
-        Number(inv.total_amount) - Number(inv.amount_paid || 0);
-      if (balance <= 0) {
-        toast.message("Invoice already paid");
-        return;
-      }
-      const intent = await createPaymentIntent(supabase, {
-        company_id: String(portalUser.company_id),
-        invoice_id: String(inv.id),
-        customer_id: String(portalUser.customer_id),
-        amount: balance,
-        currency: String(inv.currency || "UGX"),
-        gateway_code: gateway,
+      const res = await fetch("/api/public/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_intent",
+          token,
+          invoice_id: inv.id,
+          gateway_code: gateway,
+          // Only server honors this when PAYMENT_SANDBOX=true
+          complete_sandbox: sandbox,
+        }),
       });
-      // Demo: complete immediately for MoMo-style sandbox
-      await completePaymentIntent(supabase, String(intent.external_ref));
-      toast.success(`Payment completed via ${gateway}`);
-      await load();
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Payment failed");
+
+      if (json.completed_sandbox) {
+        toast.success(`Sandbox payment completed via ${gateway}`);
+        await load();
+      } else {
+        toast.message(
+          json.message ||
+            "Payment intent created. Complete checkout via mobile money / card — not auto-settled."
+        );
+        if (json.intent?.payment_link) {
+          // Optional: open payment link
+          window.open(String(json.intent.payment_link), "_blank", "noopener,noreferrer");
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Payment failed");
+    } finally {
+      setPaying(null);
     }
   };
 
@@ -160,18 +136,19 @@ export default function CustomerPortalPage({
     e.preventDefault();
     if (!portalUser || !disputeSubject) return;
     try {
-      const supabase = createClient();
-      const num = `DSP-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("bill_portal_disputes").insert({
-        company_id: portalUser.company_id,
-        customer_id: portalUser.customer_id,
-        invoice_id: disputeInvoice || null,
-        dispute_number: num,
-        subject: disputeSubject,
-        description: disputeBody,
-        status: "open",
+      const res = await fetch("/api/public/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "dispute",
+          token,
+          subject: disputeSubject,
+          description: disputeBody,
+          invoice_id: disputeInvoice || null,
+        }),
       });
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Failed");
       toast.success("Dispute submitted");
       setDisputeSubject("");
       setDisputeBody("");
@@ -180,152 +157,151 @@ export default function CustomerPortalPage({
     }
   };
 
-  if (loading) return <LoadingState message="Opening customer portal…" />;
+  if (loading) return <LoadingState message="Loading customer portal…" />;
 
   if (!portalUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-muted/30">
         <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-5 w-5" /> Invalid portal link
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            This access token is invalid or disabled. Contact Hope Design Group finance.
+          <CardContent className="pt-6 text-center space-y-3">
+            <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+            <p className="font-medium">Invalid or disabled portal link</p>
+            <p className="text-sm text-muted-foreground">
+              Contact Hope Design Group finance for a new access link.
+            </p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const cust = portalUser.customers as { name?: string } | null;
-  const openAr = invoices
-    .filter((i) => !["paid", "cancelled"].includes(String(i.status)))
-    .reduce(
-      (s, i) => s + Number(i.total_amount) - Number(i.amount_paid || 0),
-      0
-    );
+  const openInvoices = invoices.filter(
+    (i) => !["paid", "cancelled"].includes(String(i.status))
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-4 flex flex-wrap items-center justify-between gap-2">
+    <div className="min-h-screen bg-muted/20">
+      <header className="border-b bg-card">
+        <div className="mx-auto max-w-5xl px-4 py-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-teal-700 font-semibold tracking-wide">HOPE DESIGN GROUP LTD</p>
-            <h1 className="text-lg font-bold">Customer Portal</h1>
-            <p className="text-sm text-muted-foreground">{cust?.name || String(portalUser.full_name || "")}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Customer portal</p>
+            <h1 className="text-lg font-semibold">SecureTrack ERP Billing</h1>
           </div>
-          <div className="text-right text-sm">
-            <p className="text-muted-foreground">Outstanding</p>
-            <p className="text-xl font-bold text-teal-800">{formatNumber(Math.round(openAr))} UGX</p>
-          </div>
+          {sandbox && (
+            <span className="text-[10px] rounded bg-amber-100 text-amber-900 px-2 py-1 font-medium">
+              PAYMENT_SANDBOX
+            </span>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <div className="flex flex-wrap gap-2 mb-6">
-          {(
-            [
-              ["invoices", "Invoices"],
-              ["payments", "Payments"],
-              ["contracts", "Contracts"],
-              ["dispute", "Dispute"],
-            ] as const
-          ).map(([k, label]) => (
+      <main className="mx-auto max-w-5xl px-4 py-6 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {(["invoices", "payments", "contracts", "dispute"] as const).map((t) => (
             <Button
-              key={k}
+              key={t}
               size="sm"
-              variant={tab === k ? "default" : "outline"}
-              onClick={() => setTab(k)}
+              variant={tab === t ? "default" : "outline"}
+              onClick={() => setTab(t)}
+              className="capitalize"
             >
-              {label}
+              {t}
             </Button>
           ))}
         </div>
 
         {tab === "invoices" && (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4" /> Your invoices
+                <FileText className="h-4 w-4" /> Invoices
               </CardTitle>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
+            <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Number</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Due</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Balance</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead></TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invoices.map((inv) => {
-                    const bal =
-                      Number(inv.total_amount) - Number(inv.amount_paid || 0);
+                    const bal = Number(inv.total_amount) - Number(inv.amount_paid || 0);
                     return (
                       <TableRow key={String(inv.id)}>
                         <TableCell className="font-mono text-xs">{String(inv.invoice_number)}</TableCell>
                         <TableCell className="text-xs">{formatDate(String(inv.invoice_date))}</TableCell>
-                        <TableCell className="text-xs">
-                          {inv.due_date ? formatDate(String(inv.due_date)) : "—"}
+                        <TableCell>
+                          <StatusBadge status={String(inv.status)} />
                         </TableCell>
-                        <TableCell className="text-xs">{formatNumber(Number(inv.total_amount))}</TableCell>
-                        <TableCell className="text-xs font-medium">{formatNumber(bal)}</TableCell>
-                        <TableCell><StatusBadge status={String(inv.status)} /></TableCell>
+                        <TableCell className="text-xs">
+                          {String(inv.currency)} {formatNumber(bal)}
+                        </TableCell>
                         <TableCell className="space-x-1">
-                          <Button size="sm" variant="outline" onClick={() => downloadInvoice(inv)}>
+                          <Button size="sm" variant="ghost" onClick={() => printInv(inv)}>
                             <Download className="h-3.5 w-3.5" />
                           </Button>
                           {bal > 0 && (
-                            <>
-                              <Button size="sm" onClick={() => payOnline(inv, "MTN")}>
-                                <CreditCard className="h-3.5 w-3.5 mr-1" /> MTN
-                              </Button>
-                              <Button size="sm" variant="secondary" onClick={() => payOnline(inv, "AIRTEL")}>
-                                Airtel
-                              </Button>
-                            </>
+                            <Button
+                              size="sm"
+                              disabled={paying === String(inv.id)}
+                              onClick={() => payOnline(inv)}
+                            >
+                              <CreditCard className="h-3.5 w-3.5 mr-1" />
+                              {sandbox ? "Sandbox pay" : "Pay"}
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
                     );
                   })}
+                  {invoices.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground text-sm">
+                        No invoices
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
+              {openInvoices.length > 0 && !sandbox && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Production payments create a gateway intent only. Settlement requires a verified
+                  webhook (`BILLING_WEBHOOK_SECRET`).
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
 
         {tab === "payments" && (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="h-4 w-4" /> Payment history
+                <Receipt className="h-4 w-4" /> Payments
               </CardTitle>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
+            <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Receipt</TableHead>
-                    <TableHead>Method</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Reference</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments.map((p) => (
                     <TableRow key={String(p.id)}>
                       <TableCell className="text-xs">{formatDate(String(p.payment_date))}</TableCell>
-                      <TableCell className="font-mono text-xs">{String(p.receipt_number || "—")}</TableCell>
-                      <TableCell className="text-xs">{String(p.method)}</TableCell>
                       <TableCell className="text-xs">{formatNumber(Number(p.amount))}</TableCell>
+                      <TableCell className="text-xs">{String(p.method)}</TableCell>
+                      <TableCell className="font-mono text-xs">{String(p.reference || "—")}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -336,55 +312,47 @@ export default function CustomerPortalPage({
 
         {tab === "contracts" && (
           <Card>
-            <CardHeader><CardTitle className="text-base">Contracts</CardTitle></CardHeader>
-            <CardContent>
-              {contracts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active contracts.</p>
-              ) : (
-                <ul className="space-y-2 text-sm">
-                  {contracts.map((c) => (
-                    <li key={String(c.id)} className="border rounded p-3">
-                      <div className="font-medium">{String(c.title)}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{String(c.contract_number)}</div>
-                      <div className="text-xs mt-1">
-                        Value {formatNumber(Number(c.total_value))} · {String(c.status)}
-                      </div>
-                    </li>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Contracts</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              {contracts.length === 0
+                ? "No contracts on file."
+                : contracts.map((c) => (
+                    <div key={String(c.id)} className="border-b py-2">
+                      {String(c.contract_number || c.title)} · {String(c.status)}
+                    </div>
                   ))}
-                </ul>
-              )}
             </CardContent>
           </Card>
         )}
 
         {tab === "dispute" && (
           <Card>
-            <CardHeader><CardTitle className="text-base">Submit dispute</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Open a dispute</CardTitle>
+            </CardHeader>
             <CardContent>
               <form onSubmit={submitDispute} className="space-y-3 max-w-md">
                 <div>
-                  <Label>Invoice (optional)</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={disputeInvoice}
-                    onChange={(e) => setDisputeInvoice(e.target.value)}
-                  >
-                    <option value="">— General —</option>
-                    {invoices.map((i) => (
-                      <option key={String(i.id)} value={String(i.id)}>
-                        {String(i.invoice_number)}
-                      </option>
-                    ))}
-                  </select>
+                  <Label>Subject</Label>
+                  <Input
+                    required
+                    value={disputeSubject}
+                    onChange={(e) => setDisputeSubject(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <Label>Subject</Label>
-                  <Input required value={disputeSubject} onChange={(e) => setDisputeSubject(e.target.value)} />
+                  <Label>Invoice ID (optional)</Label>
+                  <Input
+                    value={disputeInvoice}
+                    onChange={(e) => setDisputeInvoice(e.target.value)}
+                    placeholder="UUID"
+                  />
                 </div>
                 <div>
                   <Label>Details</Label>
-                  <textarea
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  <Input
                     value={disputeBody}
                     onChange={(e) => setDisputeBody(e.target.value)}
                   />

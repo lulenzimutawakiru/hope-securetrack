@@ -67,6 +67,10 @@ export interface Company {
 export interface UserProfile {
   id: string;
   company_id: string;
+  /** Multi-tenant: currently selected company for RLS context */
+  active_company_id?: string | null;
+  tenant_id?: string | null;
+  is_platform_admin?: boolean;
   factory_id: string | null;
   warehouse_id: string | null;
   branch_id: string | null;

@@ -1,5 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { finNextNumber, finAudit } from "./crud";
 
 export type AccountingEventType =
   | "sales_invoice"
@@ -26,12 +26,55 @@ export type PostEventInput = {
   metadata?: Record<string, unknown>;
 };
 
+async function nextCode(
+  sb: SupabaseClient,
+  table: string,
+  companyId: string,
+  prefix: string
+): Promise<string> {
+  const year = new Date().getFullYear();
+  const { count } = await sb
+    .from(table)
+    .select("*", { count: "exact", head: true })
+    .eq("company_id", companyId);
+  return `${prefix}-${year}-${String((count ?? 0) + 1).padStart(5, "0")}`;
+}
+
+async function audit(
+  sb: SupabaseClient,
+  input: {
+    company_id?: string | null;
+    actor_id?: string | null;
+    action: string;
+    entity_table: string;
+    entity_id?: string;
+    entity_code?: string;
+    details?: string;
+  }
+) {
+  try {
+    await sb.from("fin_audit_log").insert({
+      company_id: input.company_id || null,
+      actor_id: input.actor_id || null,
+      action: input.action,
+      entity_type: input.entity_table,
+      entity_id: input.entity_id || null,
+      details: [input.entity_code, input.details].filter(Boolean).join(" — ") || null,
+    });
+  } catch {
+    /* non-blocking */
+  }
+}
+
 /**
  * Event-driven accounting engine: maps ERP events → posting rules → auto journal trail.
- * Creates fin_auto_journals and optionally a balanced gl_journals header when COA codes exist.
+ * Pass a server/admin Supabase client from API routes; browser client used by default.
  */
-export async function postAccountingEvent(input: PostEventInput) {
-  const sb = createClient();
+export async function postAccountingEvent(
+  input: PostEventInput,
+  client?: SupabaseClient
+) {
+  const sb = client || createClient();
   const currency = input.currency || "UGX";
 
   const { data: rule } = await sb
@@ -44,12 +87,7 @@ export async function postAccountingEvent(input: PostEventInput) {
     .limit(1)
     .maybeSingle();
 
-  const autoNumber = await finNextNumber(
-    "fin_auto_journals",
-    input.companyId,
-    "AJ",
-    "auto_number"
-  );
+  const autoNumber = await nextCode(sb, "fin_auto_journals", input.companyId, "AJ");
 
   let glJournalId: string | null = null;
   let status = "posted";
@@ -57,12 +95,7 @@ export async function postAccountingEvent(input: PostEventInput) {
 
   if (rule?.auto_post && rule.debit_account_code && rule.credit_account_code) {
     try {
-      const journalNumber = await finNextNumber(
-        "gl_journals",
-        input.companyId,
-        "JE",
-        "journal_number"
-      );
+      const journalNumber = await nextCode(sb, "gl_journals", input.companyId, "JE");
       const { data: journal, error: jErr } = await sb
         .from("gl_journals")
         .insert({
@@ -90,7 +123,6 @@ export async function postAccountingEvent(input: PostEventInput) {
       if (jErr) throw jErr;
       glJournalId = journal?.id || null;
 
-      // Resolve account IDs if present
       const [{ data: debitAcc }, { data: creditAcc }] = await Promise.all([
         sb
           .from("chart_of_accounts")
@@ -175,7 +207,7 @@ export async function postAccountingEvent(input: PostEventInput) {
 
   if (error) throw error;
 
-  await finAudit({
+  await audit(sb, {
     company_id: input.companyId,
     actor_id: input.actorId,
     action: "auto_post",
@@ -188,8 +220,12 @@ export async function postAccountingEvent(input: PostEventInput) {
   return autoRow;
 }
 
-export async function listPostingRules(companyId: string) {
-  const { data, error } = await createClient()
+export async function listPostingRules(
+  companyId: string,
+  client?: SupabaseClient
+) {
+  const sb = client || createClient();
+  const { data, error } = await sb
     .from("fin_posting_rules")
     .select("*")
     .eq("company_id", companyId)
@@ -199,8 +235,13 @@ export async function listPostingRules(companyId: string) {
   return data || [];
 }
 
-export async function listAutoJournals(companyId: string, limit = 100) {
-  const { data, error } = await createClient()
+export async function listAutoJournals(
+  companyId: string,
+  limit = 100,
+  client?: SupabaseClient
+) {
+  const sb = client || createClient();
+  const { data, error } = await sb
     .from("fin_auto_journals")
     .select("*")
     .eq("company_id", companyId)

@@ -166,7 +166,12 @@ export default function BrandEmailPage() {
               {preview ? (
                 <div
                   className="rounded border bg-white p-4"
-                  dangerouslySetInnerHTML={{ __html: String(preview.html_body) }}
+                  dangerouslySetInnerHTML={{
+                    __html: String(preview.html_body || "")
+                      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                      .replace(/on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+                      .replace(/javascript:/gi, ""),
+                  }}
                 />
               ) : null}
             </CardContent>

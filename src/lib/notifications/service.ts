@@ -85,6 +85,54 @@ function inQuietHours(prefs: Record<string, unknown> | null): boolean {
   return hhmm >= start || hhmm < end;
 }
 
+/**
+ * Preferred production entry: enqueue durable job for worker delivery.
+ * Falls back to synchronous notifyUsers if queue unavailable.
+ */
+export async function notifyUsersAsync(
+  input: NotifyInput & { sync?: boolean }
+): Promise<NotifyResult & { jobId?: string | null; mode: "async" | "sync" }> {
+  if (input.sync || process.env.NOTIFICATIONS_SYNC === "true") {
+    const r = await notifyUsers(input);
+    return { ...r, jobId: null, mode: "sync" };
+  }
+  try {
+    const { enqueueJob } = await import("@/lib/jobs/queue");
+    const admin = createAdminClient();
+    const job = await enqueueJob(admin, {
+      companyId: input.companyId,
+      jobType: "notification.dispatch",
+      payload: {
+        ...input,
+        // serialize for worker
+        title: input.title,
+        body: input.message,
+        user_ids: input.userIds,
+        channels: input.channels,
+      },
+      idempotencyKey: input.entityId
+        ? `notify:${input.companyId}:${input.entityType || "x"}:${input.entityId}:${input.title.slice(0, 40)}`
+        : undefined,
+      maxAttempts: 5,
+    });
+    if (job?.id) {
+      return {
+        inApp: 0,
+        email: 0,
+        skipped: 0,
+        failed: 0,
+        notificationIds: [],
+        jobId: job.id,
+        mode: "async",
+      };
+    }
+  } catch {
+    /* fall through to sync */
+  }
+  const r = await notifyUsers(input);
+  return { ...r, jobId: null, mode: "sync" };
+}
+
 export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
   const admin = createAdminClient();
   const channels = input.channels?.length

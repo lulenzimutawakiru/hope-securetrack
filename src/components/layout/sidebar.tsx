@@ -25,6 +25,7 @@ import {
   ShoppingBag,
   FileText,
   Contact,
+  UserPlus,
   Network,
   Briefcase,
   Handshake,
@@ -45,6 +46,7 @@ import {
   Car,
   FolderKanban,
   Clock,
+  Server,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -85,6 +87,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ShoppingBag,
   FileText,
   Contact,
+  UserPlus,
   Network,
   Briefcase,
   Handshake,
@@ -106,6 +109,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Car,
   FolderKanban,
   Clock,
+  Server,
 };
 
 type SidebarProps = {
@@ -147,9 +151,9 @@ export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
           <Shield className="h-8 w-8 shrink-0 text-sidebar-primary" />
           {!isCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold tracking-tight">Hope SecureTrack</p>
+              <p className="truncate text-sm font-bold tracking-tight">SecureTrack ERP</p>
               <p className="truncate text-xs text-sidebar-foreground/60">
-                Hope Design Group
+                Multi-tenant platform
               </p>
             </div>
           )}

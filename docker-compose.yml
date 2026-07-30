@@ -1,0 +1,19 @@
+# SecureTrack ERP — local / private-cloud compose stack
+# Supabase remains external (or use supabase start separately).
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      - PAYMENT_SANDBOX=false
+      - PLATFORM_PROVISIONING_PUBLIC=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -52,23 +52,30 @@ export default function PortalAdminPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id || !form.customer_id) return;
     try {
-      const token =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID().replace(/-/g, "")
-          : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
-      const supabase = createClient();
       const cust = customers.find((c) => c.id === form.customer_id);
-      const { error } = await supabase.from("bill_portal_users").insert({
-        company_id: auth.profile.company_id,
-        customer_id: form.customer_id,
-        email: form.email || cust?.email || `portal-${token.slice(0, 6)}@customer.local`,
-        full_name: form.full_name || cust?.name,
-        access_token: token,
-        is_active: true,
+      const res = await fetch("/api/billing/portal-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_id: form.customer_id,
+          email: form.email || cust?.email || null,
+          full_name: form.full_name || cust?.name || null,
+        }),
       });
-      if (error) throw error;
-      toast.success("Portal user created — copy access link");
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || json?.error || "Create failed");
+      }
+      const token = json.data?.access_token as string | undefined;
+      if (token) {
+        const url = `${window.location.origin}/portal/${token}`;
+        await navigator.clipboard.writeText(url);
+        toast.success("Portal user created — secure link copied (shown once)");
+      } else {
+        toast.success("Portal user created");
+      }
       setOpen(false);
+      setForm({ customer_id: "", email: "", full_name: "" });
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -76,6 +83,10 @@ export default function PortalAdminPage() {
   };
 
   const copyLink = (token: string) => {
+    if (!token || token.length < 16) {
+      toast.error("Token not available — re-issue portal access");
+      return;
+    }
     const url = `${window.location.origin}/portal/${token}`;
     navigator.clipboard.writeText(url);
     toast.success("Portal link copied");

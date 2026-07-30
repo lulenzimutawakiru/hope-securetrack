@@ -50,7 +50,37 @@ export type SoftDeleteTable =
   | "lbl_batches"
   | "lbl_instances"
   | "lbl_materials"
-  | "lbl_formats";
+  | "lbl_formats"
+  | "ta_vacancies"
+  | "ta_candidates"
+  | "ta_applications"
+  | "ta_offers"
+  | "ta_requisitions"
+  | "pay_employee_profiles"
+  | "pay_components"
+  | "pay_salary_structures"
+  | "pay_loans"
+  | "pay_benefit_plans"
+  | "pay_bonuses"
+  | "pay_calendars"
+  | "pay_periods"
+  | "pay_commissions"
+  | "pay_incentives"
+  | "pay_formulas"
+  | "pay_simulations"
+  | "pay_corrections"
+  | "pay_final_settlements"
+  | "pay_cost_allocations"
+  | "pay_mobile_money"
+  | "pay_bank_files"
+  | "wf_instances"
+  | "bill_portal_users"
+  | "hc_meetings"
+  | "hc_channels"
+  | "purchase_orders"
+  | "purchase_requisitions"
+  | "work_orders"
+  | "mes_work_orders";
 
 export async function softDelete(
   supabase: SupabaseClient,
@@ -286,6 +316,76 @@ export const RECYCLE_BIN_SOURCES: Array<{
     titleKey: "name",
     codeKey: "format_code",
     module: "labels",
+  },
+  {
+    table: "ta_vacancies",
+    label: "Vacancies",
+    titleKey: "title",
+    codeKey: "vacancy_code",
+    module: "talent",
+  },
+  {
+    table: "ta_candidates",
+    label: "Candidates",
+    titleKey: "first_name",
+    codeKey: "candidate_number",
+    module: "talent",
+  },
+  {
+    table: "ta_applications",
+    label: "Applications",
+    titleKey: "candidate_name",
+    codeKey: "application_number",
+    module: "talent",
+  },
+  {
+    table: "ta_offers",
+    label: "Offers",
+    titleKey: "candidate_name",
+    codeKey: "offer_number",
+    module: "talent",
+  },
+  {
+    table: "pay_employee_profiles",
+    label: "Pay Profiles",
+    titleKey: "salary_grade",
+    codeKey: "employee_id",
+    module: "payroll",
+  },
+  {
+    table: "pay_loans",
+    label: "Payroll Loans",
+    titleKey: "loan_type",
+    codeKey: "loan_number",
+    module: "payroll",
+  },
+  {
+    table: "pay_commissions",
+    label: "Commissions",
+    titleKey: "employee_name",
+    codeKey: "commission_code",
+    module: "payroll",
+  },
+  {
+    table: "pay_incentives",
+    label: "Incentives",
+    titleKey: "name",
+    codeKey: "incentive_code",
+    module: "payroll",
+  },
+  {
+    table: "pay_simulations",
+    label: "Payroll Simulations",
+    titleKey: "name",
+    codeKey: "simulation_code",
+    module: "payroll",
+  },
+  {
+    table: "pay_final_settlements",
+    label: "Final Settlements",
+    titleKey: "employee_name",
+    codeKey: "settlement_code",
+    module: "payroll",
   },
   {
     table: "customers",

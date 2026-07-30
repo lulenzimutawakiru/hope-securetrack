@@ -1,19 +1,26 @@
 /** Enterprise Payroll types & constants */
 
 export const PAYROLL_LIFECYCLE = [
-  "Master Data",
+  "Contract",
+  "Profile",
+  "Structure",
+  "Benefits",
+  "Tax Reg",
   "Attendance",
   "Leave",
   "Overtime",
-  "Allowances",
-  "Deductions",
-  "Tax",
-  "Process",
+  "Incentives",
+  "Commissions",
+  "Loans",
+  "Tax Calc",
+  "Simulate",
+  "Validate",
   "Approve",
-  "Pay",
-  "Payslips",
+  "Bank/MM",
+  "Payment",
   "GL Post",
-  "Reports",
+  "Payslips",
+  "Audit",
 ] as const;
 
 export const PAY_FREQUENCIES = [

@@ -24,7 +24,7 @@ export default function GlobalError({
       >
         <div>
           <h1 style={{ fontSize: 24, marginBottom: 12 }}>
-            Hope SecureTrack
+            SecureTrack ERP
           </h1>
           <p style={{ opacity: 0.8, marginBottom: 20 }}>
             A critical error occurred. Please reload the application.

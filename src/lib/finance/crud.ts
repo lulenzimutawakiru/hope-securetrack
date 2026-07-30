@@ -222,24 +222,98 @@ export async function finNextNumber(
   return `${prefix}-${year}-${String((count ?? 0) + 1).padStart(5, "0")}`;
 }
 
-export function toCsv(rows: Array<Record<string, unknown>>, columns: string[]): string {
-  const esc = (v: unknown) => {
-    const s = v == null ? "" : String(v);
-    return s.includes(",") || s.includes('"') || s.includes("\n")
-      ? `"${s.replace(/"/g, '""')}"`
-      : s;
-  };
-  const header = columns.join(",");
-  const body = rows.map((r) => columns.map((c) => esc(r[c])).join(",")).join("\n");
-  return `${header}\n${body}`;
-}
+export {
+  toCsv,
+  downloadCsv,
+  parseCsv,
+  validateImportRows,
+  type ImportFieldMap,
+} from "@/lib/enterprise/csv";
 
-export function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+import {
+  parseCsv,
+  validateImportRows,
+  type ImportFieldMap,
+} from "@/lib/enterprise/csv";
+
+/** Bulk CSV import for finance master data */
+export async function finImportCsv(
+  table: string,
+  csvText: string,
+  opts: {
+    companyId: string;
+    actorId?: string | null;
+    fieldMap: ImportFieldMap;
+  }
+): Promise<{
+  success: number;
+  failed: number;
+  errors: Array<{ row: number; errors: string[] }>;
+  createdIds: string[];
+}> {
+  const parsed = parseCsv(csvText);
+  if (parsed.errors.length && !parsed.rows.length) {
+    return {
+      success: 0,
+      failed: 0,
+      errors: parsed.errors.map((e, i) => ({ row: i + 1, errors: [e] })),
+      createdIds: [],
+    };
+  }
+
+  const map: ImportFieldMap = {
+    ...opts.fieldMap,
+    defaults: {
+      ...(opts.fieldMap.defaults || {}),
+      company_id: opts.companyId,
+    },
+  };
+  const { valid, invalid } = validateImportRows(parsed.rows, map);
+  const createdIds: string[] = [];
+  const runtimeErrors: Array<{ row: number; errors: string[] }> = invalid.map(
+    (i) => ({ row: i.row, errors: i.errors })
+  );
+
+  for (let i = 0; i < valid.length; i++) {
+    try {
+      const row = await finCreate(table, valid[i], opts.actorId);
+      createdIds.push(String(row.id));
+    } catch (e) {
+      runtimeErrors.push({
+        row: i + 2,
+        errors: [e instanceof Error ? e.message : "Insert failed"],
+      });
+    }
+  }
+
+  try {
+    await sb().from("enterprise_import_batches").insert({
+      company_id: opts.companyId,
+      module: "finance",
+      entity_table: table,
+      total_rows: parsed.rows.length,
+      success_rows: createdIds.length,
+      error_rows: runtimeErrors.length,
+      errors: runtimeErrors.slice(0, 100),
+      status: runtimeErrors.length ? "partial" : "completed",
+      created_by: opts.actorId || null,
+    });
+  } catch {
+    /* non-blocking */
+  }
+
+  await finAudit({
+    company_id: opts.companyId,
+    actor_id: opts.actorId,
+    action: "import",
+    entity_table: table,
+    details: `imported=${createdIds.length} failed=${runtimeErrors.length}`,
+  });
+
+  return {
+    success: createdIds.length,
+    failed: runtimeErrors.length,
+    errors: runtimeErrors,
+    createdIds,
+  };
 }

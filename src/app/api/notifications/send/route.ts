@@ -27,13 +27,33 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { requireApiAuth } = await import("@/lib/security/api-auth");
+  const { clientIp, rateLimit } = await import("@/lib/api");
+
+  const ip = clientIp(req);
+  const rl = rateLimit(`notif-send:${ip}`, 40, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec || 60) } }
+    );
   }
+
+  const auth = await requireApiAuth({
+    permissions: [
+      "communications.manage",
+      "comm.manage",
+      "notifications.manage",
+      "settings.manage",
+      "iam.manage",
+    ],
+    allowPlatformAdmin: true,
+  });
+  if ("response" in auth) return auth.response;
+  const { ctx } = auth;
+
+  const supabase = await createClient();
+  const user = ctx.user;
 
   const { data: profile } = await supabase
     .from("user_profiles")
@@ -41,9 +61,11 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (!profile?.company_id) {
+  if (!profile?.company_id && !ctx.companyId) {
     return NextResponse.json({ error: "No company" }, { status: 400 });
   }
+
+  const companyId = profile?.company_id || ctx.companyId;
 
   let json: unknown;
   try {
@@ -62,10 +84,18 @@ export async function POST(req: NextRequest) {
 
   const body = parsed.data;
 
+  // all_users requires elevated permission
+  if (body.all_users && !ctx.isPlatformAdmin && !ctx.permissions.includes("iam.manage")) {
+    return NextResponse.json(
+      { error: "Broadcast to all users requires iam.manage" },
+      { status: 403 }
+    );
+  }
+
   try {
     if (body.event_key) {
       const result = await notifyFromEvent({
-        companyId: profile.company_id,
+        companyId: companyId,
         eventKey: body.event_key,
         vars: body.vars,
         actorUserId: user.id,
@@ -89,7 +119,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await notifyUsers({
-      companyId: profile.company_id,
+      companyId: companyId,
       userIds: body.all_users ? undefined : userIds,
       title: body.title,
       message: body.message,

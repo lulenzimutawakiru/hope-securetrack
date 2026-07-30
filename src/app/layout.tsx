@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Hope SecureTrack",
-    template: "%s | Hope SecureTrack",
+    default: "SecureTrack ERP",
+    template: "%s | SecureTrack ERP",
   },
   description:
-    "Enterprise ERP — QR authentication, manufacturing, advanced labels, sales, finance, fleet, attendance & BI for Hope Design Group",
+    "SecureTrack ERP — Secure · Intelligent · Connected. Multi-tenant enterprise OS for manufacturing, finance, payroll, sales, fleet, attendance, identity & BI.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",

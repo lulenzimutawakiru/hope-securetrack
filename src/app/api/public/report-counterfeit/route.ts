@@ -3,11 +3,21 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const description = String(body.description || "").trim();
-    if (!description) {
+    const { clientIp, rateLimit } = await import("@/lib/api");
+    const ip = clientIp(request);
+    const rl = rateLimit(`counterfeit:${ip}`, 15, 60 * 60_000);
+    if (!rl.allowed) {
       return NextResponse.json(
-        { error: "Description is required" },
+        { error: "Too many reports. Try again later." },
+        { status: 429 }
+      );
+    }
+
+    const body = await request.json();
+    const description = String(body.description || "").trim().slice(0, 4000);
+    if (!description || description.length < 10) {
+      return NextResponse.json(
+        { error: "Description is required (min 10 characters)" },
         { status: 400 }
       );
     }
@@ -22,20 +32,44 @@ export async function POST(request: Request) {
     }
 
     const supabase = createClient(url, serviceKey);
-    const companyId =
-      process.env.DEFAULT_COMPANY_ID ||
-      "a0000000-0000-4000-8000-000000000001";
+
+    // Resolve company from product UUID when possible; never hardcode a single tenant in multi-tenant prod
+    let companyId = process.env.DEFAULT_COMPANY_ID || null;
+    const publicUuid = body.publicUuid ? String(body.publicUuid).slice(0, 100) : null;
+    if (publicUuid) {
+      const { data: qr } = await supabase
+        .from("qr_codes")
+        .select("company_id")
+        .eq("public_uuid", publicUuid)
+        .maybeSingle();
+      if (qr?.company_id) companyId = String(qr.company_id);
+    }
+    if (!companyId) {
+      const { data: first } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("is_primary", true)
+        .limit(1)
+        .maybeSingle();
+      companyId = first?.id ? String(first.id) : null;
+    }
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Unable to resolve company for report" },
+        { status: 400 }
+      );
+    }
 
     const { data, error } = await supabase
       .from("counterfeit_reports")
       .insert({
         company_id: companyId,
-        public_uuid: body.publicUuid || null,
-        reporter_name: body.name || null,
-        reporter_email: body.email || null,
-        reporter_phone: body.phone || null,
+        public_uuid: publicUuid,
+        reporter_name: body.name ? String(body.name).slice(0, 150) : null,
+        reporter_email: body.email ? String(body.email).slice(0, 255) : null,
+        reporter_phone: body.phone ? String(body.phone).slice(0, 40) : null,
         description,
-        purchase_location: body.location || null,
+        purchase_location: body.location ? String(body.location).slice(0, 255) : null,
         status: "pending",
       })
       .select("id")
