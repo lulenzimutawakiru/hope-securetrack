@@ -8,8 +8,33 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
   "Cross-Origin-Opener-Policy": "same-origin",
   "X-DNS-Prefetch-Control": "off",
-  // CSP: allow self + supabase + inline styles (Tailwind). Tighten further in prod as needed.
-  "Content-Security-Policy": [
+};
+
+// Build a stricter CSP in production (no 'unsafe-inline'); allow relaxed CSP in non-production to avoid dev breakage
+function buildCSP() {
+  const base = [
+    "default-src 'self'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https: wss:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ];
+
+  if (process.env.NODE_ENV === 'production') {
+    // Production: no inline scripts/styles allowed — if inline runtime scripts are required, move them to external files
+    return [
+      ...base.slice(0, 1), // keep default-src first
+      "script-src 'self'",
+      "style-src 'self'",
+      ...base.slice(1),
+    ].join('; ');
+  }
+
+  // Development: allow some inline usage for developer ergonomics
+  return [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
@@ -20,8 +45,8 @@ const SECURITY_HEADERS: Record<string, string> = {
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
-  ].join("; "),
-};
+  ].join('; ');
+}
 
 function applySecurityHeaders(res: NextResponse) {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {

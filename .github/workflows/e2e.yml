@@ -1,0 +1,33 @@
+name: E2E Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        run: npm ci
+      - name: Check required secrets
+        run: npm run check:secrets
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          QR_ENCRYPTION_KEY: ${{ secrets.QR_ENCRYPTION_KEY }}
+          QR_SIGNING_PRIVATE_KEY: ${{ secrets.QR_SIGNING_PRIVATE_KEY }}
+          QR_SIGNING_PUBLIC_KEY: ${{ secrets.QR_SIGNING_PUBLIC_KEY }}
+      - name: Run Playwright E2E
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          QR_ENCRYPTION_KEY: ${{ secrets.QR_ENCRYPTION_KEY }}
+          QR_SIGNING_PRIVATE_KEY: ${{ secrets.QR_SIGNING_PRIVATE_KEY }}
+          QR_SIGNING_PUBLIC_KEY: ${{ secrets.QR_SIGNING_PUBLIC_KEY }}
