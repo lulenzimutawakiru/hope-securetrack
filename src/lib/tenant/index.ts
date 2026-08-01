@@ -1,4 +1,4 @@
 export * from "./types";
 export * from "./service";
 export * from "./context";
-export * from "./get-tenant-context";
+// Note: get-tenant-context is server-only and must be imported explicitly from './get-tenant-context' in server components
