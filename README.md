@@ -53,43 +53,35 @@ npx supabase db reset   # migrations + seed
 npm run dev
 ```
 
+**Full setup guide**: [docs/SETUP.md](docs/SETUP.md)
+
 ## Deploy (Vercel + Supabase)
 
-Full guide: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+Full guide: **[docs/SETUP.md](docs/SETUP.md)**
 
+Quick steps:
 ```powershell
-# 1. Auth
+# 1. Auth & link Supabase
 npx supabase login
-npx vercel login
-
-# 2. Create Supabase project in dashboard, then:
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
-# Apply seed: paste supabase/seed.sql in SQL Editor
 
-# 3. Secrets for edge functions
+# 2. Set Supabase edge function secrets
 npx supabase secrets set QR_ENCRYPTION_KEY=...
 npx supabase secrets set QR_SIGNING_PRIVATE_KEY=...
 npx supabase secrets set QR_SIGNING_PUBLIC_KEY=...
-
 npx supabase functions deploy verify --no-verify-jwt
-npx supabase functions deploy generate-qr
-npx supabase functions deploy cartonize
-npx supabase functions deploy print-agent
 
-# 4. Vercel
-npx vercel
-# Set env vars in dashboard or via `npx vercel env add`
+# 3. Deploy to Vercel
 npx vercel --prod
 
-# 5. Bootstrap admin user (Auth → create user, then SQL from scripts/bootstrap-admin.sql)
+# 4. Set GitHub Actions secrets (for CI/E2E)
+gh secret set NEXT_PUBLIC_SUPABASE_URL --body "..."
+gh secret set NEXT_PUBLIC_SUPABASE_ANON_KEY --body "..."
+# ... (see docs/SETUP.md for all secrets)
 ```
 
-Or run:
-
-```powershell
-.\scripts\deploy.ps1 -Prod
-```
+Or run: `.\scripts\deploy.ps1 -Prod`
 
 ## App routes
 
