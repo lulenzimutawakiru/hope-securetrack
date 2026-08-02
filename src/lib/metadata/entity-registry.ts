@@ -34,7 +34,20 @@ export type EntityModule =
   | "crud"
   | "wfm"
   | "brand"
-  | "assets";
+  | "assets"
+  | "ast"
+  | "bi"
+  | "dsp"
+  | "eal"
+  | "ec"
+  | "fraud"
+  | "hc"
+  | "iam"
+  | "intg"
+  | "pkg"
+  | "scm"
+  | "wid"
+;
 
 export type CrudAction =
   | "view"
@@ -1201,3 +1214,2046 @@ defineEntity("brand_compliance_issues", "brand_compliance_issues", "brand", {
   hasUpdatedAt: false,
 });
 
+defineEntity("approval_authority", "approval_authority", "settings", {
+  view: "settings.view",
+  create: "settings.workflows",
+  update: "settings.workflows",
+  delete: "settings.workflows",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("approval_workflows", "approval_workflows", "settings", {
+  view: "settings.view",
+  create: "settings.workflows",
+  update: "settings.workflows",
+  delete: "settings.workflows",
+}, {
+  searchable: ["name"]
+});
+
+defineEntity("ast_alerts", "ast_alerts", "ast", {
+  view: "ast.view",
+  create: "ast.manage",
+  update: "ast.manage",
+  delete: "ast.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status", "alert_type"]
+});
+
+defineEntity("ast_audit_lines", "ast_audit_lines", "ast", {
+  view: "ast.view",
+  create: "ast.audit",
+  update: "ast.audit",
+  delete: "ast.audit",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["notes", "asset_tag"]
+});
+
+defineEntity("ast_audits", "ast_audits", "ast", {
+  view: "ast.view",
+  create: "ast.audit",
+  update: "ast.audit",
+  delete: "ast.audit",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["name", "status"]
+});
+
+defineEntity("ast_categories", "ast_categories", "ast", {
+  view: "ast.view",
+  create: "ast.manage",
+  update: "ast.manage",
+  delete: "ast.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("ast_maintenance_links", "ast_maintenance_links", "ast", {
+  view: "ast.view",
+  create: "ast.manage",
+  update: "ast.manage",
+  delete: "ast.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status", "notes"]
+});
+
+defineEntity("att_geofences", "att_geofences", "attendance", {
+  view: "att.view",
+  create: "att.admin",
+  update: "att.admin",
+  delete: "att.admin",
+}, {
+  softDelete: true,
+  hasUpdatedAt: false,
+  searchable: ["name", "status", "notes"]
+});
+
+defineEntity("att_locations", "att_locations", "attendance", {
+  view: "att.view",
+  create: "att.admin",
+  update: "att.admin",
+  delete: "att.admin",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["name", "status", "notes"]
+});
+
+defineEntity("bank_transactions", "bank_transactions", "finance", {
+  view: "finance.view",
+  create: "finance.admin",
+  update: "finance.admin",
+  delete: "finance.admin",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["description", "reference"]
+});
+
+defineEntity("bi_ai_insights", "bi_ai_insights", "bi", {
+  view: "reports.view",
+  create: "reports.ai",
+  update: "reports.ai",
+  delete: "reports.ai",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"]
+});
+
+defineEntity("bi_assistant_messages", "bi_assistant_messages", "bi", {
+  view: "reports.view",
+  create: "reports.ai",
+  update: "reports.ai",
+  delete: "reports.ai",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("bi_assistant_playbooks", "bi_assistant_playbooks", "bi", {
+  view: "reports.view",
+  create: "reports.assistant",
+  update: "reports.assistant",
+  delete: "reports.assistant",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("bi_assistant_sessions", "bi_assistant_sessions", "bi", {
+  view: "reports.view",
+  create: "reports.ai",
+  update: "reports.ai",
+  delete: "reports.ai",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title"]
+});
+
+defineEntity("bi_document_jobs", "bi_document_jobs", "bi", {
+  view: "reports.view",
+  create: "reports.documents",
+  update: "reports.documents",
+  delete: "reports.documents",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "reference_number", "status"]
+});
+
+defineEntity("bi_document_revisions", "bi_document_revisions", "bi", {
+  view: "reports.view",
+  create: "reports.documents",
+  update: "reports.documents",
+  delete: "reports.documents",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("bi_forecast_results", "bi_forecast_results", "bi", {
+  view: "reports.view",
+  create: "reports.intelligence",
+  update: "reports.intelligence",
+  delete: "reports.intelligence",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("bi_intelligent_documents", "bi_intelligent_documents", "bi", {
+  view: "reports.view",
+  create: "reports.documents",
+  update: "reports.documents",
+  delete: "reports.documents",
+}, {
+  softDelete: true,
+  searchable: ["title", "status"]
+});
+
+defineEntity("bi_kpi_snapshots", "bi_kpi_snapshots", "bi", {
+  view: "reports.view",
+  create: "reports.kpis",
+  update: "reports.kpis",
+  delete: "reports.kpis",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("bi_kpis", "bi_kpis", "bi", {
+  view: "reports.view",
+  create: "reports.kpis",
+  update: "reports.kpis",
+  delete: "reports.kpis",
+}, {
+  softDelete: true,
+  searchable: ["name", "description"]
+});
+
+defineEntity("bi_regulatory_packages", "bi_regulatory_packages", "bi", {
+  view: "reports.view",
+  create: "reports.manage",
+  update: "reports.manage",
+  delete: "reports.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("bi_report_definitions", "bi_report_definitions", "bi", {
+  view: "reports.view",
+  create: "reports.export",
+  update: "reports.export",
+  delete: "reports.export",
+}, {
+  softDelete: true,
+  searchable: ["name", "description"]
+});
+
+defineEntity("bi_report_runs", "bi_report_runs", "bi", {
+  view: "reports.view",
+  create: "reports.export",
+  update: "reports.export",
+  delete: "reports.export",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["status"]
+});
+
+defineEntity("bi_report_schedules", "bi_report_schedules", "bi", {
+  view: "reports.view",
+  create: "reports.manage",
+  update: "reports.manage",
+  delete: "reports.manage",
+}, {
+  createdBy: true,
+  searchable: ["name"]
+});
+
+defineEntity("bill_ai_logs", "bill_ai_logs", "billing", {
+  view: "billing.view",
+  create: "billing.ai",
+  update: "billing.ai",
+  delete: "billing.ai",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("bill_contract_milestones", "bill_contract_milestones", "billing", {
+  view: "billing.view",
+  create: "billing.contracts",
+  update: "billing.contracts",
+  delete: "billing.contracts",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status"]
+});
+
+defineEntity("bill_contracts", "bill_contracts", "billing", {
+  view: "billing.view",
+  create: "billing.contracts",
+  update: "billing.contracts",
+  delete: "billing.contracts",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["title", "status", "notes"]
+});
+
+defineEntity("bill_credit_approvals", "bill_credit_approvals", "billing", {
+  view: "billing.view",
+  create: "billing.approve",
+  update: "billing.approve",
+  delete: "billing.approve",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes", "reason"]
+});
+
+defineEntity("bill_credit_events", "bill_credit_events", "billing", {
+  view: "billing.view",
+  create: "billing.approve",
+  update: "billing.approve",
+  delete: "billing.approve",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("bill_delivery_links", "bill_delivery_links", "billing", {
+  view: "billing.view",
+  create: "billing.design",
+  update: "billing.design",
+  delete: "billing.design",
+}, {
+  searchable: ["status", "notes"]
+});
+
+defineEntity("bill_delivery_logs", "bill_delivery_logs", "billing", {
+  view: "billing.view",
+  create: "billing.collect",
+  update: "billing.collect",
+  delete: "billing.collect",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("bill_dunning_rules", "bill_dunning_rules", "billing", {
+  view: "billing.view",
+  create: "billing.collect",
+  update: "billing.collect",
+  delete: "billing.collect",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["name"]
+});
+
+defineEntity("bill_invoice_templates", "bill_invoice_templates", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["name", "description"]
+});
+
+defineEntity("bill_portal_disputes", "bill_portal_disputes", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["description", "status", "subject"]
+});
+
+defineEntity("bill_portal_users", "bill_portal_users", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["email"]
+});
+
+defineEntity("bill_project_entries", "bill_project_entries", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["description"]
+});
+
+defineEntity("bill_projects", "bill_projects", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  softDelete: true,
+  hasUpdatedAt: false,
+  searchable: ["name", "status", "notes"]
+});
+
+defineEntity("bill_reconciliation_batches", "bill_reconciliation_batches", "billing", {
+  view: "billing.view",
+  create: "billing.collect",
+  update: "billing.collect",
+  delete: "billing.collect",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "notes", "batch_number"]
+});
+
+defineEntity("bill_reconciliation_lines", "bill_reconciliation_lines", "billing", {
+  view: "billing.view",
+  create: "billing.collect",
+  update: "billing.collect",
+  delete: "billing.collect",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["description", "reference", "status"]
+});
+
+defineEntity("bill_reminders", "bill_reminders", "billing", {
+  view: "billing.view",
+  create: "billing.collect",
+  update: "billing.collect",
+  delete: "billing.collect",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("bill_revenue_entries", "bill_revenue_entries", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("bill_revenue_schedules", "bill_revenue_schedules", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["description", "status"]
+});
+
+defineEntity("bill_sequences", "bill_sequences", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  searchable: ["name"]
+});
+
+defineEntity("bill_tax_groups", "bill_tax_groups", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("bom_lines", "bom_lines", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("cartons", "cartons", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  searchable: ["serial_number"]
+});
+
+defineEntity("cost_centers", "cost_centers", "finance", {
+  view: "finance.view",
+  create: "finance.admin",
+  update: "finance.admin",
+  delete: "finance.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "code"]
+});
+
+defineEntity("credit_reviews", "credit_reviews", "crm", {
+  view: "crm.view",
+  create: "crm.credit",
+  update: "crm.credit",
+  delete: "crm.credit",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("cycle_count_lines", "cycle_count_lines", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes", "batch_number"]
+});
+
+defineEntity("cycle_counts", "cycle_counts", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("demand_forecasts", "demand_forecasts", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  createdBy: true,
+  searchable: ["notes"]
+});
+
+defineEntity("depreciation_entries", "depreciation_entries", "finance", {
+  view: "finance.view",
+  create: "finance.admin",
+  update: "finance.admin",
+  delete: "finance.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("document_sequences", "document_sequences", "settings", {
+  view: "settings.view",
+  create: "settings.manage",
+  update: "settings.manage",
+  delete: "settings.manage",
+}, {
+  hasCreatedAt: false,
+  searchable: []
+});
+
+defineEntity("drp_plans", "drp_plans", "ec", {
+  view: "ec.view",
+  create: "ec.manage",
+  update: "ec.manage",
+  delete: "ec.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("dsp_drivers", "dsp_drivers", "dsp", {
+  view: "dsp.view",
+  create: "dsp.manage",
+  update: "dsp.manage",
+  delete: "dsp.manage",
+}, {
+  searchable: ["status", "notes"]
+});
+
+defineEntity("dsp_exceptions", "dsp_exceptions", "dsp", {
+  view: "dsp.view",
+  create: "dsp.approve",
+  update: "dsp.approve",
+  delete: "dsp.approve",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["title", "status"]
+});
+
+defineEntity("dsp_returns", "dsp_returns", "dsp", {
+  view: "dsp.view",
+  create: "dsp.approve",
+  update: "dsp.approve",
+  delete: "dsp.approve",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "customer_name", "reason"]
+});
+
+defineEntity("eal_alerts", "eal_alerts", "eal", {
+  view: "eal.view",
+  create: "eal.investigate",
+  update: "eal.investigate",
+  delete: "eal.investigate",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status", "alert_type"]
+});
+
+defineEntity("eal_findings", "eal_findings", "eal", {
+  view: "eal.view",
+  create: "eal.investigate",
+  update: "eal.investigate",
+  delete: "eal.investigate",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("eal_incidents", "eal_incidents", "eal", {
+  view: "eal.view",
+  create: "eal.investigate",
+  update: "eal.investigate",
+  delete: "eal.investigate",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("eal_retention_policies", "eal_retention_policies", "eal", {
+  view: "eal.view",
+  create: "eal.compliance",
+  update: "eal.compliance",
+  delete: "eal.compliance",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("eal_sessions", "eal_sessions", "eal", {
+  view: "eal.view",
+  create: "eal.manage",
+  update: "eal.manage",
+  delete: "eal.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["status"]
+});
+
+defineEntity("employee_exits", "employee_exits", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "reason"]
+});
+
+defineEntity("employee_objectives", "employee_objectives", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("employee_skills", "employee_skills", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("erp_modules", "erp_modules", "settings", {
+  view: "settings.view",
+  create: "settings.manage",
+  update: "settings.manage",
+  delete: "settings.manage",
+}, {
+  hasCreatedAt: false,
+  searchable: []
+});
+
+defineEntity("factories", "factories", "mes", {
+  view: "mes.view",
+  create: "production.manage",
+  update: "production.manage",
+  delete: "production.manage",
+}, {
+  searchable: ["name", "code"]
+});
+
+defineEntity("field_jobs", "field_jobs", "dispatch", {
+  view: "dispatch.view",
+  create: "dispatch.manage",
+  update: "dispatch.manage",
+  delete: "dispatch.manage",
+}, {
+  createdBy: true,
+  searchable: ["title", "status", "notes", "customer_name"]
+});
+
+defineEntity("fiscal_periods", "fiscal_periods", "finance", {
+  view: "finance.view",
+  create: "finance.close",
+  update: "finance.close",
+  delete: "finance.close",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["name", "status"]
+});
+
+defineEntity("fiscal_years", "fiscal_years", "finance", {
+  view: "finance.view",
+  create: "finance.close",
+  update: "finance.close",
+  delete: "finance.close",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status"]
+});
+
+defineEntity("fraud_alerts", "fraud_alerts", "fraud", {
+  view: "fraud.view",
+  create: "fraud.investigate",
+  update: "fraud.investigate",
+  delete: "fraud.investigate",
+}, {
+  searchable: ["title", "description", "status", "alert_type"]
+});
+
+defineEntity("goods_receipt_lines", "goods_receipt_lines", "inventory", {
+  view: "inventory.view",
+  create: "inventory.grn",
+  update: "inventory.grn",
+  delete: "inventory.grn",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes", "batch_number", "serial_number"]
+});
+
+defineEntity("goods_receipts", "goods_receipts", "inventory", {
+  view: "inventory.view",
+  create: "inventory.grn",
+  update: "inventory.grn",
+  delete: "inventory.grn",
+}, {
+  createdBy: true,
+  searchable: ["status", "notes", "supplier_name"]
+});
+
+defineEntity("hc_bots", "hc_bots", "hc", {
+  view: "hc.view",
+  create: "hc.manage",
+  update: "hc.manage",
+  delete: "hc.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "description"]
+});
+
+defineEntity("hc_knowledge", "hc_knowledge", "hc", {
+  view: "hc.view",
+  create: "hc.manage",
+  update: "hc.manage",
+  delete: "hc.manage",
+}, {
+  searchable: ["title", "status"]
+});
+
+defineEntity("hc_user_settings", "hc_user_settings", "hc", {
+  view: "hc.view",
+  create: "hc.manage",
+  update: "hc.manage",
+  delete: "hc.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("idm_abac_rules", "idm_abac_rules", "iam", {
+  view: "iam.view",
+  create: "iam.abac",
+  update: "iam.abac",
+  delete: "iam.abac",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "description"]
+});
+
+defineEntity("idm_access_requests", "idm_access_requests", "iam", {
+  view: "iam.view",
+  create: "iam.approvals",
+  update: "iam.approvals",
+  delete: "iam.approvals",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("idm_devices", "idm_devices", "iam", {
+  view: "iam.view",
+  create: "iam.manage",
+  update: "iam.manage",
+  delete: "iam.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["device_name"]
+});
+
+defineEntity("idm_provision_requests", "idm_provision_requests", "iam", {
+  view: "iam.view",
+  create: "iam.approvals",
+  update: "iam.approvals",
+  delete: "iam.approvals",
+}, {
+  searchable: ["email", "status", "first_name", "last_name"]
+});
+
+defineEntity("idm_sso_providers", "idm_sso_providers", "iam", {
+  view: "iam.view",
+  create: "iam.manage",
+  update: "iam.manage",
+  delete: "iam.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("idm_user_roles", "idm_user_roles", "iam", {
+  view: "iam.view",
+  create: "iam.manage",
+  update: "iam.manage",
+  delete: "iam.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("inbound_shipments", "inbound_shipments", "procurement", {
+  view: "procurement.view",
+  create: "procurement.approve",
+  update: "procurement.approve",
+  delete: "procurement.approve",
+}, {
+  createdBy: true,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("integration_configs", "integration_configs", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasCreatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("intg_alerts", "intg_alerts", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status", "alert_type"]
+});
+
+defineEntity("intg_api_apps", "intg_api_apps", "intg", {
+  view: "intg.view",
+  create: "intg.api",
+  update: "intg.api",
+  delete: "intg.api",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "description", "status"]
+});
+
+defineEntity("intg_api_keys", "intg_api_keys", "intg", {
+  view: "intg.view",
+  create: "intg.api",
+  update: "intg.api",
+  delete: "intg.api",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("intg_api_logs", "intg_api_logs", "intg", {
+  view: "intg.view",
+  create: "intg.api",
+  update: "intg.api",
+  delete: "intg.api",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("intg_api_routes", "intg_api_routes", "intg", {
+  view: "intg.view",
+  create: "intg.api",
+  update: "intg.api",
+  delete: "intg.api",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["description"]
+});
+
+defineEntity("intg_connections", "intg_connections", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["name", "status"]
+});
+
+defineEntity("intg_connectors", "intg_connectors", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "description"]
+});
+
+defineEntity("intg_field_maps", "intg_field_maps", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("intg_gps_positions", "intg_gps_positions", "intg", {
+  view: "intg.view",
+  create: "intg.iot",
+  update: "intg.iot",
+  delete: "intg.iot",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["vehicle_code"]
+});
+
+defineEntity("intg_hardware_devices", "intg_hardware_devices", "intg", {
+  view: "intg.view",
+  create: "intg.iot",
+  update: "intg.iot",
+  delete: "intg.iot",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status"]
+});
+
+defineEntity("intg_health_checks", "intg_health_checks", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("intg_iot_devices", "intg_iot_devices", "intg", {
+  view: "intg.view",
+  create: "intg.iot",
+  update: "intg.iot",
+  delete: "intg.iot",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status", "location_name"]
+});
+
+defineEntity("intg_iot_telemetry", "intg_iot_telemetry", "intg", {
+  view: "intg.view",
+  create: "intg.iot",
+  update: "intg.iot",
+  delete: "intg.iot",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("intg_queue_messages", "intg_queue_messages", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("intg_sdk_downloads", "intg_sdk_downloads", "intg", {
+  view: "intg.view",
+  create: "intg.api",
+  update: "intg.api",
+  delete: "intg.api",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("intg_secrets", "intg_secrets", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("intg_sync_jobs", "intg_sync_jobs", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status"]
+});
+
+defineEntity("intg_sync_runs", "intg_sync_runs", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["status"]
+});
+
+defineEntity("intg_webhook_deliveries", "intg_webhook_deliveries", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("intg_webhook_subscriptions", "intg_webhook_subscriptions", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("intg_workflow_runs", "intg_workflow_runs", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["status"]
+});
+
+defineEntity("intg_workflows", "intg_workflows", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["name", "description"]
+});
+
+defineEntity("inventory_insights", "inventory_insights", "inventory", {
+  view: "inventory.view",
+  create: "inventory.adjust",
+  update: "inventory.adjust",
+  delete: "inventory.adjust",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"]
+});
+
+defineEntity("inventory_valuations", "inventory_valuations", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("invoice_lines", "invoice_lines", "finance", {
+  view: "finance.view",
+  create: "finance.admin",
+  update: "finance.admin",
+  delete: "finance.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["description"]
+});
+
+defineEntity("mes_ai_insights", "mes_ai_insights", "mes", {
+  view: "mes.view",
+  create: "mes.ai",
+  update: "mes.ai",
+  delete: "mes.ai",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"]
+});
+
+defineEntity("mes_mps_lines", "mes_mps_lines", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("mes_mrp_suggestions", "mes_mrp_suggestions", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("mes_ncr", "mes_ncr", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("mes_quality_inspections", "mes_quality_inspections", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("mes_quality_plans", "mes_quality_plans", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("mes_routing_operations", "mes_routing_operations", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("mes_routings", "mes_routings", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  softDelete: true,
+  hasUpdatedAt: false,
+  searchable: ["name", "description", "status"]
+});
+
+defineEntity("mes_work_centers", "mes_work_centers", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status", "notes", "location_name"]
+});
+
+defineEntity("mrp_recommendations", "mrp_recommendations", "mes", {
+  view: "mes.view",
+  create: "mes.planning",
+  update: "mes.planning",
+  delete: "mes.planning",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("mrp_runs", "mrp_runs", "mes", {
+  view: "mes.view",
+  create: "mes.planning",
+  update: "mes.planning",
+  delete: "mes.planning",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("notification_rules", "notification_rules", "notifications", {
+  view: "notifications.view",
+  create: "notifications.manage",
+  update: "notifications.manage",
+  delete: "notifications.manage",
+}, {
+  searchable: ["name", "description"]
+});
+
+defineEntity("notification_templates", "notification_templates", "notifications", {
+  view: "notifications.view",
+  create: "notifications.manage",
+  update: "notifications.manage",
+  delete: "notifications.manage",
+}, {
+  hasCreatedAt: false,
+  searchable: ["name", "subject"]
+});
+
+defineEntity("overtime_requests", "overtime_requests", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  searchable: ["status", "reason"]
+});
+
+defineEntity("pay_payment_batches", "pay_payment_batches", "payroll", {
+  view: "payroll.view",
+  create: "payroll.admin",
+  update: "payroll.admin",
+  delete: "payroll.admin",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "batch_number"]
+});
+
+defineEntity("payroll_lines", "payroll_lines", "payroll", {
+  view: "payroll.view",
+  create: "payroll.admin",
+  update: "payroll.admin",
+  delete: "payroll.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("pkg_lines", "pkg_lines", "pkg", {
+  view: "pkg.view",
+  create: "pkg.manage",
+  update: "pkg.manage",
+  delete: "pkg.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status", "notes"]
+});
+
+defineEntity("pkg_materials", "pkg_materials", "pkg", {
+  view: "pkg.view",
+  create: "pkg.manage",
+  update: "pkg.manage",
+  delete: "pkg.manage",
+}, {
+  softDelete: true,
+  hasUpdatedAt: false,
+  searchable: ["name", "supplier_name"]
+});
+
+defineEntity("pkg_product_rules", "pkg_product_rules", "pkg", {
+  view: "pkg.view",
+  create: "pkg.manage",
+  update: "pkg.manage",
+  delete: "pkg.manage",
+}, {
+  searchable: []
+});
+
+defineEntity("pkg_work_orders", "pkg_work_orders", "pkg", {
+  view: "pkg.view",
+  create: "pkg.approve",
+  update: "pkg.approve",
+  delete: "pkg.approve",
+}, {
+  softDelete: true,
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("ppe_issuances", "ppe_issuances", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("printers", "printers", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  searchable: ["name", "status", "serial_number"]
+});
+
+defineEntity("production_batches", "production_batches", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  createdBy: true,
+  searchable: ["notes", "batch_number"]
+});
+
+defineEntity("production_machines", "production_machines", "mes", {
+  view: "mes.view",
+  create: "mes.manage",
+  update: "mes.manage",
+  delete: "mes.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "code"]
+});
+
+defineEntity("profile_documents", "profile_documents", "iam", {
+  view: "profile.view",
+  create: "profile.documents",
+  update: "profile.documents",
+  delete: "profile.documents",
+}, {
+  softDelete: true,
+  searchable: ["title", "status", "notes"]
+});
+
+defineEntity("prt_alerts", "prt_alerts", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status", "alert_type"]
+});
+
+defineEntity("prt_automation_log", "prt_automation_log", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("prt_automation_rules", "prt_automation_rules", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("prt_consumables", "prt_consumables", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  searchable: ["name", "status"]
+});
+
+defineEntity("prt_department_access", "prt_department_access", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("prt_document_profiles", "prt_document_profiles", "print", {
+  view: "print.view",
+  create: "print.design",
+  update: "print.design",
+  delete: "print.design",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("prt_id_card_jobs", "prt_id_card_jobs", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("prt_inventory_labels", "prt_inventory_labels", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("prt_media", "prt_media", "print", {
+  view: "print.view",
+  create: "print.design",
+  update: "print.design",
+  delete: "print.design",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("prt_product_label_jobs", "prt_product_label_jobs", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["status", "batch_number"]
+});
+
+defineEntity("prt_quotas", "prt_quotas", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("prt_schedules", "prt_schedules", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("prt_secure_pdfs", "prt_secure_pdfs", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["title"]
+});
+
+defineEntity("prt_security_profiles", "prt_security_profiles", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "notes"]
+});
+
+defineEntity("prt_server_printers", "prt_server_printers", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: []
+});
+
+defineEntity("prt_servers", "prt_servers", "print", {
+  view: "print.view",
+  create: "print.admin",
+  update: "print.admin",
+  delete: "print.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "status"]
+});
+
+defineEntity("prt_service_logs", "prt_service_logs", "print", {
+  view: "print.view",
+  create: "print.manage",
+  update: "print.manage",
+  delete: "print.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["description"]
+});
+
+defineEntity("prt_templates", "prt_templates", "print", {
+  view: "print.view",
+  create: "print.design",
+  update: "print.design",
+  delete: "print.design",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["name", "status"]
+});
+
+defineEntity("reams", "reams", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  searchable: ["serial_number"]
+});
+
+defineEntity("rfqs", "rfqs", "procurement", {
+  view: "procurement.view",
+  create: "procurement.approve",
+  update: "procurement.approve",
+  delete: "procurement.approve",
+}, {
+  createdBy: true,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("safety_incidents", "safety_incidents", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("sales_commissions", "sales_commissions", "sales", {
+  view: "sales.view",
+  create: "sales.admin",
+  update: "sales.admin",
+  delete: "sales.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status"]
+});
+
+defineEntity("sd_agents", "sd_agents", "sd", {
+  view: "sd.view",
+  create: "sd.admin",
+  update: "sd.admin",
+  delete: "sd.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("sd_automations", "sd_automations", "sd", {
+  view: "sd.view",
+  create: "sd.admin",
+  update: "sd.admin",
+  delete: "sd.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("sd_categories", "sd_categories", "sd", {
+  view: "sd.view",
+  create: "sd.manage",
+  update: "sd.manage",
+  delete: "sd.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("sd_changes", "sd_changes", "sd", {
+  view: "sd.view",
+  create: "sd.change",
+  update: "sd.change",
+  delete: "sd.change",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("sd_channels", "sd_channels", "sd", {
+  view: "sd.view",
+  create: "sd.manage",
+  update: "sd.manage",
+  delete: "sd.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("sd_escalation_rules", "sd_escalation_rules", "sd", {
+  view: "sd.view",
+  create: "sd.admin",
+  update: "sd.admin",
+  delete: "sd.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("sd_field_jobs", "sd_field_jobs", "sd", {
+  view: "sd.view",
+  create: "sd.field",
+  update: "sd.field",
+  delete: "sd.field",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status", "notes", "location_name"]
+});
+
+defineEntity("sd_inbound_items", "sd_inbound_items", "sd", {
+  view: "sd.view",
+  create: "sd.agent",
+  update: "sd.agent",
+  delete: "sd.agent",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["status", "subject"]
+});
+
+defineEntity("sd_knowledge_articles", "sd_knowledge_articles", "sd", {
+  view: "sd.view",
+  create: "sd.knowledge",
+  update: "sd.knowledge",
+  delete: "sd.knowledge",
+}, {
+  softDelete: true,
+  searchable: ["title", "status"]
+});
+
+defineEntity("sd_major_incidents", "sd_major_incidents", "sd", {
+  view: "sd.view",
+  create: "sd.major",
+  update: "sd.major",
+  delete: "sd.major",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"]
+});
+
+defineEntity("sd_problems", "sd_problems", "sd", {
+  view: "sd.view",
+  create: "sd.manage",
+  update: "sd.manage",
+  delete: "sd.manage",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status"]
+});
+
+defineEntity("sd_sla_policies", "sd_sla_policies", "sd", {
+  view: "sd.view",
+  create: "sd.admin",
+  update: "sd.admin",
+  delete: "sd.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name"]
+});
+
+defineEntity("sd_teams", "sd_teams", "sd", {
+  view: "sd.view",
+  create: "sd.manage",
+  update: "sd.manage",
+  delete: "sd.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "email"]
+});
+
+defineEntity("security_alerts", "security_alerts", "iam", {
+  view: "iam.view",
+  create: "iam.manage",
+  update: "iam.manage",
+  delete: "iam.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "description", "status", "alert_type"]
+});
+
+defineEntity("security_policies", "security_policies", "iam", {
+  view: "iam.view",
+  create: "iam.manage",
+  update: "iam.manage",
+  delete: "iam.manage",
+}, {
+  hasCreatedAt: false,
+  searchable: []
+});
+
+defineEntity("shift_assignments", "shift_assignments", "attendance", {
+  view: "att.view",
+  create: "att.admin",
+  update: "att.admin",
+  delete: "att.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("skill_catalog", "skill_catalog", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["name", "code", "description"]
+});
+
+defineEntity("sop_cycles", "sop_cycles", "scm", {
+  view: "scm.view",
+  create: "scm.manage",
+  update: "scm.manage",
+  delete: "scm.manage",
+}, {
+  createdBy: true,
+  searchable: ["name", "status"]
+});
+
+defineEntity("sop_line_items", "sop_line_items", "scm", {
+  view: "scm.view",
+  create: "scm.manage",
+  update: "scm.manage",
+  delete: "scm.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes"]
+});
+
+defineEntity("stock_adjustment_lines", "stock_adjustment_lines", "inventory", {
+  view: "inventory.view",
+  create: "inventory.adjust",
+  update: "inventory.adjust",
+  delete: "inventory.adjust",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["notes", "batch_number"]
+});
+
+defineEntity("supplier_quotations", "supplier_quotations", "procurement", {
+  view: "procurement.view",
+  create: "procurement.approve",
+  update: "procurement.approve",
+  delete: "procurement.approve",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("supply_chain_risks", "supply_chain_risks", "scm", {
+  view: "scm.view",
+  create: "scm.manage",
+  update: "scm.manage",
+  delete: "scm.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"]
+});
+
+defineEntity("tax_codes", "tax_codes", "finance", {
+  view: "finance.view",
+  create: "finance.admin",
+  update: "finance.admin",
+  delete: "finance.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["name", "code", "description"]
+});
+
+defineEntity("treasury_facilities", "treasury_facilities", "finance", {
+  view: "finance.view",
+  create: "finance.admin",
+  update: "finance.admin",
+  delete: "finance.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("wid_access_assignments", "wid_access_assignments", "wid", {
+  view: "wid.view",
+  create: "wid.access",
+  update: "wid.access",
+  delete: "wid.access",
+}, {
+  searchable: ["status", "reason"]
+});
+
+defineEntity("wid_access_events", "wid_access_events", "wid", {
+  view: "wid.view",
+  create: "wid.access",
+  update: "wid.access",
+  delete: "wid.access",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["reason"]
+});
+
+defineEntity("wid_access_profiles", "wid_access_profiles", "wid", {
+  view: "wid.view",
+  create: "wid.access",
+  update: "wid.access",
+  delete: "wid.access",
+}, {
+  softDelete: true,
+  searchable: ["name", "description"]
+});
+
+defineEntity("wid_access_zones", "wid_access_zones", "wid", {
+  view: "wid.view",
+  create: "wid.access",
+  update: "wid.access",
+  delete: "wid.access",
+}, {
+  softDelete: true,
+  hasUpdatedAt: false,
+  searchable: ["name", "description"]
+});
+
+defineEntity("wid_ai_design_logs", "wid_ai_design_logs", "wid", {
+  view: "wid.view",
+  create: "wid.design",
+  update: "wid.design",
+  delete: "wid.design",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("wid_biometric_enrollments", "wid_biometric_enrollments", "wid", {
+  view: "wid.view",
+  create: "wid.biometrics",
+  update: "wid.biometrics",
+  delete: "wid.biometrics",
+}, {
+  searchable: ["notes", "device_name"]
+});
+
+defineEntity("wid_card_brands", "wid_card_brands", "wid", {
+  view: "wid.view",
+  create: "wid.design",
+  update: "wid.design",
+  delete: "wid.design",
+}, {
+  softDelete: true,
+  searchable: ["name"]
+});
+
+defineEntity("wid_card_incidents", "wid_card_incidents", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  searchable: ["description", "status", "notes"]
+});
+
+defineEntity("wid_card_inventory", "wid_card_inventory", "wid", {
+  view: "wid.view",
+  create: "wid.access",
+  update: "wid.access",
+  delete: "wid.access",
+}, {
+  softDelete: true,
+  searchable: ["status", "notes", "supplier_name", "batch_number"]
+});
+
+defineEntity("wid_card_templates", "wid_card_templates", "wid", {
+  view: "wid.view",
+  create: "wid.design",
+  update: "wid.design",
+  delete: "wid.design",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["name", "description"]
+});
+
+defineEntity("wid_credentials", "wid_credentials", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["status", "notes"]
+});
+
+defineEntity("wid_id_sequences", "wid_id_sequences", "wid", {
+  view: "wid.view",
+  create: "wid.design",
+  update: "wid.design",
+  delete: "wid.design",
+}, {
+  searchable: ["name"]
+});
+
+defineEntity("wid_identities", "wid_identities", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  softDelete: true,
+  createdBy: true,
+  searchable: ["email", "status", "notes", "first_name"]
+});
+
+defineEntity("wid_mobile_badges", "wid_mobile_badges", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  searchable: ["status"]
+});
+
+defineEntity("wid_print_history", "wid_print_history", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("wid_print_jobs", "wid_print_jobs", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  searchable: ["status", "notes"]
+});
+
+defineEntity("wid_template_versions", "wid_template_versions", "wid", {
+  view: "wid.view",
+  create: "wid.design",
+  update: "wid.design",
+  delete: "wid.design",
+}, {
+  createdBy: true,
+  hasUpdatedAt: false,
+  searchable: []
+});
+
+defineEntity("wid_workflow_runs", "wid_workflow_runs", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  hasUpdatedAt: false,
+  hasCreatedAt: false,
+  sortable: ["id"],
+  searchable: ["status"]
+});
+
+defineEntity("wid_workflows", "wid_workflows", "wid", {
+  view: "wid.view",
+  create: "wid.manage",
+  update: "wid.manage",
+  delete: "wid.manage",
+}, {
+  searchable: ["name", "description"]
+});
