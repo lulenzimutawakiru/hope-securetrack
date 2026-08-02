@@ -1,6 +1,6 @@
 -- Profiles table (linked to Supabase auth.users)
 create table if not exists profiles (
-  id uuid references auth.users not null primary key,
+  id uuid not null primary key references auth.users(id) on delete cascade,
   first_name text,
   last_name text,
   email text,
@@ -17,7 +17,7 @@ create table if not exists audit_log (
   id bigserial primary key,
   event text not null,
   details jsonb,
-  user_id uuid references auth.users,
+  user_id uuid references auth.users(id) on delete set null,
   company_id uuid,
   timestamp timestamptz default now()
 );
