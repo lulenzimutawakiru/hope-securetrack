@@ -20,7 +20,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiPost } from "@/lib/api-client";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -63,7 +64,6 @@ const ORDER_TYPES = [
 ];
 
 export default function SalesOrdersPage() {
-  const { auth } = useUser();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -113,14 +113,11 @@ export default function SalesOrdersPage() {
 
   const createCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const code =
         customerForm.code || `CUS-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("customers").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("customers", {
         name: customerForm.name,
         code,
         phone: customerForm.phone || null,
@@ -133,7 +130,10 @@ export default function SalesOrdersPage() {
         credit_status: "ok",
         is_active: true,
       });
-      if (error) throw error;
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("Customer created");
       setCustomerOpen(false);
       load();
@@ -146,92 +146,26 @@ export default function SalesOrdersPage() {
 
   const createOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const qty = parseInt(orderForm.quantity, 10);
-      const price = parseFloat(orderForm.unit_price);
-      const subtotal = qty * price;
-      const tax = subtotal * 0.18;
-      const total = subtotal + tax;
-      const orderNumber = `SO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
-      const product = products.find((p) => p.id === orderForm.product_id);
-      const customer = customers.find((c) => c.id === orderForm.customer_id);
-
-      // Credit check
-      let creditApproved = true;
-      if (customer && Number(customer.credit_limit || 0) > 0) {
-        const { data: openInv } = await supabase
-          .from("invoices")
-          .select("total_amount, amount_paid")
-          .eq("customer_id", customer.id)
-          .not("status", "in", '("paid","void","cancelled")');
-        const outstanding = (openInv ?? []).reduce(
-          (s, i) => s + (Number(i.total_amount) - Number(i.amount_paid)),
-          0
-        );
-        if (outstanding + total > Number(customer.credit_limit)) {
-          creditApproved = false;
-        }
-      }
-
-      const { data: order, error } = await supabase
-        .from("sales_orders")
-        .insert({
-          company_id: auth.profile.company_id,
-          order_number: orderNumber,
-          customer_id: orderForm.customer_id || null,
-          status: creditApproved ? "confirmed" : "draft",
-          order_type: orderForm.order_type,
-          order_date: new Date().toISOString().slice(0, 10),
-          subtotal,
-          tax_amount: tax,
-          total_amount: total,
-          currency: "UGX",
-          credit_approved: creditApproved,
-          requires_production: orderForm.requires_production === "true",
-          sales_rep_id: auth.profile.id,
-          created_by: auth.profile.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      await supabase.from("sales_order_lines").insert({
-        order_id: order.id,
-        product_id: orderForm.product_id || null,
-        description: product?.name || "Product",
-        quantity: qty,
+      const res = await apiPost("/api/sales/orders", {
+        customer_id: orderForm.customer_id,
+        product_id: orderForm.product_id,
+        quantity: parseInt(orderForm.quantity, 10),
+        unit_price: parseFloat(orderForm.unit_price),
         unit: orderForm.unit,
-        unit_price: price,
-        tax_rate: 18,
+        order_type: orderForm.order_type,
+        requires_production: orderForm.requires_production === "true",
       });
-
-      if (!creditApproved) {
-        await supabase.from("credit_reviews").insert({
-          company_id: auth.profile.company_id,
-          customer_id: orderForm.customer_id,
-          sales_order_id: order.id,
-          decision: "pending",
-          credit_limit: customer?.credit_limit || 0,
-          notes: "Auto-hold: order would exceed credit limit",
-        });
-        toast.message(`Order ${orderNumber} on credit hold`);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const data = res.data as { order_number?: string; credit_approved?: boolean };
+      if (data.credit_approved === false) {
+        toast.message(`Order ${data.order_number ?? ""} on credit hold`);
       } else {
-        // Accrue commission 3%
-        await supabase.from("sales_commissions").insert({
-          company_id: auth.profile.company_id,
-          sales_rep_id: auth.profile.id,
-          sales_order_id: order.id,
-          basis_amount: total,
-          commission_pct: 3,
-          commission_amount: total * 0.03,
-          currency: "UGX",
-          status: "accrued",
-          period_month: new Date().toISOString().slice(0, 10),
-        });
-        toast.success(`Order ${orderNumber} confirmed`);
+        toast.success(`Order ${data.order_number ?? ""} confirmed`);
       }
       setOrderOpen(false);
       load();
@@ -243,12 +177,8 @@ export default function SalesOrdersPage() {
   };
 
   const updateStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("sales_orders")
-      .update({ status })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudUpdate("sales_orders", id, { status });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Status updated");
       load();

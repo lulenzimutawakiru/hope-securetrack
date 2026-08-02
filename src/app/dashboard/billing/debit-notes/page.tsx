@@ -19,13 +19,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { nextBillNumber } from "@/lib/billing";
+import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default function DebitNotesPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -49,26 +47,15 @@ export default function DebitNotesPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
-      const num = await nextBillNumber(supabase, auth.profile.company_id, "DBN");
-      const sub = Number(form.amount) || 0;
-      const tax = Number(form.tax) || 0;
-      const { error } = await supabase.from("bill_debit_notes").insert({
-        company_id: auth.profile.company_id,
-        debit_note_number: num,
+      const res = await apiPost("/api/billing/debit-notes", {
         customer_id: form.customer_id || null,
         reason: form.reason || null,
-        subtotal: sub,
-        tax_amount: tax,
-        total_amount: sub + tax,
-        status: "issued",
-        lines_json: [{ description: form.reason || "Additional charge", quantity: 1, unit_price: sub }],
-        created_by: auth.profile.id,
+        amount: Number(form.amount) || 0,
+        tax: Number(form.tax) || 0,
       });
-      if (error) throw error;
-      toast.success(`Debit note ${num} issued`);
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Debit note issued");
       setOpen(false);
       await load();
     } catch (err) {

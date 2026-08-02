@@ -19,12 +19,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { crudCreate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function FleetPage() {
-  const { auth } = useUser();
   const [vehicles, setVehicles] = useState<Array<Record<string, unknown>>>([]);
   const [fuel, setFuel] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
@@ -58,10 +57,7 @@ export default function FleetPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("fleet_vehicles").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("fleet_vehicles", {
       registration: form.registration,
       make: form.make || null,
       model: form.model || null,
@@ -69,7 +65,7 @@ export default function FleetPage() {
       assigned_driver_name: form.assigned_driver_name || null,
       status: "available",
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Vehicle registered");
       setOpen(false);

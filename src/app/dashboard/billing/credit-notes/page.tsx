@@ -19,13 +19,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { nextBillNumber } from "@/lib/billing";
+import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default function CreditNotesPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [invoices, setInvoices] = useState<Array<{ id: string; invoice_number: string; customer_id: string | null }>>([]);
@@ -59,28 +57,17 @@ export default function CreditNotesPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
-      const num = await nextBillNumber(supabase, auth.profile.company_id, "CRN");
-      const sub = Number(form.amount) || 0;
-      const tax = Number(form.tax) || 0;
-      const { error } = await supabase.from("bill_credit_notes").insert({
-        company_id: auth.profile.company_id,
-        credit_note_number: num,
+      const res = await apiPost("/api/billing/credit-notes", {
         customer_id: form.customer_id || null,
         invoice_id: form.invoice_id || null,
         reason_code: form.reason_code,
         reason: form.reason || null,
-        subtotal: sub,
-        tax_amount: tax,
-        total_amount: sub + tax,
-        status: "issued",
-        lines_json: [{ description: form.reason || "Credit", quantity: 1, unit_price: sub, tax_amount: tax }],
-        created_by: auth.profile.id,
+        amount: Number(form.amount) || 0,
+        tax: Number(form.tax) || 0,
       });
-      if (error) throw error;
-      toast.success(`Credit note ${num} issued`);
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Credit note issued");
       setOpen(false);
       await load();
     } catch (err) {

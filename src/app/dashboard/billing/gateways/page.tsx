@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function GatewaysPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -26,10 +27,14 @@ export default function GatewaysPage() {
   }, []);
 
   const toggle = async (id: string, is_active: boolean) => {
-    const supabase = createClient();
-    await supabase.from("bill_payment_gateways").update({ is_active: !is_active }).eq("id", id);
-    toast.success(is_active ? "Gateway disabled" : "Gateway enabled");
-    await load();
+    try {
+      const res = await crudUpdate("bill_payment_gateways", id, { is_active: !is_active });
+      if (!res.ok) throw new Error(res.error);
+      toast.success(is_active ? "Gateway disabled" : "Gateway enabled");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
   };
 
   if (loading) return <LoadingState message="Loading payment gateways…" />;

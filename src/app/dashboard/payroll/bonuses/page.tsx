@@ -19,13 +19,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiPost } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { BONUS_TYPES, nextPayCode } from "@/lib/payroll";
+import { BONUS_TYPES } from "@/lib/payroll";
 
 export default function PayBonusesPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [employees, setEmployees] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +37,6 @@ export default function PayBonusesPage() {
     department: "",
     period_label: "",
   });
-
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const sb = createClient();
@@ -58,36 +55,27 @@ export default function PayBonusesPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const bonus_number = await nextPayCode(companyId, "pay_bonuses", "BN");
-      const { error } = await createClient().from("pay_bonuses").insert({
-        company_id: companyId,
-        bonus_number,
-        employee_id: form.employee_id || null,
-        name: form.name,
-        bonus_type: form.bonus_type,
-        amount: Number(form.amount) || 0,
-        department: form.department || null,
-        period_label: form.period_label || null,
-        status: "pending",
-        created_by: auth?.user?.id,
-      });
-      if (error) throw error;
+    const res = await apiPost("/api/payroll/bonuses", {
+      employee_id: form.employee_id || null,
+      name: form.name,
+      bonus_type: form.bonus_type,
+      amount: Number(form.amount) || 0,
+      department: form.department || null,
+      period_label: form.period_label || null,
+    });
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("Bonus created");
       setOpen(false);
       await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
   const approve = async (id: string) => {
-    const { error } = await createClient()
-      .from("pay_bonuses")
-      .update({ status: "approved", approved_by: auth?.user?.id, approved_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await apiPost(`/api/payroll/bonuses/${id}/approve`, {
+      approve: true,
+    });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Bonus approved for next payroll");
       await load();

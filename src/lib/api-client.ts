@@ -42,6 +42,64 @@ export async function apiPost<T = unknown>(
   }
 }
 
+async function apiSend<T>(
+  method: "PUT" | "DELETE",
+  path: string,
+  body?: Record<string, unknown>
+): Promise<ApiResult<T>> {
+  try {
+    const res = await fetch(path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: "same-origin",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.ok === false) {
+      const message =
+        json?.error?.message ||
+        json?.error ||
+        json?.message ||
+        `${method} failed (${res.status})`;
+      return {
+        ok: false,
+        error: String(message),
+        status: res.status,
+        code: json?.error?.code,
+        details: json?.error?.details || json?.details,
+      };
+    }
+    return { ok: true, data: (json.data ?? json) as T };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Network error",
+      status: 0,
+    };
+  }
+}
+
+export async function apiPut<T = unknown>(
+  path: string,
+  body?: Record<string, unknown>
+): Promise<ApiResult<T>> {
+  return apiSend<T>("PUT", path, body);
+}
+
+export async function apiDelete<T = unknown>(
+  path: string,
+  query?: Record<string, string | number | boolean | undefined>
+): Promise<ApiResult<T>> {
+  const qs = query
+    ? "?" +
+      Object.entries(query)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join("&")
+    : "";
+  return apiSend<T>("DELETE", `${path}${qs}`);
+}
+
 export async function apiGet<T = unknown>(path: string): Promise<ApiResult<T>> {
   try {
     const res = await fetch(path, { credentials: "same-origin" });

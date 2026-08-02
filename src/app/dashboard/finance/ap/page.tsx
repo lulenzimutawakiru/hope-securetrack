@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
@@ -67,13 +68,15 @@ export default function ApPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !form.supplier_id) return;
+    if (!form.supplier_id) return;
     const sub = Number(form.subtotal);
+    if (!Number.isFinite(sub) || sub < 0) {
+      toast.error("Enter a valid subtotal");
+      return;
+    }
     const tax = Math.round(sub * 0.18);
-    const supabase = createClient();
     const num = `AP-INV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
-    const { error } = await supabase.from("ap_invoices").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("ap_invoices", {
       invoice_number: num,
       supplier_id: form.supplier_id,
       supplier_invoice_ref: form.supplier_invoice_ref || null,
@@ -86,9 +89,8 @@ export default function ApPage() {
       amount_paid: 0,
       status: "draft",
       description: form.description || null,
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`AP invoice ${num} created`);
       setOpen(false);
@@ -97,14 +99,13 @@ export default function ApPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const patch: Record<string, unknown> = { status };
-    if (status === "approved" && auth) {
+    if (status === "approved" && auth?.profile?.id) {
       patch.approved_by = auth.profile.id;
       patch.approved_at = new Date().toISOString();
     }
-    const { error } = await supabase.from("ap_invoices").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudUpdate("ap_invoices", id, patch);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Status → ${status}`);
       load();
@@ -113,12 +114,8 @@ export default function ApPage() {
 
   const softDelete = async (id: string) => {
     if (!confirm("Archive this AP invoice?")) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("ap_invoices")
-      .update({ deleted_at: new Date().toISOString(), status: "void" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudDelete("ap_invoices", id);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Archived");
       load();

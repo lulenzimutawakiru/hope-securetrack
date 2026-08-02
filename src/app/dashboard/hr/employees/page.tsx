@@ -20,7 +20,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { crudCreate } from "@/lib/api/crud-client";
+import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -49,7 +50,6 @@ interface LeaveRequest {
 }
 
 export default function HrEmployeesPage() {
-  const { auth } = useUser();
   const [tab, setTab] = useState<"employees" | "leave">("employees");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leave, setLeave] = useState<LeaveRequest[]>([]);
@@ -96,15 +96,12 @@ export default function HrEmployeesPage() {
 
   const createEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const num =
         empForm.employee_number ||
         `EMP-${String(employees.length + 1).padStart(4, "0")}`;
-      const { error } = await supabase.from("employees").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("employees", {
         employee_number: num,
         first_name: empForm.first_name,
         last_name: empForm.last_name,
@@ -116,7 +113,7 @@ export default function HrEmployeesPage() {
         status: "active",
         employment_type: "permanent",
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Employee added");
       setEmpOpen(false);
       load();
@@ -129,10 +126,8 @@ export default function HrEmployeesPage() {
 
   const createLeave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const start = new Date(leaveForm.start_date);
       const end = new Date(leaveForm.end_date);
       const days =
@@ -140,8 +135,7 @@ export default function HrEmployeesPage() {
           1,
           Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
         );
-      const { error } = await supabase.from("leave_requests").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("leave_requests", {
         employee_id: leaveForm.employee_id,
         leave_type: leaveForm.leave_type,
         start_date: leaveForm.start_date,
@@ -150,7 +144,7 @@ export default function HrEmployeesPage() {
         reason: leaveForm.reason || null,
         status: "pending",
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Leave request submitted");
       setLeaveOpen(false);
       load();
@@ -162,17 +156,8 @@ export default function HrEmployeesPage() {
   };
 
   const approveLeave = async (id: string, status: "approved" | "rejected") => {
-    if (!auth) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("leave_requests")
-      .update({
-        status,
-        approved_by: auth.profile.id,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await apiPost(`/api/hr/leave/${id}/approve`, { status });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Leave ${status}`);
       load();

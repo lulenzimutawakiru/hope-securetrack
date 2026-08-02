@@ -20,12 +20,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { apiPost } from "@/lib/api-client";
 
 export default function ProcurementRequisitionsPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [products, setProducts] = useState<Array<{ id: string; name: string; product_code: string; standard_cost: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -66,53 +65,36 @@ export default function ProcurementRequisitionsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const p = products.find((x) => x.id === form.product_id);
-    const qty = Number(form.quantity);
-    const unit = Number(p?.standard_cost || 0);
-    const supabase = createClient();
-    const num = `PR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const { error } = await supabase.from("purchase_requisitions").insert({
-      company_id: auth.profile.company_id,
-      requisition_number: num,
-      product_id: form.product_id || null,
-      quantity: qty,
-      estimated_unit_cost: unit,
-      estimated_total: unit * qty,
-      department: form.department,
-      request_type: form.request_type,
-      priority: form.priority,
-      justification: form.justification,
-      reason: form.justification || "Procurement request",
-      required_by: form.required_by || null,
-      status: "submitted",
-      source: "manual",
-      budget_ok: true,
-      created_by: auth.profile.id,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`Requisition ${num} submitted`);
+    try {
+      const res = await apiPost<{ requisition?: { requisition_number?: string } }>(
+        "/api/procurement/requisitions",
+        {
+          product_id: form.product_id || null,
+          quantity: Number(form.quantity),
+          department: form.department,
+          request_type: form.request_type,
+          priority: form.priority,
+          justification: form.justification,
+          required_by: form.required_by || null,
+        }
+      );
+      if (!res.ok) throw new Error(res.error);
+      toast.success(`Requisition ${res.data?.requisition?.requisition_number ?? ""} submitted`);
       setOpen(false);
       load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
   const approve = async (id: string) => {
-    if (!auth) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("purchase_requisitions")
-      .update({
-        status: "approved",
-        approved_by: auth.profile.id,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      const res = await apiPost(`/api/procurement/requisitions/${encodeURIComponent(id)}/approve`, {});
+      if (!res.ok) throw new Error(res.error);
       toast.success("Approved");
       load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 

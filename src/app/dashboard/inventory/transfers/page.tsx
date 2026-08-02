@@ -20,12 +20,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
+import { apiPost } from "@/lib/api-client";
 import { toast } from "sonner";
 
 export default function TransfersPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
   const [products, setProducts] = useState<Array<{ id: string; name: string; product_code: string }>>([]);
@@ -70,7 +69,6 @@ export default function TransfersPage() {
 
   const createTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     if (
       !form.from_warehouse_id ||
       !form.to_warehouse_id ||
@@ -79,133 +77,40 @@ export default function TransfersPage() {
       toast.error("Select different from/to warehouses");
       return;
     }
-    const supabase = createClient();
-    const num = `TRF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const product = products.find((p) => p.id === form.product_id);
-    const qty = Number(form.qty || 0);
-
-    const { data: tr, error } = await supabase
-      .from("stock_transfers")
-      .insert({
-        company_id: auth.profile.company_id,
-        transfer_number: num,
-        from_warehouse_id: form.from_warehouse_id,
-        to_warehouse_id: form.to_warehouse_id,
-        status: "in_transit",
-        reason: form.reason || null,
-        shipped_at: new Date().toISOString(),
-        shipped_by: auth.profile.id,
-        created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error || !tr) {
-      toast.error(error?.message ?? "Failed");
-      return;
+    try {
+      const res = await apiPost<{ transfer?: { transfer_number?: string } }>(
+        "/api/inventory/transfers",
+        {
+          from_warehouse_id: form.from_warehouse_id,
+          to_warehouse_id: form.to_warehouse_id,
+          product_id: form.product_id,
+          quantity: Number(form.qty || 0),
+          batch_number: form.batch_number || null,
+          reason: form.reason || null,
+        }
+      );
+      if (!res.ok) throw new Error(res.error);
+      toast.success(
+        `Transfer ${res.data?.transfer?.transfer_number ?? ""} shipped`
+      );
+      setOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
-
-    if (form.product_id) {
-      await supabase.from("stock_transfer_lines").insert({
-        transfer_id: tr.id,
-        company_id: auth.profile.company_id,
-        product_id: form.product_id,
-        item_description: product?.name,
-        batch_number: form.batch_number || null,
-        qty_sent: qty,
-      });
-
-      // Decrement source balance if exists
-      const { data: bal } = await supabase
-        .from("stock_balances")
-        .select("id, quantity_on_hand, unit_cost, total_value")
-        .eq("product_id", form.product_id)
-        .eq("warehouse_id", form.from_warehouse_id)
-        .gt("quantity_on_hand", 0)
-        .limit(1)
-        .maybeSingle();
-
-      if (bal && Number(bal.quantity_on_hand) >= qty) {
-        const newQty = Number(bal.quantity_on_hand) - qty;
-        await supabase
-          .from("stock_balances")
-          .update({
-            quantity_on_hand: newQty,
-            total_value: newQty * Number(bal.unit_cost || 0),
-            last_movement_at: new Date().toISOString(),
-          })
-          .eq("id", bal.id);
-      }
-
-      await supabase.from("inventory_movements").insert({
-        company_id: auth.profile.company_id,
-        movement_type: "warehouse_transfer",
-        item_type: "product",
-        product_id: form.product_id,
-        batch_number: form.batch_number || null,
-        from_warehouse_id: form.from_warehouse_id,
-        to_warehouse_id: form.to_warehouse_id,
-        quantity: Math.round(qty),
-        qty_decimal: qty,
-        document_type: "transfer",
-        document_id: tr.id,
-        reference_number: num,
-        performed_by: auth.profile.id,
-        notes: form.reason || "Inter-warehouse transfer",
-      });
-    }
-
-    toast.success(`Transfer ${num} shipped`);
-    setOpen(false);
-    load();
   };
 
   const receiveTransfer = async (id: string) => {
-    if (!auth) return;
-    const supabase = createClient();
-    const { data: tr } = await supabase
-      .from("stock_transfers")
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (!tr) return;
-
-    const { data: tlines } = await supabase
-      .from("stock_transfer_lines")
-      .select("*")
-      .eq("transfer_id", id);
-
-    for (const line of tlines ?? []) {
-      if (!line.product_id) continue;
-      const qty = Number(line.qty_sent || 0);
-      const cost = Number(line.unit_cost || 0);
-      await supabase.from("stock_balances").insert({
-        company_id: auth.profile.company_id,
-        product_id: line.product_id,
-        warehouse_id: tr.to_warehouse_id,
-        batch_number: line.batch_number,
-        quantity_on_hand: qty,
-        unit_cost: cost,
-        total_value: qty * cost,
-        last_movement_at: new Date().toISOString(),
-      });
-      await supabase
-        .from("stock_transfer_lines")
-        .update({ qty_received: qty })
-        .eq("id", line.id);
+    try {
+      const res = await apiPost(
+        `/api/inventory/transfers/${encodeURIComponent(id)}/receive`
+      );
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Transfer received into destination warehouse");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
-
-    await supabase
-      .from("stock_transfers")
-      .update({
-        status: "received",
-        received_at: new Date().toISOString(),
-        received_by: auth.profile.id,
-      })
-      .eq("id", id);
-
-    toast.success("Transfer received into destination warehouse");
-    load();
   };
 
   if (loading) return <LoadingState />;

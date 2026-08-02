@@ -20,12 +20,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiPost } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function PayBenefitsPage() {
-  const { auth } = useUser();
   const [plans, setPlans] = useState<Array<Record<string, unknown>>>([]);
   const [enrollments, setEnrollments] = useState<Array<Record<string, unknown>>>([]);
   const [employees, setEmployees] = useState<Array<Record<string, unknown>>>([]);
@@ -40,8 +39,6 @@ export default function PayBenefitsPage() {
     employer_contribution: "",
   });
   const [enroll, setEnroll] = useState({ employee_id: "", plan_id: "" });
-
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const sb = createClient();
@@ -62,45 +59,35 @@ export default function PayBenefitsPage() {
 
   const createPlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("pay_benefit_plans").insert({
-        company_id: companyId,
-        plan_code: form.plan_code.toUpperCase(),
-        name: form.name,
-        benefit_type: form.benefit_type,
-        employee_contribution: Number(form.employee_contribution) || 0,
-        employer_contribution: Number(form.employer_contribution) || 0,
-        is_active: true,
-      });
-      if (error) throw error;
+    const res = await apiPost("/api/payroll/benefits", {
+      entity: "plan",
+      plan_code: form.plan_code.toUpperCase(),
+      name: form.name,
+      benefit_type: form.benefit_type,
+      employee_contribution: Number(form.employee_contribution) || 0,
+      employer_contribution: Number(form.employer_contribution) || 0,
+    });
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("Benefit plan created");
       setOpen(false);
       await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
   const enrollEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId || !enroll.employee_id || !enroll.plan_id) return;
-    try {
-      const plan = plans.find((p) => String(p.id) === enroll.plan_id);
-      const { error } = await createClient().from("pay_employee_benefits").insert({
-        company_id: companyId,
-        employee_id: enroll.employee_id,
-        plan_id: enroll.plan_id,
-        employee_amount: Number(plan?.employee_contribution || 0),
-        employer_amount: Number(plan?.employer_contribution || 0),
-        status: "active",
-      });
-      if (error) throw error;
+    if (!enroll.employee_id || !enroll.plan_id) return;
+    const res = await apiPost("/api/payroll/benefits", {
+      entity: "enrollment",
+      employee_id: enroll.employee_id,
+      plan_id: enroll.plan_id,
+    });
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("Employee enrolled");
       setEnrollOpen(false);
       await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 

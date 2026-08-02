@@ -22,6 +22,7 @@ export type EntityModule =
   | "procurement"
   | "crm"
   | "sales"
+  | "billing"
   | "sd"
   | "mes"
   | "fleet"
@@ -300,6 +301,31 @@ defineEntity("stock_balances", "stock_balances", "inventory", {
   searchable: [],
 });
 
+defineEntity("stock_adjustments", "stock_adjustments", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.admin",
+}, {
+  softDelete: true,
+  searchable: ["adjustment_number", "reason"],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("inventory_movements", "inventory_movements", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.admin",
+}, {
+  searchable: ["reference_number", "notes"],
+  sortable: ["performed_at"],
+  createdBy: false,
+  hasCreatedAt: false,
+  hasUpdatedAt: false,
+});
+
 // ---- Print / notifications ------------------------------------------
 defineEntity("print_jobs", "print_jobs", "print", {
   view: "print.view",
@@ -404,6 +430,16 @@ defineEntity("invoices", "invoices", "sales", {
 }, {
   softDelete: true,
   searchable: ["invoice_number"],
+});
+
+defineEntity("invoice_payments", "invoice_payments", "sales", {
+  view: "invoices.view",
+  create: "invoices.manage",
+  update: "invoices.manage",
+  delete: "invoices.manage",
+}, {
+  searchable: ["reference", "method"],
+  hasUpdatedAt: false,
 });
 
 defineEntity("quotations", "quotations", "sales", {
@@ -556,6 +592,16 @@ defineEntity("gl_journals", "gl_journals", "finance", {
   createdBy: true,
 });
 
+defineEntity("gl_journal_lines", "gl_journal_lines", "finance", {
+  view: "finance.view",
+  create: "finance.post",
+  update: "finance.manage",
+  delete: "finance.manage",
+}, {
+  searchable: ["description"],
+  hasUpdatedAt: false,
+});
+
 defineEntity("suppliers", "suppliers", "procurement", {
   view: "srm.view",
   create: "srm.manage",
@@ -682,6 +728,60 @@ defineEntity("fin_tax_returns", "fin_tax_returns", "finance", {
 });
 
 // ---- Procurement --------------------------------------------------------
+// ---- Billing (bill_*) -----------------------------------------------------
+defineEntity("bill_credit_notes", "bill_credit_notes", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.admin",
+}, {
+  softDelete: true,
+  searchable: ["credit_note_number", "reason_code"],
+  createdBy: true,
+});
+
+defineEntity("bill_debit_notes", "bill_debit_notes", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.admin",
+}, {
+  softDelete: true,
+  searchable: ["debit_note_number"],
+  createdBy: true,
+});
+
+defineEntity("bill_payment_gateways", "bill_payment_gateways", "billing", {
+  view: "billing.view",
+  create: "billing.manage",
+  update: "billing.manage",
+  delete: "billing.admin",
+}, {
+  searchable: ["gateway_code", "name", "provider"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("bill_recurring_schedules", "bill_recurring_schedules", "billing", {
+  view: "billing.view",
+  create: "billing.recurring",
+  update: "billing.recurring",
+  delete: "billing.admin",
+}, {
+  softDelete: true,
+  searchable: ["schedule_name", "frequency"],
+  createdBy: true,
+});
+
+defineEntity("bill_tax_codes", "bill_tax_codes", "billing", {
+  view: "billing.view",
+  create: "billing.tax",
+  update: "billing.tax",
+  delete: "billing.admin",
+}, {
+  searchable: ["code", "name"],
+  hasUpdatedAt: false,
+});
+
 defineEntity("purchase_requisitions", "purchase_requisitions", "procurement", {
   view: "procurement.view",
   create: "procurement.manage",
@@ -807,6 +907,42 @@ defineEntity("pay_loans", "pay_loans", "payroll", {
   softDelete: true,
   searchable: ["loan_number"],
   createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("pay_advances", "pay_advances", "payroll", {
+  view: "payroll.view",
+  create: "payroll.manage",
+  update: "payroll.approve",
+  delete: "payroll.admin",
+}, {
+  softDelete: true,
+  searchable: ["advance_number", "reason"],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("pay_overtime_claims", "pay_overtime_claims", "payroll", {
+  view: "payroll.view",
+  create: "payroll.manage",
+  update: "payroll.manage",
+  delete: "payroll.admin",
+}, {
+  softDelete: true,
+  searchable: ["claim_number"],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("pay_loan_schedules", "pay_loan_schedules", "payroll", {
+  view: "payroll.view",
+  create: "payroll.manage",
+  update: "payroll.manage",
+  delete: "payroll.admin",
+}, {
+  searchable: [],
+  sortable: ["installment_no"],
+  hasCreatedAt: false,
   hasUpdatedAt: false,
 });
 

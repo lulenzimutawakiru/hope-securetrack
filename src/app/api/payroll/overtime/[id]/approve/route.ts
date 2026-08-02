@@ -1,0 +1,127 @@
+﻿import { NextRequest } from "next/server";
+import { z } from "zod";
+import { requireApiAuth } from "@/lib/security/api-auth";
+import {
+  apiError,
+  apiOk,
+  clientIp,
+  parseJson,
+  rateLimitStrict,
+} from "@/lib/api";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { writeServerAudit } from "@/lib/api/audit";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const schema = z.object({
+  approve: z.boolean(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+
+/**
+ * Approve or reject an overtime claim (money path).
+ *
+ * Only pending claims can be reviewed. Approver identity is taken from the
+ * authenticated session; the claim must belong to the caller's company and a
+ * user cannot approve their own claim unless platform-elevated.
+ */
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireApiAuth({
+    permissions: ["payroll.manage", "payroll.admin", "payroll.approve"],
+    allowPlatformAdmin: true,
+    requireMfa: "privileged",
+  });
+  if ("response" in auth) return auth.response;
+
+  const ip = clientIp(req);
+  const rl = await rateLimitStrict(
+    `payroll-overtime-approve:${auth.ctx.user.id}:${ip}`,
+    30,
+    60_000
+  );
+  if (!rl.allowed) return apiError("RATE_LIMIT", "Rate limit exceeded", 429);
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return apiError("VALIDATION", "Invalid JSON");
+  }
+  const parsed = parseJson(schema, body);
+  if (!parsed.success) return apiError("VALIDATION", parsed.error);
+
+  const { id } = await ctx.params;
+  const admin = createAdminClient();
+  const companyId = auth.ctx.companyId;
+
+  try {
+    const { data: claim, error: getErr } = await admin
+      .from("pay_overtime_claims")
+      .select("*")
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (getErr) return apiError("INTERNAL", getErr.message, 500);
+    if (!claim) {
+      return apiError("NOT_FOUND", "Overtime claim not found in this company", 404);
+    }
+    if (claim.status !== "pending") {
+      return apiError(
+        "VALIDATION",
+        `Only pending OT claims can be reviewed (status: ${claim.status})`,
+        400
+      );
+    }
+    if (
+      claim.created_by === auth.ctx.user.id &&
+      !auth.ctx.isPlatformAdmin &&
+      !auth.ctx.isElevated
+    ) {
+      return apiError("FORBIDDEN", "OT claims cannot be approved by the requester", 403);
+    }
+
+    const nextStatus = parsed.data.approve ? "approved" : "rejected";
+    const { data: updated, error: updErr } = await admin
+      .from("pay_overtime_claims")
+      .update({
+        status: nextStatus,
+        approved_by: auth.ctx.user.id,
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updErr || !updated) {
+      return apiError("INTERNAL", updErr?.message ?? "Failed to update OT claim", 500);
+    }
+
+    await writeServerAudit(admin, {
+      company_id: companyId,
+      user_id: auth.ctx.user.id,
+      action: parsed.data.approve
+        ? "payroll.overtime_approved"
+        : "payroll.overtime_rejected",
+      module: "payroll",
+      entity_type: "pay_overtime_claims",
+      entity_id: claim.id,
+      entity_reference: claim.claim_number ?? undefined,
+      before_state: { status: claim.status },
+      after_state: { status: nextStatus, notes: parsed.data.notes ?? null },
+      metadata: { source: "api/payroll/overtime/[id]/approve" },
+      ip_address: ip,
+      user_agent: req.headers.get("user-agent"),
+    });
+
+    return apiOk({ claim: updated });
+  } catch (e) {
+    return apiError(
+      "INTERNAL",
+      e instanceof Error ? e.message : "OT claim review failed",
+      500
+    );
+  }
+}

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-02 - Server-side mutation migration (Phase 7)
+
+### New hardened API routes (session tenant/company, permission-gated, rate-limited, audited)
+- Payroll: overtime claims + approval, bonuses + approval, benefit plans/enrollments, salary structures (server computes hourly rate, multipliers, amounts; generates OT-/BN-/STR- numbers; rolls back structure lines on failure)
+- HR leave approval (api/hr/leave/[id]/approve); finance invoices issue + payments, GL journals; payroll advances, loans (+ approval)
+- Procurement orders, requisitions (+ approval); billing credit notes, debit notes; inventory adjustments, transfers; sales orders; workforce attendance
+- Pages migrated off direct browser writes: invoices, finance/AP + journals, payroll (loans, self-service, components, overtime, bonuses, benefits, structures), billing (credit/debit notes, gateways), procurement (orders, requisitions, fleet), inventory (adjustments, transfers), CRM accounts, HR employees + leave, sales orders, workforce attendance, dispatch fleet
+- Shared browser helpers: src/lib/api-client.ts, src/lib/api/crud-client.ts, src/lib/api/audit.ts, src/lib/api/bill-number.ts; entity registry updated
+
+### Tests
+- tests/security/v2-crud-permissions.test.ts - CRUD API permission contract
+
+---
+
 ## 2026-08-02 - RLS business permission enforcement (Phase 6)
 
 ### Database / RLS

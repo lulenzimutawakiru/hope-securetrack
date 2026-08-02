@@ -157,6 +157,18 @@ PLATFORM_PROVISIONING_PUBLIC=false
 QR_ENCRYPTION_KEY=<64 hex chars>
 ```
 
+## Server-side mutation migration (2026-08-02, Phase 7)
+
+Moves the highest-risk money and record mutations off the browser Supabase client onto permission-gated, rate-limited, audited API routes. Session-derived tenant/company only; number generation, amount computation and approver identity all happen server-side.
+
+| Deliverable | Status |
+|------------|--------|
+| Payroll: overtime + approval, bonuses + approval, benefit plans/enrollments, salary structures, advances, loans + approval | Live |
+| HR leave approval, finance invoices/journals, billing credit/debit notes, procurement orders/requisitions + approval, inventory adjustments/transfers, sales orders, workforce attendance | Live |
+| Browser helper layer (api-client, crud-client) + entity registry | Live |
+| Pages rewired to server APIs (invoices, finance/AP+journals, payroll, billing, procurement, inventory, CRM, HR, sales, workforce, dispatch, fleet) | Live |
+| CRUD API permission contract test | Live tests/security/v2-crud-permissions.test.ts |
+
 ## Remaining programme (roadmap / ops)
 
 1. ~~Engineering phases 1–5 + hardening layer~~ **done**  

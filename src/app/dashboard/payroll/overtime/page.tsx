@@ -19,13 +19,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { OT_TYPES, createOvertimeClaim } from "@/lib/payroll";
+import { OT_TYPES } from "@/lib/payroll";
 
 export default function PayOvertimePage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [employees, setEmployees] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
@@ -37,8 +36,6 @@ export default function PayOvertimePage() {
     ot_type: "weekday",
     notes: "",
   });
-
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const sb = createClient();
@@ -57,37 +54,27 @@ export default function PayOvertimePage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId || !form.employee_id) return;
-    try {
-      const emp = employees.find((x) => String(x.id) === form.employee_id);
-      await createOvertimeClaim({
-        company_id: companyId,
-        employee_id: form.employee_id,
-        work_date: form.work_date,
-        hours: Number(form.hours) || 0,
-        ot_type: form.ot_type,
-        basic_salary: Number(emp?.salary || 0),
-        notes: form.notes,
-        created_by: auth?.user?.id,
-      });
+    if (!form.employee_id) return;
+    const res = await apiPost("/api/payroll/overtime", {
+      employee_id: form.employee_id,
+      work_date: form.work_date,
+      hours: Number(form.hours) || 0,
+      ot_type: form.ot_type,
+      notes: form.notes,
+    });
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("OT claim submitted");
       setOpen(false);
       await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
   const approve = async (id: string) => {
-    const { error } = await createClient()
-      .from("pay_overtime_claims")
-      .update({
-        status: "approved",
-        approved_by: auth?.user?.id,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await apiPost(`/api/payroll/overtime/${id}/approve`, {
+      approve: true,
+    });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("OT approved");
       await load();

@@ -21,7 +21,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { crudCreate } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -43,7 +43,6 @@ interface Customer {
 }
 
 export default function CrmAccountsPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -73,11 +72,8 @@ export default function CrmAccountsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const supabase = createClient();
     const code = form.code || `CUS-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("customers").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("customers", {
       name: form.name,
       code,
       customer_type: form.customer_type,
@@ -94,7 +90,7 @@ export default function CrmAccountsPage() {
       territory: form.territory,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Account created");
       setOpen(false);

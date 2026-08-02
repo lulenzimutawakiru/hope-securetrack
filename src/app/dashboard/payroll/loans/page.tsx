@@ -23,7 +23,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { LOAN_TYPES, createLoan, approveLoan, nextPayCode } from "@/lib/payroll";
+import { apiPost } from "@/lib/api-client";
+import { LOAN_TYPES } from "@/lib/payroll";
 
 export default function PayLoansPage() {
   const { auth } = useUser();
@@ -70,16 +71,15 @@ export default function PayLoansPage() {
     e.preventDefault();
     if (!companyId || !loanForm.employee_id) return;
     try {
-      await createLoan({
-        company_id: companyId,
+      const res = await apiPost("/api/payroll/loans", {
         employee_id: loanForm.employee_id,
         loan_type: loanForm.loan_type,
         principal: Number(loanForm.principal) || 0,
         interest_rate_pct: Number(loanForm.interest_rate_pct) || 0,
         installments: Number(loanForm.installments) || 1,
         notes: loanForm.notes,
-        created_by: auth?.user?.id,
       });
+      if (!res.ok) throw new Error(res.error);
       toast.success("Loan application submitted");
       setOpenLoan(false);
       await load();
@@ -92,17 +92,12 @@ export default function PayLoansPage() {
     e.preventDefault();
     if (!companyId || !advForm.employee_id) return;
     try {
-      const advance_number = await nextPayCode(companyId, "pay_advances", "ADV");
-      const { error } = await createClient().from("pay_advances").insert({
-        company_id: companyId,
-        advance_number,
+      const res = await apiPost("/api/payroll/advances", {
         employee_id: advForm.employee_id,
         amount: Number(advForm.amount) || 0,
         reason: advForm.reason,
-        status: "pending",
-        created_by: auth?.user?.id,
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Advance requested");
       setOpenAdv(false);
       await load();
@@ -114,7 +109,10 @@ export default function PayLoansPage() {
   const doApproveLoan = async (id: string) => {
     if (!auth?.user?.id) return;
     try {
-      await approveLoan(id, auth.user.id);
+      const res = await apiPost(`/api/payroll/loans/${encodeURIComponent(id)}/approve`, {
+        approve: true,
+      });
+      if (!res.ok) throw new Error(res.error);
       toast.success("Loan approved · schedule generated");
       await load();
     } catch (err) {
@@ -123,14 +121,15 @@ export default function PayLoansPage() {
   };
 
   const approveAdv = async (id: string) => {
-    const { error } = await createClient()
-      .from("pay_advances")
-      .update({ status: "approved", approved_by: auth?.user?.id, approved_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      const res = await apiPost(`/api/payroll/advances/${encodeURIComponent(id)}/approve`, {
+        approve: true,
+      });
+      if (!res.ok) throw new Error(res.error);
       toast.success("Advance approved");
       await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 

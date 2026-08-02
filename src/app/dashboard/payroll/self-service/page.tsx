@@ -19,7 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { nextPayCode } from "@/lib/payroll";
+import { apiPost } from "@/lib/api-client";
 
 export default function PaySelfServicePage() {
   const { auth } = useUser();
@@ -91,17 +91,12 @@ export default function PaySelfServicePage() {
       return;
     }
     try {
-      const advance_number = await nextPayCode(companyId, "pay_advances", "ADV");
-      const { error } = await createClient().from("pay_advances").insert({
-        company_id: companyId,
-        advance_number,
+      const res = await apiPost("/api/payroll/advances", {
         employee_id: employeeId,
         amount: Number(amount) || 0,
         reason,
-        status: "pending",
-        created_by: auth?.user?.id,
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Advance request submitted");
       setOpen(false);
       setAmount("");

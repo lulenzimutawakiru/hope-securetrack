@@ -21,7 +21,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { crudCreate } from "@/lib/api/crud-client";
+import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -36,7 +37,6 @@ const LEAVE_TYPES = [
 ];
 
 export default function LeavePage() {
-  const { auth } = useUser();
   const [leave, setLeave] = useState<Array<Record<string, unknown>>>([]);
   const [balances, setBalances] = useState<Array<Record<string, unknown>>>([]);
   const [holidays, setHolidays] = useState<Array<Record<string, unknown>>>([]);
@@ -89,16 +89,13 @@ export default function LeavePage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     const start = new Date(form.start_date);
     const end = new Date(form.end_date);
     const days = Math.max(
       1,
       Math.round((end.getTime() - start.getTime()) / 86400000) + 1
     );
-    const supabase = createClient();
-    const { error } = await supabase.from("leave_requests").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("leave_requests", {
       employee_id: form.employee_id,
       leave_type: form.leave_type,
       start_date: form.start_date,
@@ -107,7 +104,7 @@ export default function LeavePage() {
       reason: form.reason || null,
       status: "pending",
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Leave submitted");
       setOpen(false);
@@ -116,17 +113,8 @@ export default function LeavePage() {
   };
 
   const decide = async (id: string, status: string) => {
-    if (!auth) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("leave_requests")
-      .update({
-        status,
-        approved_by: auth.profile.id,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await apiPost(`/api/hr/leave/${id}/approve`, { status });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Leave ${status}`);
       load();

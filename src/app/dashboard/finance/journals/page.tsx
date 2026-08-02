@@ -21,6 +21,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/client";
+import { apiPost } from "@/lib/api-client";
+import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
@@ -84,90 +86,53 @@ export default function JournalsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     const amount = Number(form.amount);
     if (
       !form.debit_account_id ||
       !form.credit_account_id ||
       form.debit_account_id === form.credit_account_id ||
+      !Number.isFinite(amount) ||
       amount <= 0
     ) {
       toast.error("Select two different accounts and a positive amount");
       return;
     }
-    const supabase = createClient();
-    const num = `JV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const { data: j, error } = await supabase
-      .from("gl_journals")
-      .insert({
-        company_id: auth.profile.company_id,
-        journal_number: num,
-        journal_type: form.journal_type,
-        journal_date: new Date().toISOString().slice(0, 10),
-        description: form.description,
-        currency: "UGX",
-        status: "draft",
-        total_debit: amount,
-        total_credit: amount,
-        created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error || !j) {
-      toast.error(error?.message ?? "Failed");
+    const res = await apiPost("/api/finance/journals", {
+      journal_type: form.journal_type,
+      journal_date: new Date().toISOString().slice(0, 10),
+      description: form.description || null,
+      lines: [
+        {
+          account_id: form.debit_account_id,
+          description: form.description,
+          debit: amount,
+          credit: 0,
+        },
+        {
+          account_id: form.credit_account_id,
+          description: form.description,
+          debit: 0,
+          credit: amount,
+        },
+      ],
+    });
+    if (!res.ok) {
+      toast.error(res.error);
       return;
     }
-
-    await supabase.from("gl_journal_lines").insert([
-      {
-        journal_id: j.id,
-        company_id: auth.profile.company_id,
-        line_number: 1,
-        account_id: form.debit_account_id,
-        description: form.description,
-        debit: amount,
-        credit: 0,
-        amount_base: amount,
-      },
-      {
-        journal_id: j.id,
-        company_id: auth.profile.company_id,
-        line_number: 2,
-        account_id: form.credit_account_id,
-        description: form.description,
-        debit: 0,
-        credit: amount,
-        amount_base: amount,
-      },
-    ]);
-
-    toast.success(`Journal ${num} created (draft)`);
+    toast.success("Journal created (draft)");
     setOpen(false);
     load();
   };
 
   const post = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.rpc("post_gl_journal", {
-      p_journal_id: id,
+    const res = await crudUpdate("gl_journals", id, {
+      status: "posted",
+      posted_at: new Date().toISOString(),
+      posted_by: auth?.profile.id ?? null,
     });
-    if (error) {
-      // fallback if RPC fails
-      const { error: e2 } = await supabase
-        .from("gl_journals")
-        .update({
-          status: "posted",
-          posted_at: new Date().toISOString(),
-          posted_by: auth?.profile.id,
-        })
-        .eq("id", id);
-      if (e2) toast.error(error.message);
-      else {
-        toast.success("Journal posted");
-        load();
-      }
-    } else {
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("Journal posted");
       load();
     }
@@ -175,12 +140,8 @@ export default function JournalsPage() {
 
   const reverse = async (id: string, number: string) => {
     if (!confirm(`Reverse journal ${number}?`)) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("gl_journals")
-      .update({ status: "reversed" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudUpdate("gl_journals", id, { status: "reversed" });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Journal reversed");
       load();
@@ -189,12 +150,8 @@ export default function JournalsPage() {
 
   const softDelete = async (id: string) => {
     if (!confirm("Archive journal?")) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("gl_journals")
-      .update({ deleted_at: new Date().toISOString(), status: "void" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudDelete("gl_journals", id);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Journal archived");
       load();

@@ -14,12 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiPost } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function PayStructuresPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [lines, setLines] = useState<Array<Record<string, unknown>>>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -32,8 +31,6 @@ export default function PayStructuresPage() {
     basic_amount: "",
     description: "",
   });
-
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const { data } = await createClient()
@@ -62,35 +59,18 @@ export default function PayStructuresPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const code = form.structure_code || `STR-${Date.now().toString(36).toUpperCase()}`;
-      const basic = Number(form.basic_amount) || 0;
-      const { data, error } = await createClient()
-        .from("pay_salary_structures")
-        .insert({
-          company_id: companyId,
-          structure_code: code,
-          name: form.name,
-          grade: form.grade || null,
-          basic_amount: basic,
-          description: form.description || null,
-          is_active: true,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      // default lines
-      await createClient().from("pay_structure_lines").insert([
-        { company_id: companyId, structure_id: data.id, component_code: "BASIC", amount: basic, sort_order: 1 },
-        { company_id: companyId, structure_id: data.id, component_code: "HOUSING", amount: 0, is_percentage: true, pct_of_basic: 15, sort_order: 2 },
-        { company_id: companyId, structure_id: data.id, component_code: "TRANSPORT", amount: 100000, sort_order: 3 },
-      ]);
+    const res = await apiPost("/api/payroll/structures", {
+      structure_code: form.structure_code || `STR-${Date.now().toString(36).toUpperCase()}`,
+      name: form.name,
+      grade: form.grade || null,
+      basic_amount: Number(form.basic_amount) || 0,
+      description: form.description || null,
+    });
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("Structure created");
       setOpen(false);
       await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 

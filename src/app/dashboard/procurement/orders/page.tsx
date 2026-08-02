@@ -21,13 +21,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
+import { apiPost, apiDelete } from "@/lib/api-client";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function PurchaseOrdersPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [products, setProducts] = useState<
@@ -76,75 +76,48 @@ export default function PurchaseOrdersPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !form.supplier_id || !form.product_id) {
+    if (!form.supplier_id || !form.product_id) {
       toast.error("Supplier and product required");
       return;
     }
-    const p = products.find((x) => x.id === form.product_id);
-    const qty = Number(form.quantity);
-    const price = Number(form.unit_price || p?.standard_cost || 0);
-    const subtotal = qty * price;
-    const tax = subtotal * 0.18;
-    const supabase = createClient();
-    const num = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-
-    const { data: po, error } = await supabase
-      .from("purchase_orders")
-      .insert({
-        company_id: auth.profile.company_id,
-        po_number: num,
+    try {
+      const p = products.find((x) => x.id === form.product_id);
+      const res = await apiPost<{ po?: { po_number?: string } }>("/api/procurement/orders", {
         supplier_id: form.supplier_id,
         warehouse_id: form.warehouse_id || null,
-        order_date: new Date().toISOString().slice(0, 10),
         expected_date: form.expected_date || null,
-        currency: "UGX",
-        subtotal,
-        tax_amount: tax,
-        total_amount: subtotal + tax,
-        status: "approved",
-        po_type: "standard",
-        payment_terms: "Net 30",
         notes: form.notes || null,
-        approved_by: auth.profile.id,
-        approved_at: new Date().toISOString(),
-        created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error || !po) {
-      toast.error(error?.message ?? "Failed");
-      return;
+        lines: [
+          {
+            product_id: form.product_id,
+            quantity: Number(form.quantity),
+            unit_price: Number(form.unit_price || p?.standard_cost || 0),
+            description: p?.name ?? "Item",
+            uom: "EA",
+            tax_rate: 18,
+          },
+        ],
+      });
+      if (!res.ok) throw new Error(res.error);
+      toast.success(`PO ${res.data?.po?.po_number ?? ""} created`);
+      setOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
-
-    await supabase.from("purchase_order_lines").insert({
-      po_id: po.id,
-      company_id: auth.profile.company_id,
-      line_number: 1,
-      product_id: form.product_id,
-      description: p?.name ?? "Item",
-      quantity: qty,
-      uom: "EA",
-      unit_price: price,
-      tax_rate: 18,
-      line_total: subtotal,
-    });
-
-    toast.success(`PO ${num} created`);
-    setOpen(false);
-    load();
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    const patch: Record<string, unknown> = { status };
-    if (status === "sent") patch.sent_at = new Date().toISOString();
-    if (status === "acknowledged") patch.acknowledged_at = new Date().toISOString();
-    const { error } = await supabase.from("purchase_orders").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      const patch: Record<string, unknown> = { status };
+      if (status === "sent") patch.sent_at = new Date().toISOString();
+      if (status === "acknowledged") patch.acknowledged_at = new Date().toISOString();
+      const res = await crudUpdate("purchase_orders", id, patch);
+      if (!res.ok) throw new Error(res.error);
       toast.success(`PO ${status}`);
       load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
@@ -159,13 +132,13 @@ export default function PurchaseOrdersPage() {
       return;
     }
     if (!confirm(`Permanently delete ${number}?`)) return;
-    const supabase = createClient();
-    await supabase.from("purchase_order_lines").delete().eq("po_id", id);
-    const { error } = await supabase.from("purchase_orders").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      const res = await apiDelete(`/api/procurement/orders/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(res.error);
       toast.success("PO deleted");
       load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 

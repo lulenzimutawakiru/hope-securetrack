@@ -19,12 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { crudCreate } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 import { VEHICLE_TYPES } from "@/lib/dispatch";
 
 export default function DispatchFleetPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -38,8 +37,6 @@ export default function DispatchFleetPage() {
     gps_tracker_id: "",
     assigned_driver_name: "",
   });
-
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const { data } = await createClient()
@@ -56,27 +53,23 @@ export default function DispatchFleetPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("fleet_vehicles").insert({
-        company_id: companyId,
-        registration: form.registration.toUpperCase(),
-        make: form.make,
-        model: form.model,
-        vehicle_type: form.vehicle_type,
-        capacity_kg: Number(form.capacity_kg) || 0,
-        fuel_type: form.fuel_type,
-        gps_tracker_id: form.gps_tracker_id || null,
-        assigned_driver_name: form.assigned_driver_name || null,
-        status: "available",
-        is_active: true,
-      });
-      if (error) throw error;
+    const res = await crudCreate("fleet_vehicles", {
+      registration: form.registration.toUpperCase(),
+      make: form.make,
+      model: form.model,
+      vehicle_type: form.vehicle_type,
+      capacity_kg: Number(form.capacity_kg) || 0,
+      fuel_type: form.fuel_type,
+      gps_tracker_id: form.gps_tracker_id || null,
+      assigned_driver_name: form.assigned_driver_name || null,
+      status: "available",
+      is_active: true,
+    });
+    if (!res.ok) toast.error(res.error);
+    else {
       toast.success("Vehicle registered");
       setOpen(false);
       await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 

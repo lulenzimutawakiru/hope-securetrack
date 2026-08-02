@@ -29,7 +29,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiDelete, apiPost } from "@/lib/api-client";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
@@ -73,7 +74,6 @@ interface SalesOrder {
 }
 
 export default function InvoicesPage() {
-  const { auth } = useUser();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,63 +183,14 @@ export default function InvoicesPage() {
 
   const createFromOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !orderId) return;
+    if (!orderId) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const order = orders.find((o) => o.id === orderId);
-      if (!order) throw new Error("Order not found");
-
-      const invNumber = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
-      const due = new Date();
-      due.setDate(due.getDate() + 30);
-
-      const { data: inv, error } = await supabase
-        .from("invoices")
-        .insert({
-          company_id: auth.profile.company_id,
-          invoice_number: invNumber,
-          sales_order_id: order.id,
-          customer_id: order.customer_id,
-          status: "issued",
-          invoice_date: new Date().toISOString().slice(0, 10),
-          due_date: due.toISOString().slice(0, 10),
-          subtotal: order.subtotal,
-          tax_amount: order.tax_amount,
-          total_amount: order.total_amount,
-          amount_paid: 0,
-          currency: "UGX",
-          issued_by: auth.profile.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      const { data: orderLines } = await supabase
-        .from("sales_order_lines")
-        .select("*")
-        .eq("order_id", order.id);
-
-      if (orderLines?.length) {
-        await supabase.from("invoice_lines").insert(
-          orderLines.map((l) => ({
-            invoice_id: inv.id,
-            product_id: l.product_id,
-            description: l.description,
-            quantity: l.quantity,
-            unit: l.unit,
-            unit_price: l.unit_price,
-            tax_rate: l.tax_rate,
-          }))
-        );
-      }
-
-      await supabase
-        .from("sales_orders")
-        .update({ status: "invoiced" })
-        .eq("id", order.id);
-
-      toast.success(`Invoice ${invNumber} issued`);
+      const res = await apiPost("/api/invoices/issue", {
+        sales_order_id: orderId,
+      });
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Invoice issued");
       setOpen(false);
       setOrderId("");
       load();
@@ -255,16 +206,12 @@ export default function InvoicesPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("invoices")
-        .update({
-          notes: editNotes || null,
-          due_date: editDue || null,
-          status: editStatus,
-        })
-        .eq("id", selected.id);
-      if (error) throw error;
+      const res = await crudUpdate("invoices", selected.id, {
+        notes: editNotes || null,
+        due_date: editDue || null,
+        status: editStatus,
+      });
+      if (!res.ok) throw new Error(res.error);
       toast.success("Invoice updated");
       setEditOpen(false);
       load();
@@ -277,12 +224,8 @@ export default function InvoicesPage() {
 
   const voidInvoice = async (inv: Invoice) => {
     if (!confirm(`Void invoice ${inv.invoice_number}?`)) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("invoices")
-      .update({ status: "void" })
-      .eq("id", inv.id);
-    if (error) toast.error(error.message);
+    const res = await crudUpdate("invoices", inv.id, { status: "void" });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Invoice voided");
       load();
@@ -295,11 +238,8 @@ export default function InvoicesPage() {
       return;
     }
     if (!confirm(`Permanently delete ${inv.invoice_number}?`)) return;
-    const supabase = createClient();
-    await supabase.from("invoice_lines").delete().eq("invoice_id", inv.id);
-    await supabase.from("invoice_payments").delete().eq("invoice_id", inv.id);
-    const { error } = await supabase.from("invoices").delete().eq("id", inv.id);
-    if (error) toast.error(error.message);
+    const res = await apiDelete("/api/invoices/" + encodeURIComponent(inv.id));
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Invoice deleted");
       load();
@@ -308,37 +248,22 @@ export default function InvoicesPage() {
 
   const recordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !payInvoiceId) return;
+    if (!payInvoiceId) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const inv = invoices.find((i) => i.id === payInvoiceId);
       if (!inv) throw new Error("Invoice not found");
       const amount = parseFloat(payAmount);
       if (!amount || amount <= 0) throw new Error("Invalid amount");
 
-      const { error } = await supabase.from("invoice_payments").insert({
-        invoice_id: inv.id,
-        company_id: auth.profile.company_id,
-        amount,
-        payment_date: new Date().toISOString().slice(0, 10),
-        method: payMethod,
-        recorded_by: auth.profile.id,
-      });
-      if (error) throw error;
-
-      const paid = Number(inv.amount_paid) + amount;
-      const status =
-        paid >= Number(inv.total_amount)
-          ? "paid"
-          : paid > 0
-            ? "partially_paid"
-            : inv.status;
-
-      await supabase
-        .from("invoices")
-        .update({ amount_paid: paid, status })
-        .eq("id", inv.id);
+      const res = await apiPost(
+        `/api/invoices/${encodeURIComponent(payInvoiceId)}/pay`,
+        {
+          amount,
+          method: payMethod,
+        }
+      );
+      if (!res.ok) throw new Error(res.error);
 
       toast.success("Payment recorded");
       setPayOpen(false);

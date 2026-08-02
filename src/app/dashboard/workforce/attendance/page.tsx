@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { apiPost } from "@/lib/api-client";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -39,7 +39,6 @@ interface Attendance {
 }
 
 export default function AttendancePage() {
-  const { auth } = useUser();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [rows, setRows] = useState<Attendance[]>([]);
   const [employeeId, setEmployeeId] = useState("");
@@ -75,16 +74,12 @@ export default function AttendancePage() {
   }, []);
 
   const clock = async (type: "in" | "out") => {
-    if (!auth || !employeeId) {
+    if (!employeeId) {
       toast.error("Select an employee");
       return;
     }
     setBusy(true);
     try {
-      const supabase = createClient();
-      const today = new Date().toISOString().slice(0, 10);
-      const now = new Date().toISOString();
-
       let lat: number | undefined;
       let lng: number | undefined;
       try {
@@ -97,107 +92,17 @@ export default function AttendancePage() {
         /* optional GPS */
       }
 
-      const { data: existing } = await supabase
-        .from("attendance_records")
-        .select("*")
-        .eq("employee_id", employeeId)
-        .eq("work_date", today)
-        .maybeSingle();
-
-      if (type === "in") {
-        if (existing?.check_in) {
-          toast.message("Already clocked in today");
-          return;
-        }
-        // Late if after 08:15
-        const hour = new Date().getHours();
-        const min = new Date().getMinutes();
-        const late = hour > 8 || (hour === 8 && min > 15) ? (hour - 8) * 60 + Math.max(0, min - 15) : 0;
-
-        if (existing) {
-          await supabase
-            .from("attendance_records")
-            .update({
-              check_in: now,
-              method: lat ? "mobile_gps" : "web",
-              check_in_lat: lat ?? null,
-              check_in_lng: lng ?? null,
-              late_minutes: late,
-              status: late > 0 ? "late" : "present",
-            })
-            .eq("id", existing.id);
-        } else {
-          const { error } = await supabase.from("attendance_records").insert({
-            company_id: auth.profile.company_id,
-            employee_id: employeeId,
-            work_date: today,
-            check_in: now,
-            method: lat ? "mobile_gps" : "web",
-            check_in_lat: lat ?? null,
-            check_in_lng: lng ?? null,
-            late_minutes: late,
-            status: late > 0 ? "late" : "present",
-          });
-          if (error) throw error;
-        }
-        toast.success("Clocked in");
-      } else {
-        if (!existing?.check_in) {
-          toast.error("No clock-in found for today");
-          return;
-        }
-        if (existing.check_out) {
-          toast.message("Already clocked out");
-          return;
-        }
-        const inTime = new Date(existing.check_in).getTime();
-        const outTime = Date.now();
-        const workedMin = Math.max(0, Math.round((outTime - inTime) / 60000));
-        const overtime = Math.max(0, workedMin - 8 * 60);
-
-        const { error } = await supabase
-          .from("attendance_records")
-          .update({
-            check_out: now,
-            check_out_lat: lat ?? null,
-            check_out_lng: lng ?? null,
-            productive_minutes: workedMin,
-            overtime_minutes: overtime,
-            status: "present",
-          })
-          .eq("id", existing.id);
-        if (error) throw error;
-
-        // Labor cost snapshot (simple)
-        const { data: emp } = await supabase
-          .from("employees")
-          .select("hourly_rate, department, cost_center")
-          .eq("id", employeeId)
-          .single();
-        const rate = Number(emp?.hourly_rate || 15000);
-        const regH = Math.min(8, workedMin / 60);
-        const otH = overtime / 60;
-        await supabase.from("labor_cost_entries").insert({
-          company_id: auth.profile.company_id,
-          employee_id: employeeId,
-          work_date: today,
-          department: emp?.department || null,
-          cost_center: emp?.cost_center || null,
-          regular_hours: Number(regH.toFixed(2)),
-          overtime_hours: Number(otH.toFixed(2)),
-          regular_cost: Number((regH * rate).toFixed(2)),
-          overtime_cost: Number((otH * rate * 1.5).toFixed(2)),
-          total_cost: Number((regH * rate + otH * rate * 1.5).toFixed(2)),
-          currency: "UGX",
-          source: "attendance",
-        });
-
-        toast.success(
-          overtime > 0
-            ? `Clocked out · OT ${overtime} min`
-            : "Clocked out"
-        );
+      const res = await apiPost("/api/workforce/attendance", {
+        employee_id: employeeId,
+        action: type,
+        lat: lat ?? null,
+        lng: lng ?? null,
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
       }
+      toast.success(type === "in" ? "Clocked in" : "Clocked out");
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Attendance failed");
