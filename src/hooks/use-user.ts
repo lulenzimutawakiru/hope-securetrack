@@ -362,9 +362,10 @@ export function useUser() {
         }
 
         const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
+          .from("user_profiles")
+          .select("*, roles!user_profiles_role_id_fkey(slug, name)")
           .eq("id", user.id)
+          .is("deleted_at", null)
           .maybeSingle();
 
         if (!profile) {
@@ -377,7 +378,26 @@ export function useUser() {
             ? (profile.roles as { slug?: string }).slug
             : undefined;
 
-        const basePermissions = (profile.permissions as string[] | undefined) ?? [];
+        // Permissions resolve from role_permissions -> permissions, mirroring
+        // the server-side requireApiAuth path. The legacy "profiles" table is
+        // gone in production; user_profiles is the single identity source and
+        // does not carry a client-editable permissions column.
+        let basePermissions: string[] = [];
+        const roleId = (profile as { role_id?: string | null }).role_id;
+        if (roleId) {
+          const { data: rolePerms } = await supabase
+            .from("role_permissions")
+            .select("permissions(slug)")
+            .eq("role_id", roleId);
+          basePermissions =
+            rolePerms
+              ?.map((rp) => {
+                const p = rp.permissions as unknown as { slug?: string } | null;
+                return p?.slug;
+              })
+              .filter((s): s is string => Boolean(s)) ?? [];
+        }
+
         const permissions = enrichPermissions(basePermissions, roleSlug);
 
         const activeCompanyId =

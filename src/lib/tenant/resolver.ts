@@ -41,16 +41,34 @@ export async function resolveTenantContext(): Promise<TenantContext | null> {
   if (!session) return null;
 
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("tenant_id, company_id")
+    .from("user_profiles")
+    .select("tenant_id, company_id, active_company_id")
     .eq("id", session.user.id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!profile) return null;
 
+  // Active company wins (multi-company switching); tenant is resolved from the
+  // company row as the source of truth, never from client input.
+  const companyId = String(profile.active_company_id || profile.company_id);
+  let tenantId: string | null = profile.tenant_id ?? null;
+  try {
+    const { data: co } = await supabase
+      .from("companies")
+      .select("tenant_id")
+      .eq("id", companyId)
+      .maybeSingle();
+    if (co?.tenant_id) tenantId = String(co.tenant_id);
+  } catch {
+    /* keep profile tenant */
+  }
+
   return {
-    tenantId: profile.tenant_id,
-    companyId: profile.company_id,
+    // Fail closed: an unresolvable tenant yields an empty string rather than a
+    // NULL that could match rows via PostgREST `IS NULL` semantics.
+    tenantId: tenantId ?? "",
+    companyId,
     userId: session.user.id,
   };
 }
