@@ -6,3 +6,4 @@ export * from "./reports";
 export * from "./archive";
 export * from "./siem";
 export * from "./policies";
+export * from "./client";

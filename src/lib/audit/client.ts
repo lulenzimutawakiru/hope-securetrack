@@ -1,6 +1,6 @@
 /**
- * Client‑side event logging to the audit endpoint.
- * All logging is best‑effort; no UI feedback on failure.
+ * Client-side event logging to the audit endpoint.
+ * All logging is best-effort; no UI feedback on failure.
  */
 const AUDIT_ENDPOINT = "/api/audit/log";
 
