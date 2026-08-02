@@ -29,6 +29,7 @@ import { assertTenantAndCompany } from "@/lib/tenant/context";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { log } from "@/lib/observability/logger";
 import { sanitizePostgrestFilter } from "@/lib/security/shared";
+import { validatePayload } from "@/lib/crud/entity-schemas";
 
 export type EngineErrorCode =
   | "UNKNOWN_ENTITY"
@@ -382,6 +383,10 @@ export async function createEntity<T = Record<string, unknown>>(
   deps: EngineDeps = {}
 ): Promise<T> {
   const def = withEntity(scope, entity, "create");
+  const validation = validatePayload(entity, payload);
+  if (!validation.ok) {
+    throw new EngineError("VALIDATION", `Invalid ${def.entity} payload: ${validation.issues.join("; ")}`, 400);
+  }
   const sb = deps.sb ?? (await createClient());
   const clean = stripBlacklist(payload);
   clean.company_id = scope.companyId;
@@ -413,6 +418,10 @@ export async function updateEntity<T = Record<string, unknown>>(
   deps: EngineDeps = {}
 ): Promise<T> {
   const def = withEntity(scope, entity, "update");
+  const validation = validatePayload(entity, payload);
+  if (!validation.ok) {
+    throw new EngineError("VALIDATION", `Invalid ${def.entity} payload: ${validation.issues.join("; ")}`, 400);
+  }
   const sb = deps.sb ?? (await createClient());
   const existing = await fetchScopedRow(sb, scope, def, id);
   const clean = stripBlacklist(payload);

@@ -33,6 +33,7 @@ export type EntityModule =
   | "notifications"
   | "crud"
   | "wfm"
+  | "brand"
   | "assets";
 
 export type CrudAction =
@@ -1126,3 +1127,77 @@ defineEntity("ta_applications", "ta_applications", "ta", {
   createdBy: true,
   updatedBy: true,
 });
+
+// ---- Branding / enterprise identity (DAM) --------------------------------
+defineEntity("brand_ui_themes", "brand_ui_themes", "brand", {
+  view: "brand.view",
+  create: "brand.manage",
+  update: "brand.manage",
+  delete: "brand.manage",
+}, {
+  searchable: ["theme_name"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("brand_logos", "brand_logos", "brand", {
+  view: "brand.view",
+  create: "brand.assets",
+  update: "brand.assets",
+  delete: "brand.manage",
+}, {
+  softDelete: true,
+  searchable: ["name", "logo_type"],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("brand_fonts", "brand_fonts", "brand", {
+  view: "brand.view",
+  create: "brand.design",
+  update: "brand.design",
+  delete: "brand.manage",
+}, {
+  searchable: ["family_name", "font_role"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("brand_guidelines", "brand_guidelines", "brand", {
+  view: "brand.view",
+  create: "brand.publish",
+  update: "brand.publish",
+  delete: "brand.manage",
+}, {
+  searchable: ["section_code", "title"],
+  createdBy: true,
+});
+
+defineEntity("brand_email_signatures", "brand_email_signatures", "brand", {
+  view: "brand.view",
+  create: "brand.design",
+  update: "brand.design",
+  delete: "brand.manage",
+}, {
+  searchable: ["name"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("brand_product_profiles", "brand_product_profiles", "brand", {
+  view: "brand.view",
+  create: "brand.assets",
+  update: "brand.assets",
+  delete: "brand.manage",
+}, {
+  searchable: ["product_code", "product_name", "brand_label"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("brand_compliance_issues", "brand_compliance_issues", "brand", {
+  view: "brand.view",
+  create: "brand.view",
+  update: "brand.approve",
+  delete: "brand.manage",
+}, {
+  searchable: ["issue_type", "title", "status"],
+  hasUpdatedAt: false,
+});
+

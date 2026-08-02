@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { SentryClientInit } from "@/components/providers/sentry-client-init";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <SentryClientInit />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

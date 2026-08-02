@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-03 - Observability, CRUD validation & defense-in-depth (Phase 9)
+
+### Observability (Sentry)
+
+- Instrumentation wired via `src/instrumentation.ts` (Node + edge runtimes) with DSN-guarded init in `sentry.server.config.ts` / `sentry.edge.config.ts`; browser SDK loaded by `<SentryClientInit />` in the root layout
+- Fixed the next-intl plugin load: removed the shadowing `next.config.mjs` (Next ignores `.mjs` when `.ts` exists), `tracesSampleRate 0.2`, replay sampling guarded by DSN presence
+
+### CRUD API validation
+
+- New `src/lib/crud/entity-schemas.ts` — per-entity payload schemas (string length caps, uuid fields, enum checks); `crud-engine.ts` validates payloads on create/update (HTTP 400 on violation)
+- 10 validation contract tests in `tests/security/crud-validation.test.ts`
+
+### RLS defense-in-depth
+
+- Migration `20260803000001` — RESTRICTIVE write gates for `print_jobs`, `fraud_alerts`, `config_change_log` (append-only update/delete `USING (false)`), gated on `is_super_admin()` or permission; layered on the existing permissive permission policies
+
+### Branding CRUD migration
+
+- Registered 7 branding entities (`brand_ui_themes`, `brand_logos`, `brand_fonts`, `brand_guidelines`, `brand_email_signatures`, `brand_product_profiles`, `brand_compliance_issues`) with permission-correct create/update/delete mappings
+- 7 branding pages (themes, logos, typography, guidelines, email, products, compliance) migrated off direct browser Supabase writes onto `crudCreate` / `crudUpdate` / `crudDelete`
+
+### Validation
+
+- typecheck, vitest (163), security suite (93), production-readiness audit (0 issues), production build all green
+
+---
+
 ## 2026-08-02 - Server-side mutation migration (Phase 8) — sales / CRM / products via CRUD API
 
 

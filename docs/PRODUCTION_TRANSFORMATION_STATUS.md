@@ -189,7 +189,16 @@ Moves the sales line-item tables under dual-key tenant isolation and rewires the
 
 | Typecheck / tests / security suite / readiness audit / production build | Green |
 
+## Phase 9 (2026-08-03) - observability, CRUD validation, defense-in-depth RLS
 
+| Deliverable | Status |
+|------------|--------|
+| Sentry instrumentation (Node + edge + browser) DSN-guarded, root-layout client init | Live |
+| next-intl plugin load fixed (removed shadowing `next.config.mjs`) | Live |
+| Per-entity CRUD payload validation (entity-schemas + engine 400s) | Live `tests/security/crud-validation.test.ts` |
+| RESTRICTIVE defense-in-depth write gates for `print_jobs` / `fraud_alerts` / `config_change_log` | Live `20260803000001` |
+| 7 branding entities registered + 7 branding pages migrated to CRUD API | Live |
+| Typecheck / tests / security suite / readiness audit / production build | Green |
 
 
 1. ~~Engineering phases 1–5 + hardening layer~~ **done**  

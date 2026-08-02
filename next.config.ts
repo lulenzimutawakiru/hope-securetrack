@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import path from "path";
 import { fileURLToPath } from "url";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,4 +43,9 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: false },
 };
 
-export default nextConfig;
+// Single merged config: next-intl plugin (was previously only in next.config.mjs,
+// which Next.js ignores when next.config.ts exists) + the full runtime config
+// above. Keeps locale message resolution wired while preserving build flags.
+const withNextIntl = createNextIntlPlugin("./i18n.ts");
+
+export default withNextIntl(nextConfig);

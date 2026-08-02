@@ -20,14 +20,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudDelete } from "@/lib/api/crud-client";
 import { LOGO_TYPES } from "@/lib/branding";
 
 const FORMATS = ["png", "svg", "pdf", "ai", "eps"];
 
 export default function BrandLogosPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -41,7 +40,6 @@ export default function BrandLogosPage() {
     is_default: false,
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const { data } = await createClient()
@@ -59,36 +57,29 @@ export default function BrandLogosPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("brand_logos").insert({
-        company_id: companyId,
-        name: form.name,
-        logo_type: form.logo_type,
-        file_url: form.file_url || null,
-        file_format: form.file_format,
-        min_size_mm: form.min_size_mm ? Number(form.min_size_mm) : null,
-        clear_space_note: form.clear_space_note || null,
-        is_default: form.is_default,
-        status: "active",
-        version: 1,
-        created_by: auth?.user?.id,
-      });
-      if (error) throw error;
-      toast.success("Logo registered");
-      setOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+    const res = await crudCreate("brand_logos", {
+      name: form.name,
+      logo_type: form.logo_type,
+      file_url: form.file_url || null,
+      file_format: form.file_format,
+      min_size_mm: form.min_size_mm ? Number(form.min_size_mm) : null,
+      clear_space_note: form.clear_space_note || null,
+      is_default: form.is_default,
+      status: "active",
+      version: 1,
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
     }
+    toast.success("Logo registered");
+    setOpen(false);
+    await load();
   };
 
   const softDelete = async (id: string) => {
-    const { error } = await createClient()
-      .from("brand_logos")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudDelete("brand_logos", id);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Logo archived");
       await load();

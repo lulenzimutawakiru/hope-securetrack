@@ -14,6 +14,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 import { runComplianceScan } from "@/lib/branding";
 
@@ -54,11 +55,11 @@ export default function BrandCompliancePage() {
   };
 
   const resolve = async (id: string) => {
-    const { error } = await createClient()
-      .from("brand_compliance_issues")
-      .update({ status: "resolved", resolved_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const res = await crudUpdate("brand_compliance_issues", id, {
+      status: "resolved",
+      resolved_at: new Date().toISOString(),
+    });
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Issue resolved");
       await load();

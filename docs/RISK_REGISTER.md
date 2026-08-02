@@ -37,7 +37,7 @@
 
 | ID | Risk | Severity | Treatment | Residual acceptance |
 |----|------|----------|-----------|---------------------|
-| X-01 | God-client CRUD for non-money modules | Medium | Mitigate iteratively (server APIs for high risk first) | **In progress** — Phase 7 moved payroll/HR/finance/billing/procurement/inventory/sales/workforce writes to server APIs; Phase 8 moved sales lines/returns, CRM (notes/campaigns/contracts/documents/loyalty/segments/distributors/accounts) and product-master writes onto the CRUD API; remaining modules still RLS-scoped |
+| X-01 | God-client CRUD for non-money modules | Medium | Mitigate iteratively (server APIs for high risk first) | **In progress** — Phase 7 moved payroll/HR/finance/billing/procurement/inventory/sales/workforce writes to server APIs; Phase 8 moved sales lines/returns, CRM (notes/campaigns/contracts/documents/loyalty/segments/distributors/accounts) and product-master writes onto the CRUD API; Phase 9 added per-entity CRUD payload validation, defense-in-depth RESTRICTIVE write gates for print/fraud/config tables, and migrated the branding module (7 entities, 7 pages) onto the CRUD API; remaining unregistered direct-write tables are lower-risk modules tracked for Phase 10+ |
 | X-02 | Live multi-tenant RLS CI not always-on | High | Enable `INTEGRATION_TESTS=true` + users A/B | **Accept until secrets wired** |
 | X-03 | Remaining high npm advisories (eslint/postcss transitive) | Medium | Track in DEPENDENCY_AUDIT_REPORT | **Accept** — not runtime-critical paths |
 | X-04 | No full WebAuthn/SAML/SCIM production path | Medium | UI scaffolds; IdP integration per customer | **Accept** — pilot uses Supabase Auth + MFA |

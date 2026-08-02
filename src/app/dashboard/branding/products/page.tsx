@@ -18,11 +18,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function BrandProductsPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -36,7 +35,6 @@ export default function BrandProductsPage() {
     hologram_zone: false,
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const { data } = await createClient()
@@ -53,26 +51,23 @@ export default function BrandProductsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("brand_product_profiles").insert({
-        company_id: companyId,
-        product_name: form.product_name,
-        product_code: form.product_code || null,
-        brand_label: form.brand_label,
-        packaging_notes: form.packaging_notes || null,
-        qr_enabled: form.qr_enabled,
-        security_print: form.security_print,
-        hologram_zone: form.hologram_zone,
-        status: "active",
-      });
-      if (error) throw error;
-      toast.success("Product brand profile created");
-      setOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+    const res = await crudCreate("brand_product_profiles", {
+      product_name: form.product_name,
+      product_code: form.product_code || null,
+      brand_label: form.brand_label,
+      packaging_notes: form.packaging_notes || null,
+      qr_enabled: form.qr_enabled,
+      security_print: form.security_print,
+      hologram_zone: form.hologram_zone,
+      status: "active",
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
     }
+    toast.success("Product brand profile created");
+    setOpen(false);
+    await load();
   };
 
   if (loading) return <LoadingState message="Loading product branding…" />;

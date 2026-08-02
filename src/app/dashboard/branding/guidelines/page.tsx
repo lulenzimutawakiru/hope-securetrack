@@ -18,8 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const SECTIONS = [
   { value: "logo", label: "Logo Guidelines" },
@@ -32,7 +32,6 @@ const SECTIONS = [
 ];
 
 export default function BrandGuidelinesPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -44,7 +43,6 @@ export default function BrandGuidelinesPage() {
     status: "draft",
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const { data } = await createClient()
@@ -61,26 +59,22 @@ export default function BrandGuidelinesPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("brand_guidelines").insert({
-        company_id: companyId,
-        section_code: form.section_code,
-        title: form.title || SECTIONS.find((s) => s.value === form.section_code)?.label || form.section_code,
-        body: form.body,
-        status: form.status,
-        version: 1,
-        sort_order: rows.length + 1,
-        published_at: form.status === "published" ? new Date().toISOString() : null,
-        created_by: auth?.user?.id,
-      });
-      if (error) throw error;
-      toast.success("Guideline section saved");
-      setOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+    const res = await crudCreate("brand_guidelines", {
+      section_code: form.section_code,
+      title: form.title || SECTIONS.find((s) => s.value === form.section_code)?.label || form.section_code,
+      body: form.body,
+      status: form.status,
+      version: 1,
+      sort_order: rows.length + 1,
+      published_at: form.status === "published" ? new Date().toISOString() : null,
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
     }
+    toast.success("Guideline section saved");
+    setOpen(false);
+    await load();
   };
 
   if (loading) return <LoadingState message="Loading brand book…" />;

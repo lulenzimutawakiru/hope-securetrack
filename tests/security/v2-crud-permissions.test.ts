@@ -36,6 +36,7 @@ const ALLOWED_MODULES: readonly EntityModule[] = [
   "wfm",
   "assets",
   "billing",
+  "brand",
 ];
 
 const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;

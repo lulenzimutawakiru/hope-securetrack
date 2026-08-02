@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 import { syncUiThemeToSettings } from "@/lib/branding";
 
@@ -51,29 +52,33 @@ export default function BrandThemesPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("brand_ui_themes").insert({
-        company_id: companyId,
-        ...form,
-        is_active: true,
-      });
-      if (error) throw error;
-      toast.success("UI theme created");
-      setOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+    const res = await crudCreate("brand_ui_themes", {
+      ...form,
+      is_active: true,
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
     }
+    toast.success("UI theme created");
+    setOpen(false);
+    await load();
   };
 
   const activate = async (id: string) => {
     if (!companyId) return;
-    const sb = createClient();
-    await sb.from("brand_ui_themes").update({ is_active: false }).eq("company_id", companyId);
-    const { error } = await sb.from("brand_ui_themes").update({ is_active: true }).eq("id", id);
-    if (error) {
-      toast.error(error.message);
+    // Deactivate other active themes first so only one theme stays active.
+    for (const row of rows) {
+      if (String(row.id) === id || !Boolean(row.is_active)) continue;
+      const res = await crudUpdate("brand_ui_themes", String(row.id), { is_active: false });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+    }
+    const res = await crudUpdate("brand_ui_themes", id, { is_active: true });
+    if (!res.ok) {
+      toast.error(res.error);
       return;
     }
     try {

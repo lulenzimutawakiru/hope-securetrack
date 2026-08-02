@@ -17,8 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const FONT_ROLES = [
   { value: "heading", label: "Heading" },
@@ -29,7 +29,6 @@ const FONT_ROLES = [
 ];
 
 export default function BrandTypographyPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -43,7 +42,6 @@ export default function BrandTypographyPage() {
     usage_guidelines: "",
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
     const { data } = await createClient()
@@ -60,26 +58,23 @@ export default function BrandTypographyPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
-    try {
-      const { error } = await createClient().from("brand_fonts").insert({
-        company_id: companyId,
-        font_role: form.font_role,
-        family_name: form.family_name,
-        fallback_stack: form.fallback_stack,
-        default_size_px: Number(form.default_size_px) || 14,
-        default_weight: form.default_weight,
-        line_spacing: Number(form.line_spacing) || 1.5,
-        usage_guidelines: form.usage_guidelines || null,
-        is_active: true,
-      });
-      if (error) throw error;
-      toast.success("Font rule added");
-      setOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+    const res = await crudCreate("brand_fonts", {
+      font_role: form.font_role,
+      family_name: form.family_name,
+      fallback_stack: form.fallback_stack,
+      default_size_px: Number(form.default_size_px) || 14,
+      default_weight: form.default_weight,
+      line_spacing: Number(form.line_spacing) || 1.5,
+      usage_guidelines: form.usage_guidelines || null,
+      is_active: true,
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
     }
+    toast.success("Font rule added");
+    setOpen(false);
+    await load();
   };
 
   if (loading) return <LoadingState message="Loading typography…" />;
