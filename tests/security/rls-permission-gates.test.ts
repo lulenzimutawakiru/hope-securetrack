@@ -378,3 +378,345 @@ describe("RLS permission enforcement migration part 2 (inventory/mes/fleet/ppm/a
     }
   });
 });
+
+/**
+ * Phase 4 - RLS business permission enforcement part 3 (static contract).
+ *
+ * Verifies supabase/migrations/20260801000004_rls_business_permission_enforcement_part3.sql
+ * extends the hardening to the remaining ERP modules: finance / accounting
+ * master data, payroll master & support tables, HR, CRM, sales, procurement,
+ * billing and service desk. Same guarantees as Phases 2 and 3: RESTRICTIVE
+ * write policies (INSERT / UPDATE / DELETE) gated on module permissions or
+ * super admin, SELECT stays open to company members, and every permission slug
+ * is verified against the live permissions catalog.
+ */
+const MIGRATION_PART3 = resolve(
+  process.cwd(),
+  "supabase/migrations/20260801000004_rls_business_permission_enforcement_part3.sql"
+);
+
+const sqlPart3 = readFileSync(MIGRATION_PART3, "utf8");
+
+/** Every table hardened in Phase 4 (164 tables x 3 write actions = 492 policies). */
+const HARDENED_TABLES_PART3 = [
+  "chart_of_accounts",
+  "budgets",
+  "budget_lines",
+  "cost_centers",
+  "bank_accounts",
+  "bank_transactions",
+  "bank_reconciliations",
+  "tax_codes",
+  "treasury_facilities",
+  "depreciation_entries",
+  "credit_reviews",
+  "fin_cash_positions",
+  "fin_tax_returns",
+  "pay_advances",
+  "pay_loans",
+  "pay_loan_schedules",
+  "pay_components",
+  "pay_employee_components",
+  "pay_rules",
+  "pay_salary_structures",
+  "pay_salary_grades",
+  "pay_salary_scales",
+  "pay_salary_bands",
+  "pay_structure_lines",
+  "pay_tax_brackets",
+  "pay_statutory_rates",
+  "pay_periods",
+  "pay_settings",
+  "pay_gl_mappings",
+  "pay_approvals",
+  "pay_corrections",
+  "pay_benefit_plans",
+  "pay_employee_benefits",
+  "pay_final_settlements",
+  "pay_formulas",
+  "pay_gratuity_rules",
+  "pay_groups",
+  "pay_incentives",
+  "pay_mobile_money",
+  "pay_overtime_claims",
+  "pay_pension_schemes",
+  "pay_shift_premiums",
+  "pay_simulations",
+  "pay_bonuses",
+  "pay_commissions",
+  "pay_cost_allocations",
+  "pay_calendars",
+  "pay_documents",
+  "leave_requests",
+  "leave_balances",
+  "overtime_requests",
+  "departments",
+  "training_courses",
+  "training_enrollments",
+  "training_records",
+  "performance_reviews",
+  "safety_incidents",
+  "safety_inductions",
+  "public_holidays",
+  "ppe_issuances",
+  "crm_contacts",
+  "crm_activities",
+  "crm_campaigns",
+  "crm_contracts",
+  "crm_dealers",
+  "crm_segments",
+  "crm_consents",
+  "crm_documents",
+  "crm_notes",
+  "crm_portal_requests",
+  "crm_sales_targets",
+  "crm_tenders",
+  "crm_health_scores",
+  "crm_loyalty_ledger",
+  "crm_loyalty_programs",
+  "crm_loyalty_rewards",
+  "crm_communications",
+  "crm_timeline",
+  "crm_insights",
+  "sales_leads",
+  "sales_opportunities",
+  "quotations",
+  "sales_returns",
+  "sales_contracts",
+  "sales_contract_lines",
+  "sales_order_approvals",
+  "sales_price_lists",
+  "sales_price_items",
+  "sales_discount_rules",
+  "sales_promotions",
+  "sales_rebates",
+  "sales_forecasts",
+  "sales_teams",
+  "sales_territories",
+  "sales_targets",
+  "sales_channels",
+  "sales_commissions",
+  "sales_visit_plans",
+  "sales_samples",
+  "sales_settings",
+  "sales_documents",
+  "sales_activities",
+  "purchase_requisitions",
+  "rfqs",
+  "rfq_lines",
+  "supplier_quotations",
+  "supplier_quotation_lines",
+  "procurement_contracts",
+  "inbound_shipments",
+  "inventory_approvals",
+  "bill_contracts",
+  "bill_contract_milestones",
+  "bill_credit_notes",
+  "bill_debit_notes",
+  "bill_credit_approvals",
+  "bill_credit_rules",
+  "bill_payment_terms",
+  "bill_payment_gateways",
+  "bill_payment_intents",
+  "bill_recurring_schedules",
+  "bill_reminders",
+  "bill_dunning_rules",
+  "bill_fraud_alerts",
+  "bill_invoice_templates",
+  "bill_invoice_versions",
+  "bill_price_lists",
+  "bill_price_list_items",
+  "bill_tax_codes",
+  "bill_tax_groups",
+  "bill_sequences",
+  "bill_statement_requests",
+  "bill_approval_actions",
+  "bill_approval_steps",
+  "bill_revenue_entries",
+  "bill_revenue_schedules",
+  "bill_reconciliation_batches",
+  "bill_reconciliation_lines",
+  "bill_portal_disputes",
+  "bill_portal_users",
+  "bill_projects",
+  "bill_project_entries",
+  "bill_delivery_links",
+  "support_tickets",
+  "sd_agents",
+  "sd_approvals",
+  "sd_automations",
+  "sd_calendars",
+  "sd_categories",
+  "sd_changes",
+  "sd_channels",
+  "sd_cmdb_cis",
+  "sd_cmdb_relations",
+  "sd_csat_responses",
+  "sd_escalation_rules",
+  "sd_field_jobs",
+  "sd_holidays",
+  "sd_inbound_items",
+  "sd_knowledge_articles",
+  "sd_major_incidents",
+  "sd_nps_responses",
+  "sd_problems",
+  "sd_sla_policies",
+  "sd_teams",
+  "sd_ticket_templates",
+] as const;
+
+/** Permission slugs verified against the live permissions catalog. */
+const VERIFIED_SLUGS_PART3 = [
+  "finance.manage",
+  "finance.post",
+  "finance.approve",
+  "finance.admin",
+  "finance.cfo",
+  "finance.tax",
+  "finance.bank",
+  "finance.treasury",
+  "finance.close",
+  "finance.consolidate",
+  "finance.costing",
+  "finance.fpa",
+  "finance.multibook",
+  "payroll.manage",
+  "payroll.process",
+  "payroll.approve",
+  "payroll.pay",
+  "payroll.admin",
+  "payroll.bank",
+  "payroll.costing",
+  "payroll.tax",
+  "payroll.self",
+  "hr.manage",
+  "hr.self",
+  "hr.training",
+  "hr.performance",
+  "hr.payroll",
+  "hr.recruit",
+  "hr.view",
+  "crm.manage",
+  "crm.admin",
+  "crm.leads",
+  "crm.opportunities",
+  "crm.marketing",
+  "crm.service",
+  "crm.portal",
+  "crm.credit",
+  "crm.export",
+  "crm.view",
+  "sales.manage",
+  "sales.admin",
+  "sales.pipeline",
+  "sales.quotes",
+  "sales.contracts",
+  "sales.returns",
+  "sales.pricing",
+  "sales.commissions",
+  "sales.forecast",
+  "sales.credit",
+  "sales.view",
+  "procurement.manage",
+  "procurement.approve",
+  "procurement.suppliers",
+  "procurement.view",
+  "settings.manage",
+  "settings.view",
+  "inventory.manage",
+  "invoices.manage",
+  "users.manage",
+  "billing.manage",
+  "billing.approve",
+  "billing.contracts",
+  "billing.credit",
+  "billing.recurring",
+  "billing.collect",
+  "billing.tax",
+  "billing.projects",
+  "billing.portal",
+  "billing.mfg",
+  "billing.design",
+  "billing.view",
+  "sd.manage",
+  "sd.admin",
+  "sd.agent",
+  "sd.approve",
+  "sd.change",
+  "sd.field",
+  "sd.knowledge",
+  "sd.major",
+  "sd.portal",
+  "sd.view",
+] as const;
+
+describe("RLS permission enforcement migration part 3 (finance/payroll/hr/crm/sales/procurement/billing/sd)", () => {
+  it("exists and is non-trivial", () => {
+    expect(sqlPart3.length).toBeGreaterThan(10_000);
+  });
+
+  it("hardens every module table with write policies", () => {
+    for (const table of HARDENED_TABLES_PART3) {
+      for (const action of WRITE_ACTIONS) {
+        const policy = `${table}_write_restrict_${action}`;
+        expect(
+          sqlPart3,
+          `${policy} must be defined for ${table}`
+        ).toContain(`CREATE POLICY ${policy} ON ${table}`);
+        expect(
+          sqlPart3,
+          `${policy} must be RESTRICTIVE`
+        ).toContain(
+          `CREATE POLICY ${policy} ON ${table} AS RESTRICTIVE FOR ${action.toUpperCase()}`
+        );
+      }
+    }
+  });
+
+  it("defines exactly 492 write policies (164 tables x 3 actions)", () => {
+    const created =
+      sqlPart3.match(/CREATE POLICY \w+_write_restrict_(insert|update|delete) ON \w+/g) ?? [];
+    expect(created.length).toBe(HARDENED_TABLES_PART3.length * WRITE_ACTIONS.length);
+    // No duplicate CREATE statements for the same policy name
+    expect(new Set(created).size).toBe(created.length);
+    // Drop-first convention: every CREATE has a matching DROP IF EXISTS
+    const dropped =
+      sqlPart3.match(/DROP POLICY IF EXISTS \w+_write_restrict_(insert|update|delete) ON \w+/g) ?? [];
+    expect(dropped.length).toBe(created.length);
+  });
+
+  it("keeps SELECT open to company members (no restrictive SELECT gate)", () => {
+    expect(sqlPart3.match(/AS RESTRICTIVE FOR SELECT/i)).toBeNull();
+  });
+
+  it("gates writes on module permissions or super admin", () => {
+    const policyBodies = sqlPart3.match(/CREATE POLICY \w+_write_restrict_\w+[\s\S]*?;/g) ?? [];
+    expect(policyBodies.length).toBe(HARDENED_TABLES_PART3.length * WRITE_ACTIONS.length);
+    for (const body of policyBodies) {
+      expect(
+        body,
+        `write policy must enforce permission: ${body.slice(0, 120)}`
+      ).toMatch(/is_super_admin\(\)|has_any_permission\(/);
+    }
+  });
+
+  it("uses only permission slugs verified against the live catalog", () => {
+    const slugRe = /'([a-z]+\.[a-z]+)'/g;
+    const found = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = slugRe.exec(sqlPart3)) !== null) {
+      found.add(match[1]);
+    }
+    expect(found.size).toBeGreaterThan(20);
+    const verified = new Set<string>(VERIFIED_SLUGS_PART3);
+    for (const slug of found) {
+      expect(verified.has(slug), `unverified slug ${slug}`).toBe(true);
+    }
+  });
+
+  it("does not reference permission slugs absent from the live catalog", () => {
+    for (const banned of ["sales.approve", "hr.admin", "hr.delete", "billing.admin"]) {
+      expect(sqlPart3, `banned slug ${banned}`).not.toContain(`'${banned}'`);
+    }
+  });
+});

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-02 - RLS business permission enforcement (Phases 2-4)
+
+### Database / RLS
+- Migration `20260801000002` - RESTRICTIVE write policies on 21 high-risk finance, payroll, sales/CRM, HR and procurement tables; restored read visibility of global role templates on `roles`
+- Migration `20260801000003` - RESTRICTIVE write policies on 65 inventory, manufacturing (MES), fleet, projects (PPM), attendance/workforce and recruitment (TA) tables
+- Migration `20260801000004` - RESTRICTIVE write policies on 164 finance/accounting master data, payroll master & support, HR, CRM, sales, procurement, billing and service-desk tables
+- Every write policy is gated on module permissions (`public.has_any_permission`) or `super_administrator`, ANDs with the migration-71 `tenant_isolation_restrict` policy; SELECT stays open to company members for the client UI
+
+### Tests
+- `tests/security/rls-permission-gates.test.ts` - static contract covering all three migrations (250 hardened tables, 750 write policies total), every permission slug verified against the live catalog
+
+---
+
 ## 2026-07-30 — Enterprise Hardening Layer (Assessment implementation)
 
 ### Architecture / API

@@ -7,6 +7,21 @@
 
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
+## RLS business permission enforcement (2026-08-02, Phases 2-4)
+
+Closes the data-layer RBAC gap: any authenticated company member could previously
+INSERT / UPDATE / DELETE business data directly through the browser client because
+permissive `*_all` policies were gated only by `company_id = user_company_id()`.
+
+| Deliverable | Status |
+|-------------|--------|
+| Phase 2: 21 high-risk finance/payroll/sales/CRM/HR/procurement tables | Live `20260801000002` |
+| Phase 3: 65 inventory/MES/fleet/PPM/attendance/TA tables | Live `20260801000003` |
+| Phase 4: 164 finance/payroll/HR/CRM/sales/procurement/billing/service-desk tables | Live `20260801000004` |
+| RESTRICTIVE write policies (INSERT/UPDATE/DELETE) gated on `has_any_permission` or super admin; ANDs with migration-71 tenant isolation | Live |
+| SELECT stays open to company members for the client UI | Live |
+| Static RLS contract tests (250 tables, 750 policies, verified slugs) | Live `tests/security/rls-permission-gates.test.ts` |
+
 ## Enterprise Hardening Layer (2026-07-30)
 
 | Deliverable | Status |
