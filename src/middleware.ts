@@ -1,13 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
-import createMiddleware from "next-intl/middleware";
-
-const intlMiddleware = createMiddleware({
-  locales: ["en"],
-  defaultLocale: "en",
-  localePrefix: "never",
-});
-
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -100,34 +92,6 @@ function withCorrelation(res: NextResponse, req: NextRequest) {
   return res;
 }
 
-/**
- * Forward headers from the Supabase session response (notably refreshed
- * auth Set-Cookie headers) onto the base response. The base response is the
- * next-intl response so that the x-next-intl-locale header it attaches to the
- * forwarded request keeps getMessages()/useTranslations() working.
- */
-function mergeResponseHeaders(target: Headers, source: Headers) {
-  const sourceWithGetSetCookie = source as Headers & {
-    getSetCookie?: () => string[];
-  };
-  const setCookies = sourceWithGetSetCookie.getSetCookie
-    ? sourceWithGetSetCookie.getSetCookie()
-    : [];
-
-  for (const [key, value] of source.entries()) {
-    if (key.toLowerCase() === "set-cookie") {
-      continue;
-    }
-    if (!target.has(key)) {
-      target.set(key, value);
-    }
-  }
-
-  for (const cookie of setCookies) {
-    target.append("set-cookie", cookie);
-  }
-}
-
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -173,22 +137,6 @@ export async function middleware(request: NextRequest) {
         }
       }
     }
-  }
-
-  // Locale routing for page routes. En-only with localePrefix 'never' keeps
-  // all existing URLs untouched while providing the x-next-intl-locale header
-  // that next-intl server APIs (getMessages, useTranslations) require.
-  const intlResponse = pathname.startsWith("/api/")
-    ? null
-    : intlMiddleware(request);
-
-  // Honor any locale redirect (should not occur with localePrefix: 'never')
-  if (
-    intlResponse &&
-    intlResponse.status >= 300 &&
-    intlResponse.status < 400
-  ) {
-    return withCorrelation(applySecurityHeaders(intlResponse), request);
   }
 
   try {
@@ -241,11 +189,7 @@ export async function middleware(request: NextRequest) {
     if (user && isAuthRoute) {
       // Allow platform admins to open /register for provisioning without bounce
       if (pathname.startsWith("/register")) {
-        const registerResponse = intlResponse ?? supabaseResponse;
-        if (intlResponse) {
-          mergeResponseHeaders(registerResponse.headers, supabaseResponse.headers);
-        }
-        return withCorrelation(applySecurityHeaders(registerResponse), request);
+        return withCorrelation(applySecurityHeaders(supabaseResponse), request);
       }
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
@@ -255,15 +199,8 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // Base response: keep the intl response so the locale header reaches RSC;
-    // otherwise fall back to the Supabase session response.
-    const response = intlResponse ?? supabaseResponse;
-    if (intlResponse) {
-      mergeResponseHeaders(response.headers, supabaseResponse.headers);
-    }
-
-    applySecurityHeaders(response);
-    return withCorrelation(response, request);
+    applySecurityHeaders(supabaseResponse);
+    return withCorrelation(supabaseResponse, request);
   } catch (error) {
     // Fail CLOSED — never allow dashboard access if session pipeline breaks
     console.error("Middleware failed:", error);
