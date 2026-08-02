@@ -23,7 +23,6 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { logClientEvent } from "@/lib/audit";
 import { useTranslations } from "next-intl";
-import { hasPermission } from "@/lib/permissions";
 
 // Lazy imports – these components are loaded only when needed
 const NotificationBell = dynamic(
@@ -57,7 +56,7 @@ const TenantSwitcher = dynamic(
 
 export function Header({ title }: { title?: string }) {
   const { theme, setTheme } = useTheme();
-  const { auth } = useUser();
+  const { auth, hasPermission } = useUser();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const t = useTranslations();
@@ -83,12 +82,8 @@ export function Header({ title }: { title?: string }) {
     router.refresh();
   };
 
-  const permissions: string[] = auth?.profile?.permissions ?? [];
-  const canViewSettings = hasPermission(permissions, "manage_settings");
-  const canViewNotifications = hasPermission(
-    permissions,
-    "view_notifications"
-  );
+  const canViewSettings = hasPermission("settings.view");
+  const canViewNotifications = hasPermission("notifications.view");
 
   return (
     <header className="sticky top-0 z-30 flex h-[var(--header-height)] items-center justify-between gap-2 border-b bg-card/90 px-3 sm:px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-card/75">
@@ -169,7 +164,7 @@ export function Header({ title }: { title?: string }) {
                 </p>
                 {auth?.profile.roles && (
                   <p className="text-xs text-brand font-medium">
-                    {auth.profile.roles.name}
+                    {(auth.profile.roles as { name?: string }).name}
                   </p>
                 )}
               </div>

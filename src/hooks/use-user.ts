@@ -11,7 +11,6 @@ export interface AuthUser {
   permissions: string[];
 }
 
-/** Super-admin extras so nav stays full even if role_permissions seed lags */
 const SUPER_ADMIN_EXTRAS = [
   "dashboard.view",
   "sales.view",
@@ -254,9 +253,6 @@ const SUPER_ADMIN_EXTRAS = [
   "att.field",
   "att.ai",
   "att.admin",
-  "notifications.view",
-  "notifications.manage",
-  "notifications.send",
   "users.view",
   "users.manage",
   "brand.view",
@@ -296,15 +292,15 @@ const SUPER_ADMIN_EXTRAS = [
   "print.security",
   "print.admin",
   "print.ai",
-  "printing.create",
-  "printing.manage",
-  "printing.reprint",
   "pkg.view",
   "pkg.manage",
   "pkg.operate",
   "pkg.approve",
   "pkg.ai",
   "packing.create",
+  "packing.manage",
+  "packing.operate",
+  "packing.approve",
   "ast.view",
   "ast.manage",
   "ast.assign",
@@ -331,63 +327,18 @@ const SUPER_ADMIN_EXTRAS = [
   "distributors.view",
 ];
 
-function enrichPermissions(base: string[], roleSlug: string | undefined | null): string[] {
+function enrichPermissions(
+  base: string[],
+  roleSlug: string | undefined | null
+): string[] {
   let permissions = [...base];
-  // Fail closed: only explicit super_administrator gets full extras.
-  // Never elevate on empty permissions or settings.manage alone (privilege inflation).
   if (roleSlug === "super_administrator") {
     permissions = Array.from(new Set([...permissions, ...SUPER_ADMIN_EXTRAS]));
   }
-  // Always ensure dashboard is visible once authenticated with a profile
   if (!permissions.includes("dashboard.view")) {
     permissions = [...permissions, "dashboard.view"];
   }
   return permissions;
-}
-
-async function loadProfileAndRole(userId: string) {
-  const supabase = createClient();
-
-  // Explicit FK — roles.created_by also references user_profiles, so bare
-  // roles(*) is ambiguous (PGRST201) and left auth null → empty sidebar.
-  const { data: embedded, error: embedErr } = await supabase
-    .from("user_profiles")
-    .select("*, roles!user_profiles_role_id_fkey(*)")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (!embedErr && embedded) {
-    return {
-      profile: embedded as Record<string, unknown>,
-      role: (embedded.roles as Role | null) ?? null,
-    };
-  }
-
-  // Fallback: two-step load (works even if FK hint name differs)
-  const { data: bare, error: bareErr } = await supabase
-    .from("user_profiles")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (bareErr || !bare) {
-    return { profile: null, role: null };
-  }
-
-  let role: Role | null = null;
-  if (bare.role_id) {
-    const { data: roleRow } = await supabase
-      .from("roles")
-      .select("*")
-      .eq("id", bare.role_id)
-      .maybeSingle();
-    role = (roleRow as Role | null) ?? null;
-  }
-
-  return {
-    profile: { ...bare, roles: role } as Record<string, unknown>,
-    role,
-  };
 }
 
 export function useUser() {
@@ -409,38 +360,33 @@ export function useUser() {
           return;
         }
 
-        const { profile, role } = await loadProfileAndRole(user.id);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
         if (!profile) {
           setAuth(null);
           return;
         }
 
-        const roleId = profile.role_id as string | undefined;
-        const { data: rolePerms } = roleId
-          ? await supabase
-              .from("role_permissions")
-              .select("permissions(slug)")
-              .eq("role_id", roleId)
-          : { data: null };
+        const roleSlug =
+          profile.roles && typeof profile.roles === "object" && !Array.isArray(profile.roles)
+            ? (profile.roles as { slug?: string }).slug
+            : undefined;
 
-        const base =
-          rolePerms
-            ?.map((rp) => {
-              const p = rp.permissions as unknown as { slug: string } | null;
-              return p?.slug;
-            })
-            .filter((s): s is string => Boolean(s)) ?? [];
+        const basePermissions = (profile.permissions as string[] | undefined) ?? [];
+        const permissions = enrichPermissions(basePermissions, roleSlug);
 
-        const permissions = enrichPermissions(base, role?.slug);
-
-        // Prefer active company for multi-tenant context
         const activeCompanyId =
           (profile.active_company_id as string | undefined) ||
           (profile.company_id as string);
+
         const normalizedProfile = {
           ...(profile as unknown as UserProfile),
           company_id: activeCompanyId,
-          roles: role as Role,
+          roles: (profile.roles as unknown as Role) ?? null,
           permissions,
         };
 
@@ -475,9 +421,9 @@ export function useUser() {
   const hasAnyPermission = (perms: string[]) =>
     perms.some((p) => auth?.permissions.includes(p));
 
-  /** Active company for data scoping (multi-tenant) */
   const companyId =
-    (auth?.profile as { active_company_id?: string } | undefined)?.active_company_id ||
+    (auth?.profile as unknown as { active_company_id?: string } | undefined)
+      ?.active_company_id ||
     auth?.profile?.company_id ||
     null;
 
