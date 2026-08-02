@@ -22,23 +22,36 @@ import { toast } from "sonner";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { logClientEvent } from "@/lib/audit";
-import { EN } from "@/lib/translations/en";
+import { useTranslations } from "next-intl";
+import { hasPermission } from "@/lib/permissions";
 
 // Lazy imports – these components are loaded only when needed
 const NotificationBell = dynamic(
-  () => import("@/components/notifications/notification-bell").then((mod) => mod.NotificationBell),
+  () =>
+    import("@/components/notifications/notification-bell").then(
+      (mod) => mod.NotificationBell
+    ),
   { ssr: false }
 );
 const CommandPalette = dynamic(
-  () => import("@/components/enterprise/command-palette").then((mod) => mod.CommandPalette),
+  () =>
+    import("@/components/enterprise/command-palette").then(
+      (mod) => mod.CommandPalette
+    ),
   { ssr: false }
 );
 const LiveStatus = dynamic(
-  () => import("@/components/enterprise/live-status").then((mod) => mod.LiveStatus),
+  () =>
+    import("@/components/enterprise/live-status").then(
+      (mod) => mod.LiveStatus
+    ),
   { ssr: false }
 );
 const TenantSwitcher = dynamic(
-  () => import("@/components/layout/tenant-switcher").then((mod) => mod.TenantSwitcher),
+  () =>
+    import("@/components/layout/tenant-switcher").then(
+      (mod) => mod.TenantSwitcher
+    ),
   { ssr: false }
 );
 
@@ -47,6 +60,7 @@ export function Header({ title }: { title?: string }) {
   const { auth } = useUser();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const t = useTranslations();
 
   const initials = auth
     ? `${auth.profile.first_name[0] ?? ""}${auth.profile.last_name[0] ?? ""}`.toUpperCase()
@@ -64,10 +78,17 @@ export function Header({ title }: { title?: string }) {
 
     const supabase = createClient();
     await supabase.auth.signOut();
-    toast.success(EN.header.signedOut);
+    toast.success(t("header.signedOut"));
     router.push("/login");
     router.refresh();
   };
+
+  const permissions: string[] = auth?.profile?.permissions ?? [];
+  const canViewSettings = hasPermission(permissions, "manage_settings");
+  const canViewNotifications = hasPermission(
+    permissions,
+    "view_notifications"
+  );
 
   return (
     <header className="sticky top-0 z-30 flex h-[var(--header-height)] items-center justify-between gap-2 border-b bg-card/90 px-3 sm:px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-card/75">
@@ -83,7 +104,10 @@ export function Header({ title }: { title?: string }) {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[min(100%,18rem)] p-0 border-sidebar-border bg-sidebar">
+          <SheetContent
+            side="left"
+            className="w-[min(100%,18rem)] p-0 border-sidebar-border bg-sidebar"
+          >
             <Sidebar forceExpanded onNavigate={() => setMobileOpen(false)} />
           </SheetContent>
         </Sheet>
@@ -101,9 +125,7 @@ export function Header({ title }: { title?: string }) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
-        {/* TenantSwitcher is now lazy loaded */}
         <TenantSwitcher />
-        {/* CommandPalette, LiveStatus, NotificationBell – all lazy */}
         <CommandPalette />
         <LiveStatus />
 
@@ -122,7 +144,10 @@ export function Header({ title }: { title?: string }) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full shrink-0">
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 rounded-full shrink-0"
+            >
               <Avatar className="h-9 w-9">
                 {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
@@ -150,21 +175,38 @@ export function Header({ title }: { title?: string }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/dashboard/settings/profile")}>
-              <User className="mr-2 h-4 w-4" />
-              {EN.header.profile}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-              <User className="mr-2 h-4 w-4" />
-              {EN.header.settings}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/dashboard/notifications")}>
-              {EN.header.notifications}
-            </DropdownMenuItem>
+
+            {canViewSettings && (
+              <DropdownMenuItem
+                onClick={() => router.push("/dashboard/settings/profile")}
+              >
+                <User className="mr-2 h-4 w-4" />
+                {t("header.profile")}
+              </DropdownMenuItem>
+            )}
+            {canViewSettings && (
+              <DropdownMenuItem
+                onClick={() => router.push("/dashboard/settings")}
+              >
+                <User className="mr-2 h-4 w-4" />
+                {t("header.settings")}
+              </DropdownMenuItem>
+            )}
+            {canViewNotifications && (
+              <DropdownMenuItem
+                onClick={() => router.push("/dashboard/notifications")}
+              >
+                {t("header.notifications")}
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              {EN.header.signOut}
+              {t("header.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
