@@ -1,82 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+/**
+ * Audit ingestion endpoint: POST /api/audit/log
+ *
+ * Accepts best-effort client audit events and writes them to the immutable
+ * `audit_logs` table. The actor, company and timestamp are ALWAYS derived from
+ * the authenticated session - client-supplied userId / companyId /
+ * clientTimestamp are ignored (defense against audit spoofing).
+ */
 
-interface AuditPayload {
-  event: string;
-  details?: Record<string, unknown>;
-  userId?: string;
-  companyId?: string;
-  clientTimestamp?: string;
-}
+import { z } from "zod";
+import { apiOk, apiError, createApiHandler } from "@/lib/api/handler";
+import { clientIp } from "@/lib/api";
+import type { AuthedContext } from "@/lib/security/api-auth";
+import { createClient } from "@/lib/supabase/server";
 
-function isValidPayload(body: unknown): body is AuditPayload {
-  if (!body || typeof body !== "object") return false;
-  const p = body as Record<string, unknown>;
-  return typeof p.event === "string" && p.event.length > 0;
-}
+const AUDIT_SCHEMA = z
+  .object({
+    event: z.string().min(1).max(200),
+    details: z.record(z.unknown()).optional(),
+    module: z.string().min(1).max(50).optional(),
+    entity_type: z.string().min(1).max(50).optional(),
+    entity_id: z.string().max(255).optional(),
+  })
+  .passthrough();
 
-export async function POST(req: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const POST = createApiHandler(
+  {
+    auth: true,
+    rateLimit: { limit: 120, windowMs: 60_000 },
+    module: "audit",
+    bodySchema: AUDIT_SCHEMA,
+  },
+  async ({ req, ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const authed = ctx as AuthedContext;
+    const sb = await createClient();
+
+    const entityId = body.entity_id ?? undefined;
+    const isUuid = typeof entityId === "string" && UUID_RE.test(entityId);
+    const userAgent = req.headers.get("user-agent") ?? undefined;
+
+    const { error } = await sb.from("audit_logs").insert({
+      company_id: authed.companyId,
+      user_id: authed.user.id,
+      user_email: authed.profile.email ?? null,
+      user_role: authed.roleSlug,
+      action: body.event.slice(0, 100),
+      module: (body.module ?? "api").slice(0, 50),
+      entity_type: body.entity_type ?? null,
+      entity_id: isUuid ? entityId : null,
+      entity_reference: !isUuid && entityId ? entityId : null,
+      metadata: body.details ?? {},
+      ip_address: clientIp(req),
+      user_agent: userAgent,
+    });
+
+    if (error) {
+      return apiError("INTERNAL", "Failed to record event", 500);
+    }
+    return apiOk({ status: "ok" });
   }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  if (!isValidPayload(body)) {
-    return NextResponse.json(
-      { error: "Payload must contain a non‑empty 'event' string" },
-      { status: 400 }
-    );
-  }
-
-  // Enforce tenant isolation – read tenant_id from the authenticated profile
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("tenant_id, company_id")
-    .eq("id", session.user.id)
-    .maybeSingle();
-
-  if (profileError || !profile) {
-    return NextResponse.json(
-      { error: "Unable to resolve tenant" },
-      { status: 500 }
-    );
-  }
-
-  const tenantId = profile.tenant_id;
-  const companyId = profile.company_id;
-
-  const eventData = {
-    event: body.event,
-    details: body.details ?? null,
-    user_id: body.userId ?? session.user.id,
-    tenant_id: tenantId,
-    company_id: companyId,
-    timestamp: body.clientTimestamp ?? new Date().toISOString(),
-  };
-
-  const { error: insertError } = await supabase
-    .from("audit_log")
-    .insert(eventData);
-
-  if (insertError) {
-    console.error("Failed to record audit event:", insertError);
-    return NextResponse.json(
-      { error: "Failed to record event" },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({ status: "ok" });
-}
+);

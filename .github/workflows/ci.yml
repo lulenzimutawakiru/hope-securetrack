@@ -34,7 +34,6 @@ jobs:
 
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       - name: Unit · security · a11y tests
         run: npm test
@@ -49,6 +48,9 @@ jobs:
           RLS_USER_B_PASSWORD: ${{ secrets.RLS_USER_B_PASSWORD }}
           RLS_COMPANY_A_ID: ${{ secrets.RLS_COMPANY_A_ID }}
           RLS_COMPANY_B_ID: ${{ secrets.RLS_COMPANY_B_ID }}
+
+      - name: Security contract tests
+        run: npm run test:security
 
       - name: Production readiness audit
         run: npm run audit:readiness
