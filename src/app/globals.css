@@ -59,14 +59,16 @@
     --popover-foreground: 222 47% 11%;
 
     /* Brand primary (navy) */
-    --primary: 213 68% 14%;
+    /* Increased contrast for auth pages: darker primary improves link contrast on light background */
+    --primary: 213 68% 9%;
     --primary-foreground: 45 70% 96%;
 
     /* Secondary / muted surfaces */
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    /* Darken muted-foreground to meet 4.5:1 on light backgrounds for small text */
+    --muted-foreground: 215 16% 30%;
 
     /* Accent (teal) */
     --accent: 183 80% 26%;

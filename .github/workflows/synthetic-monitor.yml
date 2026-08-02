@@ -1,0 +1,23 @@
+name: Synthetic monitor
+
+on:
+  schedule:
+    - cron: '0 * * * *' # hourly
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        env:
+          PROD_URL: ${{ secrets.PROD_URL || 'https://hope-securetrack.vercel.app' }}
+        run: |
+          set -e
+          echo "Pinging $PROD_URL/api/health"
+          status=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/api/health")
+          echo "Status: $status"
+          if [ "$status" -ne 200 ]; then
+            echo "Health check failed with status $status"
+            exit 1
+          fi
