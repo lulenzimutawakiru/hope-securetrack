@@ -7,6 +7,18 @@
 
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
+## Phase 11 (2026-08-03) - legacy identity & permissive-policy lockdown
+
+| Deliverable | Status |
+|------------|--------|
+| Migration `20260804000001` drops the seven legacy permissive `FOR ALL` policies built on `matches_tenant()` (`profiles`, `audit_log`, `tenants`, `tenant_modules`, `custom_fields`, `workflow_definitions`, `tenant_settings`) | Live |
+| `matches_tenant()` hardened: no JWT `app_role` trust, no `NULL == NULL` bypass; platform access via server-authoritative `is_platform_admin()` / `is_platform_elevated()`, else strict non-null equality against `user_tenant_id()` | Live |
+| Dead legacy tables (`profiles`, `audit_log`, `custom_fields`, `workflow_definitions`, `tenant_settings`) deny-by-default (RLS enabled, zero policies) | Live |
+| Platform reference tables never under RLS (`industry_templates`, `entity_metadata`) locked to platform/super-admin read | Live |
+| Static contract suite `tests/security/legacy-lockdown.test.ts` (8 tests) | Live |
+| Typecheck / vitest (171) / security suite (101) / readiness audit (0 issues) / production build | Green |
+
+
 ## RLS business permission enforcement (2026-08-02, Phases 2-4)
 ## Phase 10 (2026-08-03) - full CRUD migration of remaining business modules
 

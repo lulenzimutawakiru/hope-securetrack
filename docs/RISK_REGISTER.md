@@ -30,6 +30,7 @@
 | R-13 | Idempotent money retries | Idempotency-Key + table 00070 |
 | R-14 | Feature flags unused | Tenant flag resolution layer |
 | R-15 | Critical npm CVEs | Upgraded next/vitest/sentry (crit → 0) |
+| R-16 | Legacy `matches_tenant()` JWT `app_role` trust + `NULL == NULL` tenant bypass; permissive legacy `FOR ALL` policies | Migration `20260804000001` drops the seven legacy policies, hardens `matches_tenant()` (server-authoritative platform/elevated + strict non-null equality via `user_tenant_id()`), makes dead legacy tables deny-by-default, and locks `industry_templates` / `entity_metadata` to admin read; static contract tests `tests/security/legacy-lockdown.test.ts` |
 
 ---
 
@@ -47,6 +48,7 @@
 | X-08 | "100k concurrent users" not load-certified | High | Do not claim until benchmark | **Avoid claim** — load certify public paths only |
 | X-09 | Full WCAG 2.2 AA residual | Medium | axe CI + static checks; full audit roadmap | **Accept for pilot** |
 | X-10 | Column-level encryption not universal | Medium | Crypto helpers + sensitive field plan | **Accept** — use app crypto for QR/secrets |
+| X-11 | Legacy identity tables (`profiles`, `audit_log`, etc.) still physically present alongside server-authoritative `user_profiles` / `audit_logs` | Low | Deny-by-default (Phase 11); drop tables after pilot confirms zero legacy readers | **Accept for pilot** — client path closed, server path unaffected |
 
 ---
 

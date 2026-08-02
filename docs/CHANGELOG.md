@@ -1,4 +1,26 @@
 # Changelog
+## 2026-08-03 - Phase 11: legacy identity & permissive-policy lockdown
+
+### Database / RLS
+
+- Migration `20260804000001` — closes the last legacy bypass paths from migration 0001:
+  - Drops the seven legacy permissive `FOR ALL` policies (`tenant_isolation_profiles`, `tenant_isolation_audit_log`, `tenant_isolation_tenants`, `tenant_isolation_tenant_modules`, `tenant_isolation_custom_fields`, `tenant_isolation_workflow_definitions`, `tenant_isolation_tenant_settings`) built on `matches_tenant()`
+  - Hardens `matches_tenant()`: removes JWT `app_role='platform_admin'` trust and the `NULL == NULL` tenant bypass; platform access now derives from server-authoritative `is_platform_admin()` / `is_platform_elevated()`, otherwise strict non-null equality against `user_tenant_id()`
+  - Dead legacy tables (`profiles`, `audit_log`, `custom_fields`, `workflow_definitions`, `tenant_settings`) become deny-by-default: RLS stays enabled with zero policies — every authenticated access is rejected
+  - Platform reference tables that never had RLS (`industry_templates`, `entity_metadata`) locked to platform/super-admin read
+- Modern control-plane policies (`tenants_select`, `tenants_all_admin`, `tenant_modules_all`) untouched
+
+### Tests
+
+- New static contract suite `tests/security/legacy-lockdown.test.ts` (8 tests): policy drops without recreate, hardened `matches_tenant()` body, deny-by-default dead tables, modern policy preservation, reference-table lockdown
+
+### Validation
+
+- typecheck, vitest (171), security suite (101), production-readiness audit (0 issues), production build all green
+
+---
+
+
 ## 2026-08-03 - Phase 10: full CRUD migration of remaining business modules
 
 ### Entity registry
