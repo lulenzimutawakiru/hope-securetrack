@@ -23,7 +23,7 @@ async function resolveEmployee(
   const sb = admin();
 
   // 1) Explicit device user mapping
-  let q = sb
+  const q = sb
     .from("att_device_users")
     .select("employee_id, employee_number, employee_name, device_user_id")
     .eq("company_id", companyId)
@@ -54,7 +54,7 @@ async function resolveEmployee(
   }
 
   // 2) Match employees.employee_number / national_id / payroll_number
-  let empQuery = sb
+  const empQuery = sb
     .from("employees")
     .select("id, first_name, last_name, preferred_name, employee_number, national_id, payroll_number")
     .eq("company_id", companyId)
@@ -271,7 +271,7 @@ export async function ingestDevicePunch(input: DevicePunchInput): Promise<Ingest
       input.punchType
     );
 
-    let locationId = device?.location_id || integ?.default_location_id || null;
+    const locationId = device?.location_id || integ?.default_location_id || null;
     let locationName = integ?.default_location_name || null;
     if (locationId) {
       const { data: loc } = await sb

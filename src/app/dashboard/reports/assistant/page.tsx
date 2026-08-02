@@ -82,7 +82,7 @@ export default function AiAssistantPage() {
     ]);
 
     const q = question.toLowerCase();
-    let matched = (playbooks ?? []).find((p) => {
+    const matched = (playbooks ?? []).find((p) => {
       try {
         return new RegExp(String(p.trigger_pattern), "i").test(q);
       } catch {

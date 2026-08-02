@@ -59,11 +59,18 @@ export function rejectClientTenantSpoof(body: unknown): void {
 /**
  * Overwrite identity fields on insert/update payloads from session context.
  */
+type TenantOwnedRow<T extends Record<string, unknown>> = T & {
+  tenant_id: string;
+  company_id: string;
+  created_by?: unknown;
+  updated_by?: string;
+};
+
 export function applyTenantOwnership<T extends Record<string, unknown>>(
   row: T,
   ctx: TenantContext,
   opts?: { setActor?: boolean }
-): T {
+): TenantOwnedRow<T> {
   return {
     ...row,
     tenant_id: ctx.tenantId,
@@ -74,7 +81,7 @@ export function applyTenantOwnership<T extends Record<string, unknown>>(
           updated_by: ctx.userId,
         }
       : {}),
-  };
+  } as TenantOwnedRow<T>;
 }
 
 /**
@@ -191,7 +198,7 @@ export async function getTenantContext(opts?: {
     .eq("id", companyId)
     .maybeSingle();
 
-  let tenantId = String(
+  const tenantId = String(
     company?.tenant_id || profile.tenant_id || ""
   );
 

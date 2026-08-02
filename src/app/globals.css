@@ -47,6 +47,9 @@
 
 @layer base {
   :root {
+    --font-geist-sans: "Segoe UI", Arial, system-ui, sans-serif;
+    --font-geist-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+
     /* Surfaces */
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;

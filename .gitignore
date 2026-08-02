@@ -56,3 +56,4 @@ supabase/.branches
 .env*
 
 .env.vercel*
+.aider*

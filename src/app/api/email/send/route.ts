@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   let result;
   let subjectUsed = body.subject || "";
-  let templateKey: string | null = body.template_key || null;
+  const templateKey: string | null = body.template_key || null;
 
   if (body.template_key) {
     const companyId = ctx.companyId;

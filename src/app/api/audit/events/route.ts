@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     if ("response" in auth) return auth.response;
 
     const sp = req.nextUrl.searchParams;
-    const module = sp.get("module");
+    const moduleName = sp.get("module");
     const severity = sp.get("severity");
     const rawQ = sp.get("q") || "";
     const q = sanitizePostgrestFilter(rawQ, 80);
@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (module) {
-      const safeModule = sanitizePostgrestFilter(module, 40);
+    if (moduleName) {
+      const safeModule = sanitizePostgrestFilter(moduleName, 40);
       if (safeModule) query = query.eq("module", safeModule);
     }
     if (severity) {

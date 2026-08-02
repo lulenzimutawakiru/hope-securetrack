@@ -223,7 +223,7 @@ export async function provisionTenant(
     steps.push(step("admin", "Create administrator", "running"));
     let adminUserId: string | null = null;
     try {
-      if (typeof (sb as { auth: { admin?: { createUser: Function } } }).auth.admin?.createUser === "function") {
+      if (typeof sb.auth.admin?.createUser === "function") {
         const password =
           input.admin_password ||
           `St${Math.random().toString(36).slice(2, 8)}!${Date.now().toString().slice(-4)}`;
