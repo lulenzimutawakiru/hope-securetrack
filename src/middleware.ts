@@ -9,7 +9,10 @@ const intlMiddleware = createMiddleware({
 
 // Simple in‑memory rate limiter (replace with Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const MAX_REQUESTS = parseInt(process.env.RATE_LIMIT_MAX ?? "30", 10);
+const MAX_REQUESTS = parseInt(
+  process.env.RATE_LIMIT_API ?? process.env.RATE_LIMIT_MAX ?? "30",
+  10
+);
 const WINDOW_MS = 60_000;
 
 function getClientIp(req: NextRequest): string {
