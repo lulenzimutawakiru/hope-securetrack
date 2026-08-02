@@ -1,7 +1,7 @@
 -- Enable pgcrypto extension (provides gen_random_uuid())
 create extension if not exists "pgcrypto";
 
--- Helper to auto‑update 'updated_at' column
+-- Helper to auto-update 'updated_at' column
 create or replace function update_updated_at_column()
 returns trigger as $$
 begin
@@ -10,7 +10,7 @@ begin
 end;
 $$ language plpgsql;
 
--- Tenant matching helper for row‑level security
+-- Tenant matching helper for row-level security
 -- Allows null tenant_id when the JWT claim is also null (platform scope)
 -- and bypasses isolation for platform administrators
 create or replace function matches_tenant(tenant_id uuid)
@@ -19,19 +19,28 @@ language plpgsql
 stable
 security definer
 as $$
+declare
+  tenant_claim uuid;
 begin
-  -- Super‑admin bypass
+  -- Super-admin bypass
   if (auth.jwt() ->> 'app_role') = 'platform_admin' then
     return true;
   end if;
 
-  -- Allow both to be null (platform‑level rows)
-  if tenant_id is null and (auth.jwt() ->> 'tenant_id')::uuid is null then
+  -- Safely cast JWT claim to UUID; default to null if invalid or missing
+  begin
+    tenant_claim := (auth.jwt() ->> 'tenant_id')::uuid;
+  exception when others then
+    tenant_claim := null;
+  end;
+
+  -- Allow both to be null (platform-level rows)
+  if tenant_id is null and tenant_claim is null then
     return true;
   end if;
 
   -- Standard tenant equality
-  return tenant_id = (auth.jwt() ->> 'tenant_id')::uuid;
+  return tenant_id = tenant_claim;
 end;
 $$;
 
@@ -65,7 +74,7 @@ create table if not exists audit_log (
   timestamp timestamptz default now()
 );
 
--- Industry templates (platform‑level, no per‑tenant RLS)
+-- Industry templates (platform-level, no per-tenant RLS)
 create table if not exists industry_templates (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -123,7 +132,7 @@ create table if not exists workflow_definitions (
   unique(tenant_id, workflow_type)
 );
 
--- Tenant‑scoped settings (branding, logo, default behaviour)
+-- Tenant-scoped settings (branding, logo, default behaviour)
 create table if not exists tenant_settings (
   tenant_id uuid primary key references tenants(id) on delete cascade,
   branding jsonb default '{}',
@@ -132,7 +141,7 @@ create table if not exists tenant_settings (
   updated_at timestamptz default now()
 );
 
--- Indexes for fast tenant‑scoped queries
+-- Indexes for fast tenant-scoped queries
 create index if not exists idx_profiles_tenant on profiles(tenant_id);
 create index if not exists idx_audit_log_tenant on audit_log(tenant_id, timestamp desc);
 create index if not exists idx_profiles_company on profiles(company_id);
@@ -145,7 +154,7 @@ create index if not exists idx_workflow_definitions_tenant on workflow_definitio
 create trigger set_updated_at before update on profiles
   for each row execute function update_updated_at_column();
 
--- Enable Row‑Level Security on all tables
+-- Enable Row-Level Security on all tables
 alter table profiles enable row level security;
 alter table audit_log enable row level security;
 alter table tenants enable row level security;
@@ -154,7 +163,7 @@ alter table custom_fields enable row level security;
 alter table workflow_definitions enable row level security;
 alter table tenant_settings enable row level security;
 
--- Drop any pre‑existing policies (idempotency)
+-- Drop any pre-existing policies (idempotency)
 drop policy if exists "tenant_isolation_profiles" on profiles;
 drop policy if exists "tenant_isolation_audit_log" on audit_log;
 drop policy if exists "tenant_isolation_tenants" on tenants;
@@ -177,11 +186,11 @@ create policy "tenant_isolation_audit_log" on audit_log
 create policy "tenant_isolation_tenants" on tenants
   for all
   using (
-    (id = (auth.jwt() ->> 'tenant_id')::uuid)
+    matches_tenant(id)
     or (auth.jwt() ->> 'app_role') = 'platform_admin'
   )
   with check (
-    (id = (auth.jwt() ->> 'tenant_id')::uuid)
+    matches_tenant(id)
     or (auth.jwt() ->> 'app_role') = 'platform_admin'
   );
 
