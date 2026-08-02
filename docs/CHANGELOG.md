@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-02 - RLS business permission enforcement (Phase 6)
+
+### Database / RLS
+- Migration `20260801000006` - RESTRICTIVE write policies on 385 fleet, projects (PPM), manufacturing (MES), enterprise archive & logging (EAL), enterprise company, dispatch, talent acquisition, branding, HR communications, identity management, integrations, workforce identity, attendance, profiles, reporting (BI), billing, print, labels, payroll support, sales, communications, CRM, finance, service-desk, SCM/SOP, supplier relationship management and notification routing tables
+- 15 legacy identity / control-plane / plumbing tables remain deliberately deferred (profiles, audit_log, workflow_instances, roles, user_profiles, qr_codes, print_agents, print_jobs, print_logs, verification_logs, counterfeit_reports, fraud_alerts, system_settings, user_company_memberships, job_dead_letters); documented in the migration header
+- Every write policy is gated on module permissions (`public.has_any_permission`) or `super_administrator`, ANDs with the migration-71 `tenant_isolation_restrict` policy; SELECT stays open to company members for the client UI
+
+### Tests
+- `tests/security/rls-permission-gates.test.ts` - static contract extended to all five migrations (904 hardened tables, 2,712 write policies total), every permission slug verified against the live catalog
+
+---
+
 ## 2026-08-02 - RLS business permission enforcement (Phase 5)
 
 ### Database / RLS
