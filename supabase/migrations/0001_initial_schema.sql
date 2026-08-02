@@ -1,5 +1,5 @@
--- Enable uuid-ossp extension if not already available (Supabase provides it)
-create extension if not exists "uuid-ossp";
+-- Enable pgcrypto extension (provides gen_random_uuid())
+create extension if not exists "pgcrypto";
 
 -- Helper to auto‑update 'updated_at' column
 create or replace function update_updated_at_column()
