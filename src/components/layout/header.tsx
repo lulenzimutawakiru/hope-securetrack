@@ -24,6 +24,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { toast } from "sonner";
 import { useState } from "react";
+import { logClientEvent } from "@/lib/audit";
+import { EN } from "@/lib/translations/en";
 
 export function Header({ title }: { title?: string }) {
   const { theme, setTheme } = useTheme();
@@ -39,9 +41,16 @@ export function Header({ title }: { title?: string }) {
     : null;
 
   const handleLogout = async () => {
+    // Log the logout event before signing out
+    logClientEvent({
+      event: "logout",
+      userId: auth?.user?.id,
+      companyId: auth?.profile?.company_id,
+    });
+
     const supabase = createClient();
     await supabase.auth.signOut();
-    toast.success("Signed out");
+    toast.success(EN.header.signedOut);
     router.push("/login");
     router.refresh();
   };
@@ -128,19 +137,19 @@ export function Header({ title }: { title?: string }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/dashboard/settings/profile")}>
               <User className="mr-2 h-4 w-4" />
-              Profile
+              {EN.header.profile}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
               <User className="mr-2 h-4 w-4" />
-              Settings
+              {EN.header.settings}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/dashboard/notifications")}>
-              Notifications
+              {EN.header.notifications}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              {EN.header.signOut}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

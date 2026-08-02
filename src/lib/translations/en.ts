@@ -1,0 +1,17 @@
+export const EN = {
+  error: {
+    heading: "Something went wrong",
+    description:
+      "An unexpected error occurred. Your data is safe. Try again or return to the dashboard.",
+    tryAgain: "Try again",
+    dashboard: "Dashboard",
+    ref: (digest: string) => `Ref: ${digest}`,
+  },
+  header: {
+    profile: "Profile",
+    settings: "Settings",
+    notifications: "Notifications",
+    signOut: "Sign out",
+    signedOut: "Signed out",
+  },
+};
