@@ -10,6 +10,31 @@ begin
 end;
 $$ language plpgsql;
 
+-- Tenant matching helper for row‑level security
+-- Allows null tenant_id when the JWT claim is also null (platform scope)
+-- and bypasses isolation for platform administrators
+create or replace function matches_tenant(tenant_id uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+as $$
+begin
+  -- Super‑admin bypass
+  if (auth.jwt() ->> 'app_role') = 'platform_admin' then
+    return true;
+  end if;
+
+  -- Allow both to be null (platform‑level rows)
+  if tenant_id is null and (auth.jwt() ->> 'tenant_id')::uuid is null then
+    return true;
+  end if;
+
+  -- Standard tenant equality
+  return tenant_id = (auth.jwt() ->> 'tenant_id')::uuid;
+end;
+$$;
+
 -- Profiles table (linked to Supabase auth.users)
 create table if not exists profiles (
   id uuid not null primary key references auth.users(id) on delete cascade,
@@ -54,14 +79,17 @@ create trigger set_updated_at before update on profiles
 alter table profiles enable row level security;
 alter table audit_log enable row level security;
 
--- Tenant isolation policies
--- Access is restricted to rows where tenant_id matches the JWT claim
+-- Drop any pre‑existing policies (idempotency)
+drop policy if exists "tenant_isolation_profiles" on profiles;
+drop policy if exists "tenant_isolation_audit_log" on audit_log;
+
+-- Tenant isolation policies using the helper function
 create policy "tenant_isolation_profiles" on profiles
   for all
-  using (tenant_id = (auth.jwt() ->> 'tenant_id')::uuid)
-  with check (tenant_id = (auth.jwt() ->> 'tenant_id')::uuid);
+  using (matches_tenant(tenant_id))
+  with check (matches_tenant(tenant_id));
 
 create policy "tenant_isolation_audit_log" on audit_log
   for all
-  using (tenant_id = (auth.jwt() ->> 'tenant_id')::uuid)
-  with check (tenant_id = (auth.jwt() ->> 'tenant_id')::uuid);
+  using (matches_tenant(tenant_id))
+  with check (matches_tenant(tenant_id));
