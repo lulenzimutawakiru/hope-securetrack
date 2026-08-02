@@ -7,7 +7,7 @@ const intlMiddleware = createMiddleware({
   defaultLocale: "en",
 });
 
-// Simple in‑memory rate limiter (replace with Redis for production)
+// In‑memory rate limiter (replace with Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const MAX_REQUESTS = parseInt(
   process.env.RATE_LIMIT_API ?? process.env.RATE_LIMIT_MAX ?? "30",
@@ -21,6 +21,24 @@ function getClientIp(req: NextRequest): string {
     return forwarded.split(",")[0].trim();
   }
   return req.ip ?? "127.0.0.1";
+}
+
+function setSecurityHeaders(response: NextResponse) {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  );
+  // HSTS only when served over HTTPS (production environments)
+  if (response.headers.get("x-forwarded-proto") === "https") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=63072000; includeSubDomains; preload"
+    );
+  }
+  return response;
 }
 
 export function middleware(req: NextRequest) {
@@ -37,10 +55,12 @@ export function middleware(req: NextRequest) {
     }
 
     if (entry.count > MAX_REQUESTS) {
-      return NextResponse.json(
+      const rateLimitResponse = NextResponse.json(
         { error: "Too many requests" },
         { status: 429 }
       );
+      setSecurityHeaders(rateLimitResponse);
+      return rateLimitResponse;
     }
 
     rateLimitMap.set(ip, entry);
@@ -54,11 +74,15 @@ export function middleware(req: NextRequest) {
       }
     }
 
-    return NextResponse.next();
+    const apiResponse = NextResponse.next();
+    setSecurityHeaders(apiResponse);
+    return apiResponse;
   }
 
-  // Delegate all other routes to next‑intl for locale handling
-  return intlMiddleware(req);
+  // For all other routes, delegate to next‑intl and add security headers
+  const response = intlMiddleware(req);
+  setSecurityHeaders(response);
+  return response;
 }
 
 export const config = {

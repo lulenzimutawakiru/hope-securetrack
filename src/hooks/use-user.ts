@@ -9,6 +9,7 @@ export interface AuthUser {
   user: User;
   profile: UserProfile;
   permissions: string[];
+  tenantId: string | null;
 }
 
 const SUPER_ADMIN_EXTRAS = [
@@ -383,9 +384,12 @@ export function useUser() {
           (profile.active_company_id as string | undefined) ||
           (profile.company_id as string);
 
+        const tenantId = (profile.tenant_id as string | null) ?? null;
+
         const normalizedProfile = {
           ...(profile as unknown as UserProfile),
           company_id: activeCompanyId,
+          tenant_id: tenantId,
           roles: (profile.roles as unknown as Role) ?? null,
           permissions,
         };
@@ -394,6 +398,7 @@ export function useUser() {
           user,
           profile: normalizedProfile,
           permissions,
+          tenantId,
         });
       } catch {
         setAuth(null);

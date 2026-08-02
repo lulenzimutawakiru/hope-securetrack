@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// Define the expected shape from the client
 interface AuditPayload {
   event: string;
   details?: Record<string, unknown>;
@@ -11,7 +10,6 @@ interface AuditPayload {
   clientTimestamp?: string;
 }
 
-// Validate at least that required fields are present and of correct type
 function isValidPayload(body: unknown): body is AuditPayload {
   if (!body || typeof body !== "object") return false;
   const p = body as Record<string, unknown>;
@@ -19,8 +17,6 @@ function isValidPayload(body: unknown): body is AuditPayload {
 }
 
 export async function POST(req: NextRequest) {
-  // 1. Rate limiting is handled globally by middleware, no need to repeat here.
-  // 2. Authenticate the caller using Supabase session cookie.
   const supabase = createRouteHandlerClient({ cookies });
   const {
     data: { session },
@@ -30,7 +26,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 3. Parse and validate the body
   let body: unknown;
   try {
     body = await req.json();
@@ -45,13 +40,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 4. Enforce tenant isolation
-  //    The audit table should have a `company_id` column.
-  //    For security we NEVER trust the client‑supplied companyId.
-  //    Instead we derive it from the authenticated user's profile.
+  // Enforce tenant isolation – read tenant_id from the authenticated profile
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("company_id")
+    .select("tenant_id, company_id")
     .eq("id", session.user.id)
     .maybeSingle();
 
@@ -62,13 +54,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const tenantId = profile.tenant_id;
   const companyId = profile.company_id;
 
-  // 5. Insert the audit event
   const eventData = {
     event: body.event,
     details: body.details ?? null,
     user_id: body.userId ?? session.user.id,
+    tenant_id: tenantId,
     company_id: companyId,
     timestamp: body.clientTimestamp ?? new Date().toISOString(),
   };
