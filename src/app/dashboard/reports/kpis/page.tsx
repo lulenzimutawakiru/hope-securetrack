@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function KpiEnginePage() {
   const { auth } = useUser();
@@ -64,9 +65,7 @@ export default function KpiEnginePage() {
     const variance = actual - target;
     const variance_pct = target ? (variance / target) * 100 : 0;
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("bi_kpis")
-      .insert({
+    const crudRes2 = await crudCreate("bi_kpis", {
         company_id: auth.profile.company_id,
         kpi_code: form.kpi_code.toUpperCase(),
         name: form.name,
@@ -84,15 +83,14 @@ export default function KpiEnginePage() {
         higher_is_better: form.higher_is_better,
         is_active: true,
         last_calculated_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes2.ok) {
+      toast.error(crudRes2.error);
       return;
     }
+    const data = crudRes2.data as Record<string, unknown>;
     if (data) {
-      await supabase.from("bi_kpi_snapshots").insert({
+      const crudRes = await crudCreate("bi_kpi_snapshots", {
         company_id: auth.profile.company_id,
         kpi_id: data.id,
         snapshot_date: new Date().toISOString().slice(0, 10),
@@ -109,18 +107,28 @@ export default function KpiEnginePage() {
   const snapshot = async (r: Record<string, unknown>) => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("bi_kpi_snapshots").upsert(
-      {
-        company_id: auth.profile.company_id,
-        kpi_id: r.id,
-        snapshot_date: new Date().toISOString().slice(0, 10),
-        actual_value: r.actual_value,
-        target_value: r.target_value,
-        variance_value: r.variance_value,
-      },
-      { onConflict: "kpi_id,snapshot_date" }
-    );
-    if (error) toast.error(error.message);
+    const snapshotDate = new Date().toISOString().slice(0, 10);
+    const { data: existing, error: fetchError } = await supabase
+      .from("bi_kpi_snapshots")
+      .select("id")
+      .eq("kpi_id", String(r.id))
+      .eq("snapshot_date", snapshotDate)
+      .maybeSingle();
+    if (fetchError) {
+      toast.error(fetchError.message);
+      return;
+    }
+    const payload = {
+      kpi_id: String(r.id),
+      snapshot_date: snapshotDate,
+      actual_value: r.actual_value,
+      target_value: r.target_value,
+      variance_value: r.variance_value,
+    };
+    const crudRes3 = existing
+      ? await crudUpdate("bi_kpi_snapshots", String((existing as { id: unknown }).id), payload)
+      : await crudCreate("bi_kpi_snapshots", payload);
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else toast.success("Snapshot saved");
   };
 

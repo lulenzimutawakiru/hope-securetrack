@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { planMpsLine } from "@/lib/mes";
 
 type Mps = {
@@ -81,7 +82,7 @@ export default function PlanningPage() {
     });
     setSaving(true);
     try {
-      const { error } = await createClient().from("mes_mps_lines").insert({
+      const crudRes2 = await crudCreate("mes_mps_lines", {
         company_id: companyId,
         product_id: form.product_id || null,
         product_code: product?.product_code || null,
@@ -92,7 +93,7 @@ export default function PlanningPage() {
         available_qty: Number(form.available_qty) || 0,
         status: "draft",
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success(`MPS line planned: ${plannedQty} units`);
       setOpen(false);
       await load();
@@ -104,11 +105,8 @@ export default function PlanningPage() {
   };
 
   const confirmLine = async (id: string) => {
-    const { error } = await createClient()
-      .from("mes_mps_lines")
-      .update({ status: "confirmed" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("mes_mps_lines", id, { status: "confirmed" });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("MPS confirmed");
       await load();

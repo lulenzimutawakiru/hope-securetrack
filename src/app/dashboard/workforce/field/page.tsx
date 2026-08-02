@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function FieldWorkforcePage() {
   const { auth } = useUser();
@@ -60,7 +61,7 @@ export default function FieldWorkforcePage() {
     if (!auth) return;
     const supabase = createClient();
     const num = `FJ-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("field_jobs").insert({
+    const crudRes2 = await crudCreate("field_jobs", {
       company_id: auth.profile.company_id,
       job_number: num,
       title: form.title,
@@ -71,7 +72,7 @@ export default function FieldWorkforcePage() {
       scheduled_start: new Date().toISOString(),
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success(`Field job ${num} created`);
       setOpen(false);
@@ -95,8 +96,8 @@ export default function FieldWorkforcePage() {
       }
     }
     if (status === "completed") updates.check_out_at = new Date().toISOString();
-    const { error } = await supabase.from("field_jobs").update(updates).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("field_jobs", id, updates);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Job updated");
       load();

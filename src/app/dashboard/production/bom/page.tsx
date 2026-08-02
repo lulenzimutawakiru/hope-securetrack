@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { rollupBomHeaderCost } from "@/lib/mes";
 
 type BomHeader = {
@@ -112,9 +113,7 @@ export default function BomPage() {
     try {
       const supabase = createClient();
       const code = form.bom_code || `BOM-${product?.product_code || "NEW"}-1`;
-      const { data, error } = await supabase
-        .from("bom_headers")
-        .insert({
+      const crudRes2 = await crudCreate("bom_headers", {
           company_id: companyId,
           product_id: form.product_id,
           bom_code: code,
@@ -124,16 +123,15 @@ export default function BomPage() {
           yield_pct: Number(form.yield_pct) || 100,
           scrap_pct: Number(form.scrap_pct) || 0,
           bom_type: "manufacturing",
-        })
-        .select("*")
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
+      const data = crudRes2.data as Record<string, unknown>;
       toast.success("BOM created");
       setOpen(false);
       await load();
       if (data) {
         setSelected(data as BomHeader);
-        await loadLines(data.id);
+        await loadLines(String(data.id));
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -149,7 +147,7 @@ export default function BomPage() {
     if (!component) return toast.error("Select component");
     setSaving(true);
     try {
-      const { error } = await createClient().from("bom_lines").insert({
+      const crudRes = await crudCreate("bom_lines", {
         bom_id: selected.id,
         company_id: companyId,
         component_product_id: component.id,
@@ -165,7 +163,7 @@ export default function BomPage() {
         uom: "EA",
         level_no: 1,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Component added");
       setLineOpen(false);
       await loadLines(selected.id);

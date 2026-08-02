@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { createInvoice, checkCredit } from "@/lib/billing";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -64,9 +65,7 @@ export default function ContractBillingPage() {
       const supabase = createClient();
       const num = `CTR-${new Date().getFullYear()}-${String(rows.length + 1).padStart(4, "0")}`;
       const total = Number(form.total_value) || 0;
-      const { data: ctr, error } = await supabase
-        .from("bill_contracts")
-        .insert({
+      const crudRes4 = await crudCreate("bill_contracts", {
           company_id: auth.profile.company_id,
           contract_number: num,
           customer_id: form.customer_id,
@@ -91,17 +90,20 @@ export default function ContractBillingPage() {
             },
           ],
           created_by: auth.profile.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes4.ok) throw new Error(crudRes4.error);
+      const ctr = crudRes4.data as Record<string, unknown>;
 
       if (form.billing_method === "milestone") {
-        await supabase.from("bill_contract_milestones").insert([
-          { company_id: auth.profile.company_id, contract_id: ctr.id, milestone_code: "M1", name: "Kickoff 30%", amount: total * 0.3, status: "ready" },
-          { company_id: auth.profile.company_id, contract_id: ctr.id, milestone_code: "M2", name: "Mid 40%", amount: total * 0.4, status: "pending" },
-          { company_id: auth.profile.company_id, contract_id: ctr.id, milestone_code: "M3", name: "Close 30%", amount: total * 0.3, status: "pending" },
-        ]);
+        const milestones = [
+          { contract_id: String(ctr.id), milestone_code: "M1", name: "Kickoff 30%", amount: total * 0.3, status: "ready" },
+          { contract_id: String(ctr.id), milestone_code: "M2", name: "Mid 40%", amount: total * 0.4, status: "pending" },
+          { contract_id: String(ctr.id), milestone_code: "M3", name: "Close 30%", amount: total * 0.3, status: "pending" },
+        ];
+        for (const milestone of milestones) {
+          const crudRes5 = await crudCreate("bill_contract_milestones", milestone);
+          if (!crudRes5.ok) throw new Error(crudRes5.error);
+        }
       }
       toast.success(`Contract ${num} created`);
       setOpen(false);
@@ -148,18 +150,12 @@ export default function ContractBillingPage() {
         created_by: auth.profile.id,
         status: "draft",
       });
-      await supabase
-        .from("invoices")
-        .update({ contract_id: ctr.id })
-        .eq("id", inv.id);
-      await supabase
-        .from("bill_contracts")
-        .update({
+      const crudRes3 = await crudUpdate("invoices", String(inv.id), { contract_id: ctr.id });
+      const crudRes2 = await crudUpdate("bill_contracts", String(ctr.id), {
           billed_to_date: Number(ctr.billed_to_date || 0) + Number(inv.total_amount),
           next_bill_date: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", ctr.id);
+        });
       toast.success(`Invoice ${inv.invoice_number} created from contract`);
       await load();
     } catch (err) {
@@ -191,10 +187,7 @@ export default function ContractBillingPage() {
         ],
         created_by: auth.profile.id,
       });
-      await supabase
-        .from("bill_contract_milestones")
-        .update({ status: "invoiced", invoice_id: inv.id })
-        .eq("id", m.id);
+      const crudRes = await crudUpdate("bill_contract_milestones", String(m.id), { status: "invoiced", invoice_id: inv.id });
       toast.success(`Milestone invoiced as ${inv.invoice_number}`);
       await load();
     } catch (err) {

@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { startAudit, scanAuditLine, AUDIT_RESULTS } from "@/lib/assets";
 
 export default function AssetAuditsPage() {
@@ -108,10 +109,7 @@ export default function AssetAuditsPage() {
 
   const completeAudit = async () => {
     if (!activeId) return;
-    await createClient()
-      .from("ast_audits")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", activeId);
+    const crudRes = await crudUpdate("ast_audits", activeId, { status: "completed", completed_at: new Date().toISOString() });
     toast.success("Audit completed");
     await load();
   };

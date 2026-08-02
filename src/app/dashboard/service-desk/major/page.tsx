@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { declareMajorIncident } from "@/lib/service-desk";
 import { formatDateTime } from "@/lib/utils";
 
@@ -73,7 +74,7 @@ export default function MajorIncidentsPage() {
     if (status === "resolved" || status === "closed") {
       patch.resolved_at = new Date().toISOString();
     }
-    await createClient().from("sd_major_incidents").update(patch).eq("id", id);
+    const crudRes = await crudUpdate("sd_major_incidents", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

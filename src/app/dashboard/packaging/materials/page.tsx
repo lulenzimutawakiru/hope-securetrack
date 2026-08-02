@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { MATERIAL_CATEGORIES } from "@/lib/packaging";
 
 export default function PkgMaterialsPage() {
@@ -60,7 +61,7 @@ export default function PkgMaterialsPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("pkg_materials").insert({
+      const crudRes = await crudCreate("pkg_materials", {
         company_id: companyId,
         material_code: form.material_code.toUpperCase(),
         name: form.name,
@@ -72,7 +73,7 @@ export default function PkgMaterialsPage() {
         storage_location: form.storage_location || null,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Material created");
       setOpen(false);
       await load();

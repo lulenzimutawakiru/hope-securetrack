@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function SchedulesPage() {
   const { auth } = useUser();
@@ -61,7 +62,7 @@ export default function SchedulesPage() {
       .map((s) => s.trim())
       .filter(Boolean);
     const supabase = createClient();
-    const { error } = await supabase.from("bi_report_schedules").insert({
+    const crudRes3 = await crudCreate("bi_report_schedules", {
       company_id: auth.profile.company_id,
       schedule_code: form.schedule_code.toUpperCase(),
       name: form.name,
@@ -73,7 +74,7 @@ export default function SchedulesPage() {
       is_active: true,
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
       toast.success("Schedule created");
       setOpen(false);
@@ -83,21 +84,15 @@ export default function SchedulesPage() {
 
   const toggle = async (id: string, is_active: boolean) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("bi_report_schedules")
-      .update({ is_active: !is_active, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes2 = await crudUpdate("bi_report_schedules", id, { is_active: !is_active, updated_at: new Date().toISOString() });
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else load();
   };
 
   const markRun = async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("bi_report_schedules")
-      .update({ last_run_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("bi_report_schedules", id, { last_run_at: new Date().toISOString() });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Marked as run");
       load();

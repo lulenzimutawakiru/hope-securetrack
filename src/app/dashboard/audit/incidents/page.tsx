@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function AuditIncidentsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -37,7 +38,7 @@ export default function AuditIncidentsPage() {
     const patch: Record<string, unknown> = { status };
     if (status === "resolved") patch.resolved_at = new Date().toISOString();
     if (status === "closed") patch.closed_at = new Date().toISOString();
-    await createClient().from("eal_incidents").update(patch).eq("id", id);
+    const crudRes = await crudUpdate("eal_incidents", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { printDocument } from "@/lib/documents";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const DOC_TYPES = [
   "invoice",
@@ -67,7 +68,7 @@ export default function DocumentGeneratorPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("bi_document_jobs").insert({
+    const crudRes = await crudCreate("bi_document_jobs", {
       company_id: auth.profile.company_id,
       document_type: form.document_type,
       title: form.title,
@@ -79,7 +80,7 @@ export default function DocumentGeneratorPage() {
       completed_at: new Date().toISOString(),
       payload: { generated_via: "document_generator" },
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Document job created");
       setOpen(false);

@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { createException, EXCEPTION_TYPES } from "@/lib/dispatch";
 import { formatDateTime } from "@/lib/utils";
 
@@ -74,10 +75,7 @@ export default function DispatchExceptionsPage() {
   };
 
   const resolve = async (id: string) => {
-    await createClient()
-      .from("dsp_exceptions")
-      .update({ status: "resolved", resolved_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("dsp_exceptions", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Resolved");
     await load();
   };

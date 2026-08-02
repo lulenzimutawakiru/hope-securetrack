@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatDate } from "@/lib/utils";
 
 export default function MesAiPage() {
@@ -37,7 +38,6 @@ export default function MesAiPage() {
     if (!auth) return;
     setBusy(true);
     try {
-      const cid = auth.profile.company_id;
       const sb = createClient();
       const { count: delayed } = await sb
         .from("mes_production_orders")
@@ -48,9 +48,8 @@ export default function MesAiPage() {
         .from("mes_ncr")
         .select("*", { count: "exact", head: true })
         .eq("status", "open");
-      await sb.from("mes_ai_insights").insert([
+      const insights = [
         {
-          company_id: cid,
           insight_type: "schedule",
           title: `${delayed ?? 0} order(s) past planned finish`,
           summary: "Reschedule capacity or expedite materials to recover plan.",
@@ -60,7 +59,6 @@ export default function MesAiPage() {
           status: "open",
         },
         {
-          company_id: cid,
           insight_type: "quality",
           title: `${ncr ?? 0} open NCR(s)`,
           summary: "Open non-conformances may block order close and dispatch.",
@@ -70,7 +68,6 @@ export default function MesAiPage() {
           status: "open",
         },
         {
-          company_id: cid,
           insight_type: "maintenance",
           title: "Predictive maintenance window",
           summary: "Schedule PM for high-utilization presses before peak print week.",
@@ -79,7 +76,11 @@ export default function MesAiPage() {
           recommendations: ["Book maintenance slot", "Stage spare rollers", "Notify production planner"],
           status: "open",
         },
-      ]);
+      ];
+      for (const insight of insights) {
+        const crudRes2 = await crudCreate("mes_ai_insights", insight);
+        if (!crudRes2.ok) throw new Error(crudRes2.error);
+      }
       toast.success("AI insights generated");
       await load();
     } catch (e) {
@@ -140,13 +141,10 @@ export default function MesAiPage() {
                     size="sm"
                     variant="outline"
                     onClick={async () => {
-                      await createClient()
-                        .from("mes_ai_insights")
-                        .update({
+                      const crudRes = await crudUpdate("mes_ai_insights", String(i.id), {
                           status: "resolved",
                           resolved_at: new Date().toISOString(),
-                        })
-                        .eq("id", i.id);
+                        });
                       toast.success("Resolved");
                       load();
                     }}

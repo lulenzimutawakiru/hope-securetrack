@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 type Wf = {
   id: string;
@@ -66,7 +67,7 @@ export default function WorkflowsPage() {
     if (!auth?.profile?.company_id) return;
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("wid_workflow_runs").insert({
+      const crudRes2 = await crudCreate("wid_workflow_runs", {
         company_id: auth.profile.company_id,
         workflow_id: wf.id,
         entity_type: "demo",
@@ -75,7 +76,7 @@ export default function WorkflowsPage() {
         current_step: 1,
         step_log: [{ step: 1, name: wf.steps?.[0]?.name || "Start", at: new Date().toISOString() }],
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success(`Workflow ${wf.workflow_code} started`);
       await load();
     } catch (e) {
@@ -90,9 +91,7 @@ export default function WorkflowsPage() {
     const next = (run.current_step || 0) + 1;
     const done = next > steps.length;
     const supabase = createClient();
-    await supabase
-      .from("wid_workflow_runs")
-      .update({
+    const crudRes = await crudUpdate("wid_workflow_runs", run.id, {
         current_step: done ? run.current_step : next,
         status: done ? "completed" : "running",
         completed_at: done ? new Date().toISOString() : null,
@@ -100,8 +99,7 @@ export default function WorkflowsPage() {
           ...((run as Run & { step_log?: unknown[] }).step_log as unknown[] || []),
           { step: next, name: steps[next - 1]?.name || "Complete", at: new Date().toISOString() },
         ],
-      })
-      .eq("id", run.id);
+      });
     toast.success(done ? "Workflow completed" : `Step ${next}`);
     await load();
   };

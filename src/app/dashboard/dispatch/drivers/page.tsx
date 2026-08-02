@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function DispatchDriversPage() {
   const { auth } = useUser();
@@ -51,7 +52,7 @@ export default function DispatchDriversPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("dsp_drivers").insert({
+      const crudRes = await crudCreate("dsp_drivers", {
         company_id: companyId,
         driver_code: form.driver_code.toUpperCase(),
         full_name: form.full_name,
@@ -63,7 +64,7 @@ export default function DispatchDriversPage() {
         performance_score: 80,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Driver added");
       setOpen(false);
       await load();

@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import {
   ASSET_DOMAINS,
   registerAsset,
@@ -111,11 +112,8 @@ export default function AssetRegisterPage() {
   };
 
   const softDelete = async (id: string) => {
-    const { error } = await createClient()
-      .from("ast_assets")
-      .update({ deleted_at: new Date().toISOString(), status: "retired" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("ast_assets", id, { deleted_at: new Date().toISOString(), status: "retired" });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Asset archived");
       await load();

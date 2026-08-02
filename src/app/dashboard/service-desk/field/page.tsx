@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { createFieldJob } from "@/lib/service-desk";
 
 export default function FieldServicePage() {
@@ -83,7 +84,7 @@ export default function FieldServicePage() {
   const setStatus = async (id: string, status: string) => {
     const patch: Record<string, unknown> = { status };
     if (status === "completed") patch.completed_at = new Date().toISOString();
-    await createClient().from("sd_field_jobs").update(patch).eq("id", id);
+    const crudRes = await crudUpdate("sd_field_jobs", id, patch);
     toast.success(`Job → ${status}`);
     await load();
   };

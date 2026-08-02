@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { createQrPublicId } from "@/lib/workforce-id";
 
 type Badge = {
@@ -79,7 +80,7 @@ export default function MobileBadgePage() {
       const offline = new Date();
       offline.setDate(offline.getDate() + days);
       const supabase = createClient();
-      const { error } = await supabase.from("wid_mobile_badges").insert({
+      const crudRes2 = await crudCreate("wid_mobile_badges", {
         company_id: auth.profile.company_id,
         identity_id: form.identity_id,
         credential_id: form.credential_id || null,
@@ -90,7 +91,7 @@ export default function MobileBadgePage() {
         offline_until: offline.toISOString(),
         share_enabled: form.share_enabled,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Mobile digital badge issued");
       setOpen(false);
       await load();
@@ -101,10 +102,7 @@ export default function MobileBadgePage() {
 
   const revoke = async (id: string) => {
     const supabase = createClient();
-    await supabase
-      .from("wid_mobile_badges")
-      .update({ status: "revoked", revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("wid_mobile_badges", id, { status: "revoked", revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() });
     toast.success("Mobile badge revoked");
     await load();
   };

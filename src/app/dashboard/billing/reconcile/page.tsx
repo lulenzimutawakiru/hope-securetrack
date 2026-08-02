@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatDate } from "@/lib/utils";
 
 export default function ReconcilePage() {
@@ -52,9 +53,7 @@ export default function ReconcilePage() {
     try {
       const supabase = createClient();
       const num = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(batches.length + 1).padStart(3, "0")}`;
-      const { data: batch, error } = await supabase
-        .from("bill_reconciliation_batches")
-        .insert({
+      const crudRes3 = await crudCreate("bill_reconciliation_batches", {
           company_id: auth.profile.company_id,
           batch_number: num,
           bank_account_label: form.bank_account_label,
@@ -63,15 +62,14 @@ export default function ReconcilePage() {
           status: "open",
           notes: form.notes || null,
           created_by: auth.profile.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
+      const batch = crudRes3.data as Record<string, unknown>;
 
       // auto-match payments as lines
       let matched = 0;
       for (const pay of payments.slice(0, 15)) {
-        await supabase.from("bill_reconciliation_lines").insert({
+        const crudRes2 = await crudCreate("bill_reconciliation_lines", {
           batch_id: batch.id,
           company_id: auth.profile.company_id,
           txn_date: pay.payment_date,
@@ -83,10 +81,7 @@ export default function ReconcilePage() {
         });
         matched++;
       }
-      await supabase
-        .from("bill_reconciliation_batches")
-        .update({ matched_count: matched, unmatched_count: 0 })
-        .eq("id", batch.id);
+      const crudRes = await crudUpdate("bill_reconciliation_batches", String(batch.id), { matched_count: matched, unmatched_count: 0 });
 
       toast.success(`Batch ${num} created with ${matched} matched lines`);
       setOpen(false);

@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { generateApiKey } from "@/lib/integration";
 
 export default function ApiGatewayPage() {
@@ -56,22 +57,19 @@ export default function ApiGatewayPage() {
     try {
       const supabase = createClient();
       const code = `APP-${Date.now().toString(36).toUpperCase()}`;
-      const { data: app, error } = await supabase
-        .from("intg_api_apps")
-        .insert({
+      const crudRes2 = await crudCreate("intg_api_apps", {
           company_id: auth.profile.company_id,
           app_code: code,
           name: appName,
           environment: "sandbox",
           status: "active",
           allowed_scopes: ["read", "write"],
-        })
-        .select()
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
+      const app = crudRes2.data as Record<string, unknown>;
 
       const gen = generateApiKey();
-      await supabase.from("intg_api_keys").insert({
+      const crudRes = await crudCreate("intg_api_keys", {
         company_id: auth.profile.company_id,
         app_id: app.id,
         key_prefix: gen.prefix,

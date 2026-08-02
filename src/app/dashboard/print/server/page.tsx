@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function PrintServerPage() {
   const { auth } = useUser();
@@ -65,7 +66,7 @@ export default function PrintServerPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("prt_servers").insert({
+      const crudRes = await crudCreate("prt_servers", {
         company_id: companyId,
         server_code: form.server_code.toUpperCase(),
         name: form.name,
@@ -78,7 +79,7 @@ export default function PrintServerPage() {
         last_heartbeat_at: new Date().toISOString(),
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Print server registered");
       setOpen(false);
       await load();

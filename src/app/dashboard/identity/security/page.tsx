@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function IdentitySecurityPage() {
   const { auth } = useUser();
@@ -49,14 +50,11 @@ export default function IdentitySecurityPage() {
   const resolve = async (id: string) => {
     if (!auth) return;
     const supabase = createClient();
-    await supabase
-      .from("security_alerts")
-      .update({
+    const crudRes = await crudUpdate("security_alerts", id, {
         status: "resolved",
         resolved_by: auth.profile.id,
         resolved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+      });
     toast.success("Alert resolved");
     load();
   };

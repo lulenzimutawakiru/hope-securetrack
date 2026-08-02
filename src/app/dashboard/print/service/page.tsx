@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function PrintServicePage() {
   const { auth } = useUser();
@@ -58,7 +59,7 @@ export default function PrintServicePage() {
     e.preventDefault();
     if (!companyId || !form.printer_id) return;
     try {
-      const { error } = await createClient().from("prt_service_logs").insert({
+      const crudRes = await crudCreate("prt_service_logs", {
         company_id: companyId,
         printer_id: form.printer_id,
         service_type: form.service_type,
@@ -68,7 +69,7 @@ export default function PrintServicePage() {
         service_date: form.service_date,
         created_by: auth?.user?.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Service log added");
       setOpen(false);
       await load();

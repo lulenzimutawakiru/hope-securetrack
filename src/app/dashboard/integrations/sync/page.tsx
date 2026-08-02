@@ -20,6 +20,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { runSyncJob } from "@/lib/integration";
 
 export default function SyncPage() {
@@ -60,7 +61,7 @@ export default function SyncPage() {
     try {
       const supabase = createClient();
       const code = `SYNC-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("intg_sync_jobs").insert({
+      const crudRes = await crudCreate("intg_sync_jobs", {
         company_id: auth.profile.company_id,
         job_code: code,
         name: form.name,
@@ -71,7 +72,7 @@ export default function SyncPage() {
         status: "idle",
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Sync job created");
       setOpen(false);
       await load();

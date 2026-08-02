@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { agingBucket } from "@/lib/billing";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -68,8 +69,10 @@ export default function RemindersPage() {
         toast.message("No overdue invoices");
         return;
       }
-      const { error } = await supabase.from("bill_reminders").insert(rows);
-      if (error) throw error;
+      for (const row of rows) {
+        const crudRes2 = await crudCreate("bill_reminders", row);
+        if (!crudRes2.ok) throw new Error(crudRes2.error);
+      }
       toast.success(`${rows.length} reminders queued`);
       await load();
     } catch (e) {
@@ -79,10 +82,7 @@ export default function RemindersPage() {
 
   const markSent = async (id: string) => {
     const supabase = createClient();
-    await supabase
-      .from("bill_reminders")
-      .update({ status: "sent", sent_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("bill_reminders", id, { status: "sent", sent_at: new Date().toISOString() });
     toast.success("Marked sent");
     await load();
   };

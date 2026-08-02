@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function PrintMediaPage() {
   const { auth } = useUser();
@@ -53,7 +54,7 @@ export default function PrintMediaPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("prt_media").insert({
+      const crudRes = await crudCreate("prt_media", {
         company_id: companyId,
         media_code: form.media_code.toUpperCase(),
         name: form.name,
@@ -64,7 +65,7 @@ export default function PrintMediaPage() {
         reorder_level: Number(form.reorder_level) || 50,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Media added");
       setOpen(false);
       await load();

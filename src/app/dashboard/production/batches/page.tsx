@@ -37,6 +37,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import type { ProductionBatch, Product } from "@/types/database";
 import { PRODUCTION_STATUSES } from "@/lib/constants";
 
@@ -115,7 +116,7 @@ export default function ProductionPage() {
       }
 
       const batchNumber = generateBatchNumber();
-      const { error } = await supabase.from("production_batches").insert({
+      const crudRes2 = await crudCreate("production_batches", {
         company_id: auth.profile.company_id,
         factory_id: factory.id,
         product_id: product.id,
@@ -134,7 +135,7 @@ export default function ProductionPage() {
         operator_id: auth.profile.id,
       });
 
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
 
       toast.success(`Batch ${batchNumber} created`);
       setOpen(false);
@@ -155,12 +156,9 @@ export default function ProductionPage() {
 
   const updateStatus = async (id: string, production_status: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("production_batches")
-      .update({ production_status })
-      .eq("id", id);
-    if (error) {
-      toast.error(error.message);
+    const crudRes = await crudUpdate("production_batches", id, { production_status });
+    if (!crudRes.ok) {
+      toast.error(crudRes.error);
       return;
     }
     toast.success("Status updated");

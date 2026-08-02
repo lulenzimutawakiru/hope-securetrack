@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function MonitorPage() {
   const [checks, setChecks] = useState<Array<Record<string, unknown>>>([]);
@@ -38,10 +39,7 @@ export default function MonitorPage() {
 
   const resolve = async (id: string) => {
     const supabase = createClient();
-    await supabase
-      .from("intg_alerts")
-      .update({ status: "resolved", resolved_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("intg_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Alert resolved");
     await load();
   };

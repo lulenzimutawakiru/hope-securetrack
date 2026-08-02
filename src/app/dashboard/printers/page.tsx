@@ -55,6 +55,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatDateTime } from "@/lib/utils";
 import {
   discoverAnyBluetoothPrinter,
@@ -161,15 +162,12 @@ export default function PrintersPage() {
       };
 
       if (existing?.id) {
-        const { error } = await supabase
-          .from("printers")
-          .update(row)
-          .eq("id", existing.id);
-        if (error) throw error;
+        const crudRes5 = await crudUpdate("printers", existing.id, row);
+        if (!crudRes5.ok) throw new Error(crudRes5.error);
         toast.success(`Updated ${d.name}`);
       } else {
-        const { error } = await supabase.from("printers").insert(row);
-        if (error) throw error;
+        const crudRes4 = await crudCreate("printers", row);
+        if (!crudRes4.ok) throw new Error(crudRes4.error);
         toast.success(`Registered ${d.name}`);
       }
       load();
@@ -246,7 +244,7 @@ export default function PrintersPage() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("printers").insert({
+      const crudRes3 = await crudCreate("printers", {
         company_id: auth.profile.company_id,
         name: form.name,
         model: form.model,
@@ -261,7 +259,7 @@ export default function PrintersPage() {
         discovery_source: "manual",
         last_discovered_at: new Date().toISOString(),
       });
-      if (error) throw error;
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
       toast.success("Printer added");
       setManualOpen(false);
       load();
@@ -275,21 +273,31 @@ export default function PrintersPage() {
   const setDefault = async (id: string) => {
     if (!auth) return;
     const supabase = createClient();
-    await supabase
+    const { data: defaultPrinters, error: clearErr } = await supabase
       .from("printers")
-      .update({ is_default: false })
-      .eq("company_id", auth.profile.company_id);
-    await supabase.from("printers").update({ is_default: true }).eq("id", id);
+      .select("id")
+      .eq("company_id", auth.profile.company_id)
+      .eq("is_default", true);
+    if (clearErr) {
+      toast.error(clearErr.message);
+      return;
+    }
+    for (const row of (defaultPrinters ?? []) as Array<{ id: unknown }>) {
+      if (String(row.id) === String(id)) continue;
+      const crudRes6 = await crudUpdate("printers", String(row.id), { is_default: false });
+      if (!crudRes6.ok) {
+        toast.error(crudRes6.error);
+        return;
+      }
+    }
+    const crudRes2 = await crudUpdate("printers", id, { is_default: true });
     toast.success("Default printer set");
     load();
   };
 
   const setStatus = async (id: string, status: string) => {
     const supabase = createClient();
-    await supabase
-      .from("printers")
-      .update({ status, last_seen_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("printers", id, { status, last_seen_at: new Date().toISOString() });
     load();
   };
 

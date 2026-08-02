@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function DrpPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -37,8 +38,8 @@ export default function DrpPage() {
 
   const setStatus = async (id: string, status: string) => {
     const supabase = createClient();
-    const { error } = await supabase.from("drp_plans").update({ status }).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("drp_plans", id, { status });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`DRP ${status}`);
       load();

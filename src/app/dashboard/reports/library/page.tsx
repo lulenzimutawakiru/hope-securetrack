@@ -15,6 +15,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const CATEGORIES = [
   "all",
@@ -85,7 +86,7 @@ export default function ReportLibraryPage() {
         .select("*", { count: "exact", head: true });
       rowCount = count ?? 0;
     }
-    const { error } = await supabase.from("bi_report_runs").insert({
+    const crudRes = await crudCreate("bi_report_runs", {
       company_id: auth.profile.company_id,
       report_id: r.id,
       report_code: r.report_code,
@@ -97,7 +98,7 @@ export default function ReportLibraryPage() {
       completed_at: new Date().toISOString(),
     });
     setRunning(null);
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else toast.success(`Ran ${String(r.name)} (${rowCount} rows)`);
   };
 

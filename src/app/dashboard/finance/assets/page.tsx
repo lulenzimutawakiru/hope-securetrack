@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function AssetsPage() {
   const { auth } = useUser();
@@ -58,7 +59,7 @@ export default function AssetsPage() {
     const cost = Number(form.acquisition_cost);
     const residual = Number(form.residual_value || 0);
     const supabase = createClient();
-    const { error } = await supabase.from("fixed_assets").insert({
+    const crudRes4 = await crudCreate("fixed_assets", {
       company_id: auth.profile.company_id,
       asset_code: form.asset_code,
       asset_name: form.asset_name,
@@ -74,7 +75,7 @@ export default function AssetsPage() {
       status: "active",
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes4.ok) toast.error(crudRes4.error);
     else {
       toast.success("Asset registered");
       setOpen(false);
@@ -90,18 +91,15 @@ export default function AssetsPage() {
     const accum = Number(r.accumulated_depreciation || 0) + monthly;
     const book = Math.max(cost - accum, residual);
     const supabase = createClient();
-    const { error } = await supabase
-      .from("fixed_assets")
-      .update({
+    const crudRes3 = await crudUpdate("fixed_assets", r.id as string, {
         accumulated_depreciation: accum,
         book_value: book,
-      })
-      .eq("id", r.id as string);
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes3.ok) {
+      toast.error(crudRes3.error);
       return;
     }
-    await supabase.from("depreciation_entries").insert({
+    const crudRes2 = await crudCreate("depreciation_entries", {
       company_id: auth?.profile.company_id,
       asset_id: r.id,
       entry_date: new Date().toISOString().slice(0, 10),
@@ -116,14 +114,11 @@ export default function AssetsPage() {
   const dispose = async (id: string) => {
     if (!confirm("Mark asset as disposed?")) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("fixed_assets")
-      .update({
+    const crudRes = await crudUpdate("fixed_assets", id, {
         status: "disposed",
         disposal_date: new Date().toISOString().slice(0, 10),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Asset disposed");
       load();

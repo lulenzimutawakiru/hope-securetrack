@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function IdentityPoliciesPage() {
   const [loading, setLoading] = useState(true);
@@ -56,9 +57,7 @@ export default function IdentityPoliciesPage() {
     }
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase
-      .from("security_policies")
-      .update({
+    const crudRes = await crudUpdate("security_policies", id, {
         min_password_length: parseInt(form.min_password_length, 10),
         password_expiry_days: parseInt(form.password_expiry_days, 10),
         max_failed_logins: parseInt(form.max_failed_logins, 10),
@@ -66,10 +65,9 @@ export default function IdentityPoliciesPage() {
         session_timeout_minutes: parseInt(form.session_timeout_minutes, 10),
         max_concurrent_sessions: parseInt(form.max_concurrent_sessions, 10),
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+      });
     setSaving(false);
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else toast.success("Security policy saved");
   };
 

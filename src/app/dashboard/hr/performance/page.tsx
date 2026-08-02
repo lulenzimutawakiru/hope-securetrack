@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const RATINGS = [
   "outstanding",
@@ -82,7 +83,7 @@ export default function PerformancePage() {
     if (!auth) return;
     const supabase = createClient();
     const num = `PRV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
-    const { error } = await supabase.from("performance_reviews").insert({
+    const crudRes = await crudCreate("performance_reviews", {
       company_id: auth.profile.company_id,
       review_number: num,
       employee_id: form.employee_id,
@@ -95,7 +96,7 @@ export default function PerformancePage() {
       improvements: form.improvements || null,
       status: "submitted",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Review submitted");
       setOpen(false);

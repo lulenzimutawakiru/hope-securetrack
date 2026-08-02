@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function AuditFindingsPage() {
   const { auth } = useUser();
@@ -60,7 +61,7 @@ export default function AuditFindingsPage() {
       .from("eal_findings")
       .select("*", { count: "exact", head: true })
       .eq("company_id", companyId);
-    const { error } = await createClient().from("eal_findings").insert({
+    const crudRes2 = await crudCreate("eal_findings", {
       company_id: companyId,
       finding_number: `FND-${String((count ?? 0) + 1).padStart(4, "0")}`,
       title: form.title,
@@ -73,7 +74,7 @@ export default function AuditFindingsPage() {
       status: "open",
       created_by: userId,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Finding opened");
       setOpen(false);
@@ -84,7 +85,7 @@ export default function AuditFindingsPage() {
   const setStatus = async (id: string, status: string) => {
     const patch: Record<string, unknown> = { status };
     if (status === "closed") patch.closed_at = new Date().toISOString();
-    await createClient().from("eal_findings").update(patch).eq("id", id);
+    const crudRes = await crudUpdate("eal_findings", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

@@ -11,6 +11,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function ConnectorsMarketplacePage() {
   const { auth } = useUser();
@@ -35,7 +36,7 @@ export default function ConnectorsMarketplacePage() {
     try {
       const supabase = createClient();
       const code = `${c.connector_code}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
-      const { error } = await supabase.from("intg_connections").insert({
+      const crudRes = await crudCreate("intg_connections", {
         company_id: auth.profile.company_id,
         connector_id: c.id,
         connection_code: code,
@@ -46,7 +47,7 @@ export default function ConnectorsMarketplacePage() {
         is_enabled: false,
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success(`Installed ${c.name} — configure under Connections`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Install failed");

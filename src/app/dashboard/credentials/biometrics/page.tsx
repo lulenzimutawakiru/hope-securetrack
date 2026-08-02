@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 type Row = {
   id: string;
@@ -73,7 +74,7 @@ export default function BiometricsPage() {
     if (!auth?.profile?.company_id || !form.identity_id) return;
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("wid_biometric_enrollments").insert({
+      const crudRes2 = await crudCreate("wid_biometric_enrollments", {
         company_id: auth.profile.company_id,
         identity_id: form.identity_id,
         modality: form.modality,
@@ -84,7 +85,7 @@ export default function BiometricsPage() {
         enrolled_by: auth.profile.id,
         notes: "Status-only record. Raw biometric data remains on device / approved vault.",
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Enrollment status recorded (no raw biometrics stored)");
       setOpen(false);
       await load();
@@ -95,10 +96,7 @@ export default function BiometricsPage() {
 
   const revoke = async (id: string) => {
     const supabase = createClient();
-    await supabase
-      .from("wid_biometric_enrollments")
-      .update({ enrollment_status: "revoked", updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("wid_biometric_enrollments", id, { enrollment_status: "revoked", updated_at: new Date().toISOString() });
     toast.success("Enrollment revoked");
     await load();
   };

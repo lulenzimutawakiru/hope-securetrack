@@ -14,6 +14,7 @@ import { SplitPanel } from "@/components/enterprise/split-panel";
 import { createClient } from "@/lib/supabase/client";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { useRouter } from "next/navigation";
 
 const BATCH_COLUMNS: KanbanColumn[] = [
@@ -110,13 +111,10 @@ export default function BoardsPage() {
       cs.map((c) => (c.id === cardId ? { ...c, columnId: toColumnId } : c))
     );
     const supabase = createClient();
-    const { error } = await supabase
-      .from("production_batches")
-      .update({ production_status: toColumnId })
-      .eq("id", cardId);
-    if (error) {
+    const crudRes = await crudUpdate("production_batches", cardId, { production_status: toColumnId });
+    if (!crudRes.ok) {
       setCards(prev);
-      toast.error(error.message);
+      toast.error(crudRes.error);
     } else {
       toast.success(`Moved to ${toColumnId.replace(/_/g, " ")}`);
     }

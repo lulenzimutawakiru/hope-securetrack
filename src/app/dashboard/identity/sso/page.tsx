@@ -12,6 +12,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function SsoPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -34,11 +35,8 @@ export default function SsoPage() {
   }, []);
 
   const toggle = async (id: string, active: boolean) => {
-    const { error } = await createClient()
-      .from("idm_sso_providers")
-      .update({ is_active: !active })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes2 = await crudUpdate("idm_sso_providers", id, { is_active: !active });
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success(active ? "SSO provider disabled" : "SSO provider enabled");
       await load();
@@ -46,14 +44,11 @@ export default function SsoPage() {
   };
 
   const saveConfig = async (id: string) => {
-    const { error } = await createClient()
-      .from("idm_sso_providers")
-      .update({
+    const crudRes = await crudUpdate("idm_sso_providers", id, {
         issuer_url: issuer || null,
         client_id: clientId || null,
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("SSO config saved");
       setEditId(null);

@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { nextPrtCode, enqueuePrint } from "@/lib/print";
 
 const KINDS = ["shelf", "bin", "rack", "carton", "pallet", "location"];
@@ -75,7 +76,7 @@ export default function InventoryLabelsPage() {
         },
         submitted_by: auth?.user?.id,
       });
-      const { error } = await createClient().from("prt_inventory_labels").insert({
+      const crudRes2 = await crudCreate("prt_inventory_labels", {
         company_id: companyId,
         label_number,
         label_kind: form.label_kind,
@@ -88,7 +89,7 @@ export default function InventoryLabelsPage() {
         status: "queued",
         created_by: auth?.user?.id,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Inventory label queued");
       setOpen(false);
       await load();
@@ -121,7 +122,7 @@ export default function InventoryLabelsPage() {
           },
           submitted_by: auth?.user?.id,
         });
-        await createClient().from("prt_inventory_labels").insert({
+        const crudRes = await crudCreate("prt_inventory_labels", {
           company_id: companyId,
           label_number,
           label_kind: "shelf",

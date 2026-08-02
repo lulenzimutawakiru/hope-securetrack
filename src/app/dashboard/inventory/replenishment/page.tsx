@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function ReplenishmentPage() {
   const { auth } = useUser();
@@ -102,7 +103,7 @@ export default function ReplenishmentPage() {
     const supabase = createClient();
     const num = `PR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const unit = Number(product?.standard_cost || 0);
-    const { error } = await supabase.from("purchase_requisitions").insert({
+    const crudRes3 = await crudCreate("purchase_requisitions", {
       company_id: auth.profile.company_id,
       requisition_number: num,
       product_id: form.product_id,
@@ -119,7 +120,7 @@ export default function ReplenishmentPage() {
       required_by: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
       toast.success(`Requisition ${num} created`);
       setOpen(false);
@@ -135,11 +136,8 @@ export default function ReplenishmentPage() {
       patch.approved_by = auth.profile.id;
       patch.approved_at = new Date().toISOString();
     }
-    const { error } = await supabase
-      .from("purchase_requisitions")
-      .update(patch)
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes2 = await crudUpdate("purchase_requisitions", id, patch);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success(`Marked ${status}`);
       load();
@@ -161,7 +159,7 @@ export default function ReplenishmentPage() {
         const qty = Number(p.reorder_qty || 10);
         const num = `PR-${new Date().getFullYear()}-R${String(Date.now() + created).slice(-5)}`;
         const unit = Number(p.standard_cost || 0);
-        await supabase.from("purchase_requisitions").insert({
+        const crudRes = await crudCreate("purchase_requisitions", {
           company_id: auth.profile.company_id,
           requisition_number: num,
           product_id: p.id,

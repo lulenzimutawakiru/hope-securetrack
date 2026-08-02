@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const DOC_TYPES = [
   "po", "invoice", "grn", "quote", "so", "pr", "journal", "employee", "asset", "batch", "dn", "credit_note",
@@ -120,19 +121,18 @@ export default function NumberingSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    let error;
     if (editId) {
-      ({ error } = await supabase.from("document_sequences").update(payload).eq("id", editId));
+      const crudRes2 = await crudUpdate("document_sequences", editId, payload);
+      if (!crudRes2.ok) {
+        toast.error(crudRes2.error);
+        return;
+      }
     } else {
-      ({ error } = await supabase.from("document_sequences").insert({
-        ...payload,
-        company_id: auth.profile.company_id,
-      }));
-    }
-
-    if (error) {
-      toast.error(error.message);
-      return;
+      const crudRes2 = await crudCreate("document_sequences", payload);
+      if (!crudRes2.ok) {
+        toast.error(crudRes2.error);
+        return;
+      }
     }
     await supabase.from("config_change_log").insert({
       company_id: auth.profile.company_id,
@@ -150,11 +150,8 @@ export default function NumberingSettingsPage() {
 
   const toggle = async (id: string, is_active: boolean) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("document_sequences")
-      .update({ is_active: !is_active })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("document_sequences", id, { is_active: !is_active });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else load();
   };
 

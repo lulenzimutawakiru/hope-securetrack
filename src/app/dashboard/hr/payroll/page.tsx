@@ -18,6 +18,7 @@ import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function PayrollPage() {
   const { auth } = useUser();
@@ -71,9 +72,7 @@ export default function PayrollPage() {
       .select("*")
       .eq("status", "active");
 
-    const { data: run, error } = await supabase
-      .from("payroll_runs")
-      .insert({
+    const crudRes4 = await crudCreate("payroll_runs", {
         company_id: auth.profile.company_id,
         run_number: num,
         period_label: label,
@@ -82,15 +81,13 @@ export default function PayrollPage() {
         pay_date: end,
         status: "draft",
         created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error || !run) {
-      toast.error(error?.message ?? "Failed");
+      });
+    if (!crudRes4.ok) {
+      toast.error(crudRes4.error ?? "Failed");
       setRunning(false);
       return;
     }
+    const run = crudRes4.data as Record<string, unknown>;
 
     let grossT = 0;
     let dedT = 0;
@@ -107,7 +104,7 @@ export default function PayrollPage() {
       else if (gross > 235000) paye = Math.round((gross - 235000) * 0.1);
       const net = gross - nssf - paye;
 
-      await supabase.from("payroll_lines").insert({
+      const crudRes3 = await crudCreate("payroll_lines", {
         payroll_run_id: run.id,
         company_id: auth.profile.company_id,
         employee_id: emp.id,
@@ -125,35 +122,29 @@ export default function PayrollPage() {
       cnt++;
     }
 
-    await supabase
-      .from("payroll_runs")
-      .update({
+    const crudRes2 = await crudUpdate("payroll_runs", String(run.id), {
         employee_count: cnt,
         gross_total: grossT,
         deductions_total: dedT,
         net_total: netT,
         status: "processing",
-      })
-      .eq("id", run.id);
+      });
 
     toast.success(`Payroll ${num}: ${cnt} employees`);
     setRunning(false);
     load();
-    loadLines(run.id);
+    loadLines(String(run.id));
   };
 
   const approve = async (id: string) => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("payroll_runs")
-      .update({
+    const crudRes = await crudUpdate("payroll_runs", id, {
         status: "approved",
         approved_by: auth.profile.id,
         approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Payroll approved");
       load();

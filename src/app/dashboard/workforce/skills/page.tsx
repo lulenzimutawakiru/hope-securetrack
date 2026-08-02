@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function SkillsPage() {
   const { auth } = useUser();
@@ -60,14 +61,14 @@ export default function SkillsPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("employee_skills").insert({
+    const crudRes = await crudCreate("employee_skills", {
       company_id: auth.profile.company_id,
       employee_id: form.employee_id,
       skill_id: form.skill_id,
       proficiency: parseInt(form.proficiency, 10),
       certified: form.certified === "true",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Skill assigned");
       setOpen(false);

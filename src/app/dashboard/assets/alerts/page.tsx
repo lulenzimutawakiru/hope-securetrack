@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function AssetAlertsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -33,24 +34,18 @@ export default function AssetAlertsPage() {
   }, []);
 
   const ack = async (id: string) => {
-    await createClient()
-      .from("ast_alerts")
-      .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes2 = await crudUpdate("ast_alerts", id, { status: "acknowledged", acknowledged_at: new Date().toISOString() });
     toast.success("Acknowledged");
     await load();
   };
 
   const resolve = async (id: string) => {
-    await createClient()
-      .from("ast_alerts")
-      .update({ status: "resolved", resolved_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes = await crudUpdate("ast_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Resolved");
     await load();
   };
 
-  if (loading) return <LoadingState message="Loading alerts…" />;
+  if (loading) return <LoadingState message="Loading alertsâ€¦" />;
 
   const severityVariant = (s: string) => {
     if (s === "critical" || s === "high") return "destructive" as const;
@@ -62,7 +57,7 @@ export default function AssetAlertsPage() {
     <div>
       <PageHeader
         title="Asset Alerts"
-        description="Warranty · calibration · unauthorized movement · geofence · duplicates"
+        description="Warranty Â· calibration Â· unauthorized movement Â· geofence Â· duplicates"
       />
 
       {rows.length === 0 ? (
@@ -100,9 +95,9 @@ export default function AssetAlertsPage() {
                     <TableCell>
                       {r.asset_id ? (
                         <Link href={`/dashboard/assets/${r.asset_id}`} className="font-mono text-xs text-primary hover:underline">
-                          {a?.asset_tag || "—"}
+                          {a?.asset_tag || "â€”"}
                         </Link>
-                      ) : "—"}
+                      ) : "â€”"}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] capitalize">{String(r.status)}</Badge>

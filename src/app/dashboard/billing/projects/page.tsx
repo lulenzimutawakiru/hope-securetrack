@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { createInvoice } from "@/lib/billing";
 import { formatNumber } from "@/lib/utils";
 
@@ -69,7 +70,7 @@ export default function ProjectBillingPage() {
     try {
       const supabase = createClient();
       const num = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(4, "0")}`;
-      const { error } = await supabase.from("bill_projects").insert({
+      const crudRes4 = await crudCreate("bill_projects", {
         company_id: auth.profile.company_id,
         project_number: num,
         customer_id: form.customer_id || null,
@@ -79,7 +80,7 @@ export default function ProjectBillingPage() {
         status: "active",
         start_date: new Date().toISOString().slice(0, 10),
       });
-      if (error) throw error;
+      if (!crudRes4.ok) throw new Error(crudRes4.error);
       toast.success("Project created");
       setOpen(false);
       await load();
@@ -95,7 +96,7 @@ export default function ProjectBillingPage() {
       const qty = Number(entryForm.quantity) || 0;
       const rate = Number(entryForm.unit_rate) || 0;
       const supabase = createClient();
-      const { error } = await supabase.from("bill_project_entries").insert({
+      const crudRes3 = await crudCreate("bill_project_entries", {
         company_id: auth.profile.company_id,
         project_id: entryForm.project_id,
         entry_type: entryForm.entry_type,
@@ -108,7 +109,7 @@ export default function ProjectBillingPage() {
         invoiced: false,
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
       toast.success("Time/expense captured");
       setEntryOpen(false);
       await load();
@@ -148,20 +149,17 @@ export default function ProjectBillingPage() {
         })),
         created_by: auth.profile.id,
       });
-      await supabase
-        .from("bill_project_entries")
-        .update({ invoiced: true, invoice_id: inv.id })
-        .in(
-          "id",
-          unbilled.map((e) => String(e.id))
-        );
-      await supabase
-        .from("bill_projects")
-        .update({
+      for (const entry of unbilled) {
+        const crudRes5 = await crudUpdate("bill_project_entries", String(entry.id), {
+          invoiced: true,
+          invoice_id: inv.id,
+        });
+        if (!crudRes5.ok) throw new Error(crudRes5.error);
+      }
+      const crudRes2 = await crudUpdate("bill_projects", projectId, {
           billed_amount: Number(proj.billed_amount || 0) + Number(inv.total_amount),
-        })
-        .eq("id", projectId);
-      await supabase.from("invoices").update({ project_id: projectId }).eq("id", inv.id);
+        });
+      const crudRes = await crudUpdate("invoices", inv.id, { project_id: projectId });
       toast.success(`Invoice ${inv.invoice_number} from project entries`);
       await load();
     } catch (err) {

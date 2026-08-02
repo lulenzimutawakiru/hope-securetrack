@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function IotPage() {
   const { auth } = useUser();
@@ -57,7 +58,7 @@ export default function IotPage() {
     try {
       const supabase = createClient();
       const code = `DEV-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("intg_iot_devices").insert({
+      const crudRes3 = await crudCreate("intg_iot_devices", {
         company_id: auth.profile.company_id,
         device_code: code,
         name: form.name,
@@ -68,7 +69,7 @@ export default function IotPage() {
         last_seen_at: new Date().toISOString(),
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
       toast.success("IoT device registered");
       setOpen(false);
       await load();
@@ -88,17 +89,14 @@ export default function IotPage() {
     ];
     const m = metrics[Math.floor(Math.random() * metrics.length)];
     const supabase = createClient();
-    await supabase.from("intg_iot_telemetry").insert({
+    const crudRes2 = await crudCreate("intg_iot_telemetry", {
       company_id: auth.profile.company_id,
       device_id: deviceId,
       metric: m.metric,
       value_num: m.value_num,
       unit: m.unit,
     });
-    await supabase
-      .from("intg_iot_devices")
-      .update({ last_seen_at: new Date().toISOString(), status: "online" })
-      .eq("id", deviceId);
+    const crudRes = await crudUpdate("intg_iot_devices", deviceId, { last_seen_at: new Date().toISOString(), status: "online" });
     toast.success(`Ingested ${m.metric}`);
     await load();
   };

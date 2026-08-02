@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function TreasuryPage() {
   const { auth } = useUser();
@@ -54,7 +55,7 @@ export default function TreasuryPage() {
     if (!auth) return;
     const principal = Number(form.principal);
     const supabase = createClient();
-    const { error } = await supabase.from("treasury_facilities").insert({
+    const crudRes = await crudCreate("treasury_facilities", {
       company_id: auth.profile.company_id,
       facility_code: form.facility_code,
       facility_type: form.facility_type,
@@ -66,7 +67,7 @@ export default function TreasuryPage() {
       start_date: new Date().toISOString().slice(0, 10),
       status: "active",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Facility created");
       setOpen(false);

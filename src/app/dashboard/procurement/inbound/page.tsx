@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function InboundPage() {
   const { auth } = useUser();
@@ -69,7 +70,7 @@ export default function InboundPage() {
     const po = pos.find((p) => p.id === form.purchase_order_id);
     const supabase = createClient();
     const num = `INB-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const { error } = await supabase.from("inbound_shipments").insert({
+    const crudRes2 = await crudCreate("inbound_shipments", {
       company_id: auth.profile.company_id,
       shipment_number: num,
       purchase_order_id: form.purchase_order_id || null,
@@ -82,7 +83,7 @@ export default function InboundPage() {
       status: "in_transit",
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success(`Shipment ${num} booked`);
       setOpen(false);
@@ -92,14 +93,11 @@ export default function InboundPage() {
 
   const markArrived = async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("inbound_shipments")
-      .update({
+    const crudRes = await crudUpdate("inbound_shipments", id, {
         status: "arrived",
         actual_arrival: new Date().toISOString().slice(0, 10),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Marked arrived — create GRN in Inventory");
       load();

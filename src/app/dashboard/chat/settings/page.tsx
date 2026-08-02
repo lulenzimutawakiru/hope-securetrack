@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { BOT_DOMAINS } from "@/lib/hopechat";
 
 export default function HopeChatSettingsPage() {
@@ -56,12 +57,9 @@ export default function HopeChatSettingsPage() {
         .eq("user_id", userId)
         .maybeSingle();
       if (existing) {
-        await createClient()
-          .from("hc_user_settings")
-          .update({ theme, density, dnd_enabled: dnd })
-          .eq("id", existing.id);
+        const crudRes2 = await crudUpdate("hc_user_settings", existing.id, { theme, density, dnd_enabled: dnd });
       } else {
-        await createClient().from("hc_user_settings").insert({
+        const crudRes = await crudCreate("hc_user_settings", {
           company_id: companyId,
           user_id: userId,
           theme,

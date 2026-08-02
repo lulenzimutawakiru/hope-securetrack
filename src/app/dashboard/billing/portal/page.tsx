@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function PortalAdminPage() {
   const { auth } = useUser();
@@ -94,14 +95,11 @@ export default function PortalAdminPage() {
 
   const resolveDispute = async (id: string, status: string) => {
     const supabase = createClient();
-    await supabase
-      .from("bill_portal_disputes")
-      .update({
+    const crudRes = await crudUpdate("bill_portal_disputes", id, {
         status,
         resolved_at: status === "resolved" ? new Date().toISOString() : null,
         resolution: status === "resolved" ? "Resolved by finance" : "Rejected",
-      })
-      .eq("id", id);
+      });
     toast.success(status);
     await load();
   };

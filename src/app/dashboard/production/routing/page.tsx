@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 type Routing = {
   id: string;
@@ -106,9 +107,7 @@ export default function RoutingPage() {
     if (!companyId) return;
     setSaving(true);
     try {
-      const { data, error } = await createClient()
-        .from("mes_routings")
-        .insert({
+      const crudRes2 = await crudCreate("mes_routings", {
           company_id: companyId,
           routing_code: form.routing_code,
           name: form.name,
@@ -116,10 +115,9 @@ export default function RoutingPage() {
           description: form.description || null,
           version: 1,
           status: "active",
-        })
-        .select("*")
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
+      const data = crudRes2.data as Record<string, unknown>;
       toast.success("Routing created");
       setOpen(false);
       await load();
@@ -139,7 +137,7 @@ export default function RoutingPage() {
     if (!selected || !companyId) return;
     setSaving(true);
     try {
-      const { error } = await createClient().from("mes_routing_operations").insert({
+      const crudRes = await crudCreate("mes_routing_operations", {
         company_id: companyId,
         routing_id: selected.id,
         operation_no: Number(opForm.operation_no) || 10,
@@ -153,7 +151,7 @@ export default function RoutingPage() {
         instructions: opForm.instructions || null,
         safety_procedures: opForm.safety_procedures || null,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Operation added");
       setOpOpen(false);
       await loadOps(selected.id);

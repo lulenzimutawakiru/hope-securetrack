@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const TYPES = [
   "forecast",
@@ -74,7 +75,7 @@ export default function AiDecisionPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("bi_ai_insights").insert({
+    const crudRes2 = await crudCreate("bi_ai_insights", {
       company_id: auth.profile.company_id,
       insight_type: form.insight_type,
       domain: form.domain,
@@ -86,7 +87,7 @@ export default function AiDecisionPage() {
       horizon: form.horizon,
       status: "open",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Insight logged");
       setOpen(false);
@@ -96,14 +97,11 @@ export default function AiDecisionPage() {
 
   const setStatus = async (id: string, status: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("bi_ai_insights")
-      .update({
+    const crudRes = await crudUpdate("bi_ai_insights", id, {
         status,
         resolved_at: status === "actioned" || status === "dismissed" ? new Date().toISOString() : null,
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else load();
   };
 

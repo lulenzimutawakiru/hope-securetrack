@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { INSPECTION_TYPES, createInspection, completeInspection } from "@/lib/mes";
 
 export default function QualityMesPage() {
@@ -109,16 +110,13 @@ export default function QualityMesPage() {
   };
 
   const closeNcr = async (id: string) => {
-    const { error } = await createClient()
-      .from("mes_ncr")
-      .update({
+    const crudRes = await crudUpdate("mes_ncr", id, {
         status: "closed",
         closed_at: new Date().toISOString(),
         corrective_action: "Corrective action completed",
         preventive_action: "Process control updated",
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("NCR closed with CAPA");
       await load();

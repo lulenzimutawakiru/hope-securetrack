@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function ModulesSettingsPage() {
   const { auth } = useUser();
@@ -37,12 +38,9 @@ export default function ModulesSettingsPage() {
   const toggle = async (id: string, field: "is_enabled" | "is_licensed", value: boolean) => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("erp_modules")
-      .update({ [field]: !value, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) {
-      toast.error(error.message);
+    const crudRes = await crudUpdate("erp_modules", id, { [field]: !value, updated_at: new Date().toISOString() });
+    if (!crudRes.ok) {
+      toast.error(crudRes.error);
       return;
     }
     await supabase.from("config_change_log").insert({

@@ -46,6 +46,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import type {
   Ream,
   Carton,
@@ -299,10 +300,10 @@ export default function SerializedStockPage() {
         performed_by: auth.profile.id,
       }));
 
-      const { error: moveErr } = await supabase
-        .from("inventory_movements")
-        .insert(movements);
-      if (moveErr) throw moveErr;
+      for (const mv of movements) {
+        const crudRes = await crudCreate("inventory_movements", mv);
+        if (!crudRes.ok) throw new Error(crudRes.error);
+      }
 
       toast.success(
         `Updated ${ids.length} ${moveForm.itemType}${ids.length > 1 ? "s" : ""} → ${newStatus.replace(/_/g, " ")}`

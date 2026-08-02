@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import {
   generateInvoiceFromPrompt,
   analyzeInvoiceDraft,
@@ -87,7 +88,7 @@ export default function BillingAiPage() {
         created_by: auth.profile.id,
         status: "draft",
       });
-      await supabase.from("bill_ai_logs").insert({
+      const crudRes = await crudCreate("bill_ai_logs", {
         company_id: auth.profile.company_id,
         action: "generate_invoice",
         prompt,

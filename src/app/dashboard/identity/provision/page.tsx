@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { advanceProvisionApproval, activateProvisionRequest } from "@/lib/idm";
 
 export default function ProvisionQueuePage() {
@@ -56,15 +57,11 @@ export default function ProvisionQueuePage() {
     setLastPassword(null);
     try {
       if (step === "activate") {
-        await createClient()
-          .from("idm_provision_requests")
-          .update({
+        const crudRes = await crudUpdate("idm_provision_requests", id, {
             status: "admin_approved",
             admin_approved_by: auth.user.id,
             admin_approved_at: new Date().toISOString(),
-          })
-          .eq("id", id)
-          .in("status", ["pending", "manager_approved", "security_review", "admin_approved"]);
+          });
         const result = await activateProvisionRequest(id, auth.user.id);
         setLastPassword(result.temp_password || null);
         toast.success(`Activated ${result.email}`);

@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import {
   checkCredit,
   getCustomerOutstanding,
@@ -100,7 +101,7 @@ export default function CreditControlPage() {
     try {
       const supabase = createClient();
       const num = `CRA-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("bill_credit_approvals").insert({
+      const crudRes2 = await crudCreate("bill_credit_approvals", {
         company_id: auth.profile.company_id,
         customer_id: form.customer_id,
         request_number: num,
@@ -109,7 +110,7 @@ export default function CreditControlPage() {
         status: "pending",
         requested_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       await logCreditEvent(supabase, {
         company_id: auth.profile.company_id,
         customer_id: form.customer_id,
@@ -129,20 +130,20 @@ export default function CreditControlPage() {
   const decide = async (id: string, status: "approved" | "rejected") => {
     if (!auth?.profile) return;
     const supabase = createClient();
-    const { data } = await supabase
-      .from("bill_credit_approvals")
-      .update({
+    const crudRes = await crudUpdate("bill_credit_approvals", id, {
         status,
         decided_by: auth.profile.id,
         decided_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
+      });
+    if (!crudRes.ok) {
+      toast.error(crudRes.error);
+      return;
+    }
+    const data = crudRes.data as Record<string, unknown>;
     if (data) {
       await logCreditEvent(supabase, {
         company_id: auth.profile.company_id,
-        customer_id: data.customer_id,
+        customer_id: String(data.customer_id),
         event_type: status === "approved" ? "approval_granted" : "approval_denied",
         amount: Number(data.requested_amount),
         actor_id: auth.profile.id,

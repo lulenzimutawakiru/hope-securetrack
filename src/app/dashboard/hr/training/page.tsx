@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function TrainingPage() {
   const { auth } = useUser();
@@ -60,13 +61,13 @@ export default function TrainingPage() {
       return;
     }
     const supabase = createClient();
-    const { error } = await supabase.from("training_enrollments").insert({
+    const crudRes2 = await crudCreate("training_enrollments", {
       company_id: auth.profile.company_id,
       course_id: courseId,
       employee_id: employeeId,
       status: "enrolled",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Enrolled");
       load();
@@ -75,15 +76,12 @@ export default function TrainingPage() {
 
   const complete = async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("training_enrollments")
-      .update({
+    const crudRes = await crudUpdate("training_enrollments", id, {
         status: "completed",
         completed_at: new Date().toISOString(),
         score: 85,
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Marked completed");
       load();

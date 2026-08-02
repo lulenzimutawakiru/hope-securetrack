@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function SopPage() {
   const { auth } = useUser();
@@ -52,15 +53,12 @@ export default function SopPage() {
   const approve = async (id: string) => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("sop_cycles")
-      .update({
+    const crudRes = await crudUpdate("sop_cycles", id, {
         status: "approved",
         approved_by: auth.profile.id,
         approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("S&OP plan approved");
       load();

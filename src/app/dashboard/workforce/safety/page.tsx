@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function SafetyPage() {
   const { auth } = useUser();
@@ -74,7 +75,7 @@ export default function SafetyPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("ppe_issuances").insert({
+    const crudRes2 = await crudCreate("ppe_issuances", {
       company_id: auth.profile.company_id,
       employee_id: ppeForm.employee_id,
       item_name: ppeForm.item_name,
@@ -82,7 +83,7 @@ export default function SafetyPage() {
       issued_on: new Date().toISOString().slice(0, 10),
       status: "issued",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("PPE issued");
       setPpeOpen(false);
@@ -94,7 +95,7 @@ export default function SafetyPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("safety_incidents").insert({
+    const crudRes = await crudCreate("safety_incidents", {
       company_id: auth.profile.company_id,
       title: incForm.title,
       severity: incForm.severity,
@@ -103,7 +104,7 @@ export default function SafetyPage() {
       employee_id: incForm.employee_id || null,
       status: "open",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Incident logged");
       setIncOpen(false);

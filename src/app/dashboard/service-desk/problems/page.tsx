@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { PROBLEM_STATUSES, createProblem } from "@/lib/service-desk";
 
 export default function ProblemsPage() {
@@ -68,8 +69,8 @@ export default function ProblemsPage() {
     const patch: Record<string, unknown> = { status };
     if (status === "resolved" || status === "closed") patch.resolved_at = new Date().toISOString();
     if (status === "known_error") patch.known_error = true;
-    const { error } = await createClient().from("sd_problems").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("sd_problems", id, patch);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Status → ${status}`);
       await load();

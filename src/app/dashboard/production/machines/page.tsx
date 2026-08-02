@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { MACHINE_STATES } from "@/lib/mes";
 
 type Machine = {
@@ -82,7 +83,7 @@ export default function MachinesPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { error } = await createClient().from("production_machines").insert({
+      const crudRes2 = await crudCreate("production_machines", {
         company_id: companyId || null,
         machine_code: form.machine_code,
         name: form.name,
@@ -96,7 +97,7 @@ export default function MachinesPage() {
         operating_hours: 0,
         energy_kwh: 0,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Machine registered");
       setOpen(false);
       await load();
@@ -109,11 +110,8 @@ export default function MachinesPage() {
 
   const setStatus = async (id: string, status: string) => {
     try {
-      const { error } = await createClient()
-        .from("production_machines")
-        .update({ status })
-        .eq("id", id);
-      if (error) throw error;
+      const crudRes = await crudUpdate("production_machines", id, { status });
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success(`Status → ${status}`);
       await load();
     } catch (err) {

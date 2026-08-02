@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { DOCUMENT_TYPES, defaultCanvas, nextPrtCode, previewTemplate } from "@/lib/print";
 
 export default function PrintTemplatesPage() {
@@ -61,7 +62,7 @@ export default function PrintTemplatesPage() {
       const template_code = await nextPrtCode(companyId, "prt_templates", "TPL");
       const w = Number(form.width_mm) || 50;
       const h = Number(form.height_mm) || 30;
-      const { error } = await createClient().from("prt_templates").insert({
+      const crudRes = await crudCreate("prt_templates", {
         company_id: companyId,
         template_code,
         name: form.name,
@@ -75,7 +76,7 @@ export default function PrintTemplatesPage() {
         version: 1,
         created_by: auth?.user?.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Template created");
       setOpen(false);
       await load();

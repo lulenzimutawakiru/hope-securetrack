@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { processEventPipeline, INTEGRATION_EVENTS } from "@/lib/integration";
 
 export default function WebhooksPage() {
@@ -54,7 +55,7 @@ export default function WebhooksPage() {
       const supabase = createClient();
       const code = `WH-${Date.now().toString(36).toUpperCase()}`;
       const events = form.events.split(",").map((x) => x.trim()).filter(Boolean);
-      const { error } = await supabase.from("intg_webhook_subscriptions").insert({
+      const crudRes = await crudCreate("intg_webhook_subscriptions", {
         company_id: auth.profile.company_id,
         subscription_code: code,
         name: form.name,
@@ -63,7 +64,7 @@ export default function WebhooksPage() {
         secret: `whsec_${Math.random().toString(36).slice(2, 14)}`,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Webhook subscription created");
       setOpen(false);
       await load();

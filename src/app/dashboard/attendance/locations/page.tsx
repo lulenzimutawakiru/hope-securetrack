@@ -29,6 +29,7 @@ import {
   attCreate, attUpdate, attSoftDelete, attNextNumber, distanceMeters,
 } from "@/lib/attendance";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 type Loc = Record<string, unknown> & {
   id: string;
@@ -658,8 +659,8 @@ async function syncGeofence(
   };
 
   if (existing?.id) {
-    await sb.from("att_geofences").update(payload).eq("id", existing.id);
+    const crudRes2 = await crudUpdate("att_geofences", existing.id, payload);
   } else {
-    await sb.from("att_geofences").insert(payload);
+    const crudRes = await crudCreate("att_geofences", payload);
   }
 }

@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { LINE_STATUSES } from "@/lib/packaging";
 
 export default function PkgLinesPage() {
@@ -54,7 +55,7 @@ export default function PkgLinesPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("pkg_lines").insert({
+      const crudRes2 = await crudCreate("pkg_lines", {
         company_id: companyId,
         line_code: form.line_code.toUpperCase(),
         name: form.name,
@@ -64,7 +65,7 @@ export default function PkgLinesPage() {
         status: "idle",
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Line created");
       setOpen(false);
       await load();
@@ -74,7 +75,7 @@ export default function PkgLinesPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    await createClient().from("pkg_lines").update({ status }).eq("id", id);
+    const crudRes = await crudUpdate("pkg_lines", id, { status });
     await load();
   };
 

@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const BRANCH_TYPES = ["office", "factory", "warehouse", "dc", "sales"];
 
@@ -60,9 +61,7 @@ export default function BranchesSettingsPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("branches")
-      .insert({
+    const crudRes3 = await crudCreate("branches", {
         company_id: auth.profile.company_id,
         name: form.name,
         code: form.code,
@@ -76,17 +75,16 @@ export default function BranchesSettingsPage() {
         currency: form.currency || "UGX",
         tax_region: form.tax_region || null,
         is_active: true,
-      })
-      .select("id")
-      .single();
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes3.ok) {
+      toast.error(crudRes3.error);
       return;
     }
+    const data = crudRes3.data as Record<string, unknown>;
     await supabase.from("config_change_log").insert({
       company_id: auth.profile.company_id,
       entity_type: "branch",
-      entity_id: data?.id,
+      entity_id: data?.id ? String(data.id) : null,
       action: "create",
       new_value: form.code,
       changed_by: auth.profile.id,
@@ -112,11 +110,8 @@ export default function BranchesSettingsPage() {
   const toggleActive = async (id: string, is_active: boolean) => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("branches")
-      .update({ is_active: !is_active })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes2 = await crudUpdate("branches", id, { is_active: !is_active });
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       await supabase.from("config_change_log").insert({
         company_id: auth.profile.company_id,
@@ -136,11 +131,8 @@ export default function BranchesSettingsPage() {
     if (!auth) return;
     if (!confirm("Archive this branch? It can be restored from the database.")) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("branches")
-      .update({ deleted_at: new Date().toISOString(), is_active: false })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("branches", id, { deleted_at: new Date().toISOString(), is_active: false });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       await supabase.from("config_change_log").insert({
         company_id: auth.profile.company_id,

@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import {
   USER_TYPES, USERNAME_PATTERNS, DATA_SCOPES,
   createProvisionRequest, resolveUsername, activateProvisionRequest,
@@ -149,14 +150,11 @@ export default function CreateAccountPage() {
       if (form.activate_now && auth?.user?.id) {
         // Ensure approved then activate
         if (req.status !== "admin_approved") {
-          await createClient()
-            .from("idm_provision_requests")
-            .update({
+          const crudRes = await crudUpdate("idm_provision_requests", req.id, {
               status: "admin_approved",
               admin_approved_by: auth.user.id,
               admin_approved_at: new Date().toISOString(),
-            })
-            .eq("id", req.id);
+            });
         }
         const result = await activateProvisionRequest(req.id, auth.user.id);
         setCreated({

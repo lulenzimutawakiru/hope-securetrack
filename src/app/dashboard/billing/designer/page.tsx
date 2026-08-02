@@ -15,6 +15,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { buildInvoiceHtml, printInvoiceHtml } from "@/lib/billing";
 
 type Tpl = {
@@ -57,9 +58,7 @@ export default function InvoiceDesignerPage() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("bill_invoice_templates")
-        .update({
+      const crudRes2 = await crudUpdate("bill_invoice_templates", selected.id, {
           name: selected.name,
           primary_color: selected.primary_color,
           show_qr: selected.show_qr,
@@ -70,9 +69,8 @@ export default function InvoiceDesignerPage() {
           is_default: selected.is_default,
           design_json: selected.design_json,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", selected.id);
-      if (error) throw error;
+        });
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Template saved");
       await load();
     } catch (e) {
@@ -86,9 +84,7 @@ export default function InvoiceDesignerPage() {
     if (!auth?.profile?.company_id) return;
     const supabase = createClient();
     const code = `TPL-${Date.now().toString(36).toUpperCase()}`;
-    const { data, error } = await supabase
-      .from("bill_invoice_templates")
-      .insert({
+    const crudRes = await crudCreate("bill_invoice_templates", {
         company_id: auth.profile.company_id,
         template_code: code,
         name: "Custom invoice template",
@@ -100,13 +96,12 @@ export default function InvoiceDesignerPage() {
         default_bank_details: "Bank: Stanbic · Hope Design Group Ltd",
         design_json: { header: { title: "TAX INVOICE" }, footer: { showBank: true } },
         created_by: auth.profile.id,
-      })
-      .select()
-      .single();
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes.ok) {
+      toast.error(crudRes.error);
       return;
     }
+    const data = crudRes.data as Record<string, unknown>;
     setSelected(data as Tpl);
     toast.success("Template created");
     await load();

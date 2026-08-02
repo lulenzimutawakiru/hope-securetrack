@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 type Brand = {
   id: string;
@@ -60,9 +61,7 @@ export default function BrandingPage() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("wid_card_brands")
-        .update({
+      const crudRes2 = await crudUpdate("wid_card_brands", selected.id, {
           name: selected.name,
           company_display_name: selected.company_display_name,
           primary_color: selected.primary_color,
@@ -75,9 +74,8 @@ export default function BrandingPage() {
           branch_name: selected.branch_name,
           is_default: selected.is_default,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", selected.id);
-      if (error) throw error;
+        });
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Brand saved");
       await load();
     } catch (e) {
@@ -92,9 +90,7 @@ export default function BrandingPage() {
     try {
       const supabase = createClient();
       const code = `BRAND-${Date.now().toString(36).toUpperCase()}`;
-      const { data, error } = await supabase
-        .from("wid_card_brands")
-        .insert({
+      const crudRes = await crudCreate("wid_card_brands", {
           company_id: auth.profile.company_id,
           brand_code: code,
           name: "New branch brand",
@@ -104,10 +100,9 @@ export default function BrandingPage() {
           accent_color: "#f59e0b",
           watermark_text: "HOPE DESIGN",
           is_default: false,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes.ok) throw new Error(crudRes.error);
+      const data = crudRes.data as Record<string, unknown>;
       setSelected(data as Brand);
       toast.success("Brand created");
       await load();

@@ -13,6 +13,7 @@ import {
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function DevelopersPage() {
   const [routes, setRoutes] = useState<Array<Record<string, unknown>>>([]);
@@ -39,10 +40,11 @@ export default function DevelopersPage() {
   const downloadSdk = async (id: string, name: string) => {
     const supabase = createClient();
     const { data } = await supabase.from("intg_sdk_downloads").select("download_count").eq("id", id).single();
-    await supabase
-      .from("intg_sdk_downloads")
-      .update({ download_count: (data?.download_count || 0) + 1 })
-      .eq("id", id);
+    const crudRes = await crudUpdate("intg_sdk_downloads", id, { download_count: (data?.download_count || 0) + 1 });
+    if (!crudRes.ok) {
+      toast.error(crudRes.error || "Failed to record download");
+      return;
+    }
     toast.success(`SDK ${name} download counted`);
     const { data: s } = await supabase.from("intg_sdk_downloads").select("*");
     setSdks(s ?? []);

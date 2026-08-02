@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function BankPage() {
   const { auth } = useUser();
@@ -74,7 +75,7 @@ export default function BankPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("bank_accounts").insert({
+    const crudRes4 = await crudCreate("bank_accounts", {
       company_id: auth.profile.company_id,
       account_code: form.account_code,
       account_name: form.account_name,
@@ -84,7 +85,7 @@ export default function BankPage() {
       current_balance: Number(form.current_balance || 0),
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes4.ok) toast.error(crudRes4.error);
     else {
       toast.success("Bank account created");
       setOpen(false);
@@ -97,7 +98,7 @@ export default function BankPage() {
     if (!auth || !txnForm.bank_account_id) return;
     const amount = Number(txnForm.amount);
     const supabase = createClient();
-    const { error } = await supabase.from("bank_transactions").insert({
+    const crudRes3 = await crudCreate("bank_transactions", {
       company_id: auth.profile.company_id,
       bank_account_id: txnForm.bank_account_id,
       txn_date: new Date().toISOString().slice(0, 10),
@@ -108,8 +109,8 @@ export default function BankPage() {
       is_reconciled: false,
       created_by: auth.profile.id,
     });
-    if (error) {
-      toast.error(error.message);
+    if (!crudRes3.ok) {
+      toast.error(crudRes3.error);
       return;
     }
     const acc = accounts.find((a) => a.id === txnForm.bank_account_id);
@@ -117,10 +118,7 @@ export default function BankPage() {
     const delta = ["deposit", "interest"].includes(txnForm.txn_type)
       ? amount
       : -amount;
-    await supabase
-      .from("bank_accounts")
-      .update({ current_balance: bal + delta })
-      .eq("id", txnForm.bank_account_id);
+    const crudRes2 = await crudUpdate("bank_accounts", txnForm.bank_account_id, { current_balance: bal + delta });
     toast.success("Transaction posted");
     setTxnOpen(false);
     load();
@@ -128,14 +126,11 @@ export default function BankPage() {
 
   const reconcile = async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("bank_transactions")
-      .update({
+    const crudRes = await crudUpdate("bank_transactions", id, {
         is_reconciled: true,
         reconciled_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Reconciled");
       load();

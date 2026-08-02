@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { runRecurringSchedule } from "@/lib/billing";
 import { formatDate } from "@/lib/utils";
 
@@ -76,7 +77,7 @@ export default function RecurringBillingPage() {
     try {
       const supabase = createClient();
       const num = `REC-${new Date().getFullYear()}-${String(rows.length + 1).padStart(4, "0")}`;
-      const { error } = await supabase.from("bill_recurring_schedules").insert({
+      const crudRes = await crudCreate("bill_recurring_schedules", {
         company_id: auth.profile.company_id,
         schedule_number: num,
         customer_id: form.customer_id,
@@ -98,7 +99,7 @@ export default function RecurringBillingPage() {
         ],
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Recurring schedule created");
       setOpen(false);
       await load();

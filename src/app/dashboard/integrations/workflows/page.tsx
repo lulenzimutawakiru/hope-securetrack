@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { runWorkflow } from "@/lib/integration";
 
 export default function WorkflowsPage() {
@@ -60,7 +61,7 @@ export default function WorkflowsPage() {
       }
       const supabase = createClient();
       const code = `WF-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("intg_workflows").insert({
+      const crudRes = await crudCreate("intg_workflows", {
         company_id: auth.profile.company_id,
         workflow_code: code,
         name: form.name,
@@ -70,7 +71,7 @@ export default function WorkflowsPage() {
         is_active: true,
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Workflow created");
       setOpen(false);
       await load();

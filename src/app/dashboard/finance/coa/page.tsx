@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { softDeleteMany, restoreMany } from "@/lib/soft-delete";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const ACCOUNT_TYPES = [
   "asset",
@@ -98,17 +99,14 @@ export default function CoaPage() {
     if (!auth) return;
     const supabase = createClient();
     if (editId) {
-      const { error } = await supabase
-        .from("chart_of_accounts")
-        .update({
+      const crudRes2 = await crudUpdate("chart_of_accounts", editId, {
           account_name: form.account_name,
           account_type: form.account_type,
           normal_balance: form.normal_balance,
           reporting_group: form.reporting_group,
           is_postable: form.is_postable,
-        })
-        .eq("id", editId);
-      if (error) toast.error(error.message);
+        });
+      if (!crudRes2.ok) toast.error(crudRes2.error);
       else {
         toast.success("Account updated");
         setOpen(false);
@@ -116,7 +114,7 @@ export default function CoaPage() {
         load();
       }
     } else {
-      const { error } = await supabase.from("chart_of_accounts").insert({
+      const crudRes = await crudCreate("chart_of_accounts", {
         company_id: auth.profile.company_id,
         account_code: form.account_code,
         account_name: form.account_name,
@@ -127,7 +125,7 @@ export default function CoaPage() {
         is_active: true,
         created_by: auth.profile.id,
       });
-      if (error) toast.error(error.message);
+      if (!crudRes.ok) toast.error(crudRes.error);
       else {
         toast.success("Account created");
         setOpen(false);

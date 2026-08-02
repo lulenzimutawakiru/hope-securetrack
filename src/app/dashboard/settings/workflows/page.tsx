@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function WorkflowsSettingsPage() {
   const { auth } = useUser();
@@ -61,9 +62,7 @@ export default function WorkflowsSettingsPage() {
       return;
     }
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("approval_workflows")
-      .insert({
+    const crudRes2 = await crudCreate("approval_workflows", {
         company_id: auth.profile.company_id,
         workflow_code: form.workflow_code,
         name: form.name,
@@ -73,17 +72,16 @@ export default function WorkflowsSettingsPage() {
         department: form.department || null,
         steps,
         is_active: true,
-      })
-      .select("id")
-      .single();
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes2.ok) {
+      toast.error(crudRes2.error);
       return;
     }
+    const data = crudRes2.data as Record<string, unknown>;
     await supabase.from("config_change_log").insert({
       company_id: auth.profile.company_id,
       entity_type: "approval_workflow",
-      entity_id: data?.id,
+      entity_id: data?.id ? String(data.id) : null,
       action: "create",
       new_value: form.workflow_code,
       changed_by: auth.profile.id,
@@ -96,11 +94,8 @@ export default function WorkflowsSettingsPage() {
   const toggle = async (id: string, is_active: boolean) => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("approval_workflows")
-      .update({ is_active: !is_active, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("approval_workflows", id, { is_active: !is_active, updated_at: new Date().toISOString() });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       await supabase.from("config_change_log").insert({
         company_id: auth.profile.company_id,

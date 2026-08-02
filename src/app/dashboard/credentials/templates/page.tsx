@@ -12,6 +12,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { softDelete } from "@/lib/soft-delete";
 import type { WidTemplate } from "@/lib/workforce-id";
 
@@ -40,7 +41,7 @@ export default function TemplatesPage() {
     try {
       const supabase = createClient();
       const code = `${t.template_code}-COPY-${Date.now().toString(36).toUpperCase().slice(-4)}`;
-      const { error } = await supabase.from("wid_card_templates").insert({
+      const crudRes = await crudCreate("wid_card_templates", {
         company_id: auth.profile.company_id,
         brand_id: t.brand_id,
         template_code: code,
@@ -61,7 +62,7 @@ export default function TemplatesPage() {
         cloned_from: t.id,
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Template cloned");
       await load();
     } catch (err) {

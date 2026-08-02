@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { createIncidentFromAlert } from "@/lib/audit";
 
 export default function AuditAlertsPage() {
@@ -45,23 +46,17 @@ export default function AuditAlertsPage() {
   }, [filter]);
 
   const ack = async (id: string) => {
-    await createClient()
-      .from("eal_alerts")
-      .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes2 = await crudUpdate("eal_alerts", id, { status: "acknowledged", acknowledged_at: new Date().toISOString() });
     toast.success("Acknowledged");
     await load();
   };
 
   const resolve = async (id: string) => {
-    await createClient()
-      .from("eal_alerts")
-      .update({
+    const crudRes = await crudUpdate("eal_alerts", id, {
         status: "resolved",
         resolved_at: new Date().toISOString(),
         resolved_by: userId,
-      })
-      .eq("id", id);
+      });
     toast.success("Resolved");
     await load();
   };

@@ -25,6 +25,7 @@ import { useUser } from "@/hooks/use-user";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 interface Dispatch {
   id: string;
@@ -114,7 +115,7 @@ export default function DispatchPage() {
         .limit(1)
         .maybeSingle();
 
-      const { error } = await supabase.from("dispatches").insert({
+      const crudRes3 = await crudCreate("dispatches", {
         company_id: auth.profile.company_id,
         dispatch_number: num,
         sales_order_id: form.sales_order_id || null,
@@ -131,13 +132,10 @@ export default function DispatchPage() {
         notes: form.notes || null,
         dispatched_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
 
       if (form.sales_order_id) {
-        await supabase
-          .from("sales_orders")
-          .update({ status: "dispatched" })
-          .eq("id", form.sales_order_id);
+        const crudRes2 = await crudUpdate("sales_orders", form.sales_order_id, { status: "dispatched" });
       }
 
       toast.success(`Dispatch ${num} created`);
@@ -157,8 +155,8 @@ export default function DispatchPage() {
     if (status === "in_transit") {
       // also mark related inventory if needed later
     }
-    const { error } = await supabase.from("dispatches").update(updates).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("dispatches", id, updates);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Dispatch updated");
       load();

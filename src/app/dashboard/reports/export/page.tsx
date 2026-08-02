@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { downloadCsv } from "@/lib/documents";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const EXTRACTS = [
   { key: "kpis", label: "KPI register", table: "bi_kpis", cols: ["kpi_code", "name", "category", "target_value", "actual_value", "variance_pct", "trend", "owner_name"] },
@@ -43,7 +44,7 @@ export default function ExportCenterPage() {
       extract.cols,
       rows.map((r) => extract.cols.map((c) => (r[c] == null ? "" : String(r[c]))))
     );
-    await supabase.from("bi_report_runs").insert({
+    const crudRes = await crudCreate("bi_report_runs", {
       company_id: auth.profile.company_id,
       report_code: `EXPORT-${extract.key.toUpperCase()}`,
       run_by: auth.profile.id,

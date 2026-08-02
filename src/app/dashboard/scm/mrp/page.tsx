@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function MrpPage() {
   const { auth } = useUser();
@@ -72,24 +73,20 @@ export default function MrpPage() {
       .from("stock_balances")
       .select("product_id, quantity_on_hand, warehouse_id");
 
-    const { data: run, error } = await supabase
-      .from("mrp_runs")
-      .insert({
+    const crudRes5 = await crudCreate("mrp_runs", {
         company_id: auth.profile.company_id,
         run_code: code,
         horizon_days: 90,
         status: "completed",
         notes: "On-demand MRP from inventory netting",
         created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error || !run) {
-      toast.error(error?.message ?? "MRP failed");
+      });
+    if (!crudRes5.ok) {
+      toast.error(crudRes5.error ?? "MRP failed");
       setRunning(false);
       return;
     }
+    const run = crudRes5.data as Record<string, unknown>;
 
     let count = 0;
     for (const p of products ?? []) {
@@ -99,7 +96,7 @@ export default function MrpPage() {
       const safety = Number(p.safety_stock || p.reorder_level || 0);
       if (safety > 0 && onHand <= safety) {
         const qty = Number(p.reorder_qty || Math.max(safety * 2 - onHand, 1));
-        await supabase.from("mrp_recommendations").insert({
+        const crudRes4 = await crudCreate("mrp_recommendations", {
           mrp_run_id: run.id,
           company_id: auth.profile.company_id,
           product_id: p.id,
@@ -118,15 +115,12 @@ export default function MrpPage() {
       }
     }
 
-    await supabase
-      .from("mrp_runs")
-      .update({ recommendations_count: count })
-      .eq("id", run.id);
+    const crudRes3 = await crudUpdate("mrp_runs", String(run.id), { recommendations_count: count });
 
     toast.success(`MRP ${code}: ${count} recommendation(s)`);
     setRunning(false);
     load();
-    loadRecs(run.id);
+    loadRecs(String(run.id));
   };
 
   const releaseToPr = async (rec: Record<string, unknown>) => {
@@ -136,9 +130,7 @@ export default function MrpPage() {
     }
     const supabase = createClient();
     const num = `PR-MRP-${String(Date.now()).slice(-6)}`;
-    const { data: pr, error } = await supabase
-      .from("purchase_requisitions")
-      .insert({
+    const crudRes2 = await crudCreate("purchase_requisitions", {
         company_id: auth.profile.company_id,
         requisition_number: num,
         product_id: rec.product_id,
@@ -148,23 +140,18 @@ export default function MrpPage() {
         status: "submitted",
         priority: rec.priority,
         created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes2.ok) {
+      toast.error(crudRes2.error);
       return;
     }
+    const pr = crudRes2.data as Record<string, unknown>;
 
-    await supabase
-      .from("mrp_recommendations")
-      .update({
+    const crudRes = await crudUpdate("mrp_recommendations", String(rec.id), {
         status: "released",
         released_document_type: "purchase_requisition",
         released_document_id: pr?.id,
-      })
-      .eq("id", rec.id);
+      });
 
     toast.success(`Released to ${num}`);
     if (selectedRun) loadRecs(selectedRun);

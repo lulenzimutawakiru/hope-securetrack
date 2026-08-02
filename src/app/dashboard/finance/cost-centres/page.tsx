@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function CostCentresPage() {
   const { auth } = useUser();
@@ -50,7 +51,7 @@ export default function CostCentresPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("cost_centers").insert({
+    const crudRes = await crudCreate("cost_centers", {
       company_id: auth.profile.company_id,
       code: form.code,
       name: form.name,
@@ -58,7 +59,7 @@ export default function CostCentresPage() {
       department: form.department || null,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Cost centre created");
       setOpen(false);
@@ -72,7 +73,7 @@ export default function CostCentresPage() {
     <div>
       <PageHeader
         title="Cost Centres"
-        description="Cost · profit centres · department allocation · job costing foundation"
+        description="Cost Â· profit centres Â· department allocation Â· job costing foundation"
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">
@@ -165,7 +166,7 @@ export default function CostCentresPage() {
                   <TableCell className="capitalize">
                     {String(r.center_type)}
                   </TableCell>
-                  <TableCell>{String(r.department ?? "—")}</TableCell>
+                  <TableCell>{String(r.department ?? "â€”")}</TableCell>
                   <TableCell>
                     {r.is_active ? (
                       <Badge className="bg-green-100 text-green-800">Active</Badge>

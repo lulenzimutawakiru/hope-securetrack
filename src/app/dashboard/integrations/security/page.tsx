@@ -20,6 +20,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function IntegrationSecurityPage() {
   const { auth } = useUser();
@@ -56,7 +57,7 @@ export default function IntegrationSecurityPage() {
       const code = `SEC-${Date.now().toString(36).toUpperCase()}`;
       // Store as base64-ish placeholder "encrypted" value (server KMS in production)
       const value_encrypted = typeof btoa !== "undefined" ? btoa(form.value) : form.value;
-      const { error } = await supabase.from("intg_secrets").insert({
+      const crudRes = await crudCreate("intg_secrets", {
         company_id: auth.profile.company_id,
         secret_code: code,
         name: form.name,
@@ -65,7 +66,7 @@ export default function IntegrationSecurityPage() {
         is_active: true,
         rotated_at: new Date().toISOString(),
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Secret stored (encrypted at rest)");
       setOpen(false);
       setForm({ name: "", secret_type: "api_key", value: "" });

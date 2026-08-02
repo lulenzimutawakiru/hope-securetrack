@@ -8,6 +8,18 @@
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
 ## RLS business permission enforcement (2026-08-02, Phases 2-4)
+## Phase 10 (2026-08-03) - full CRUD migration of remaining business modules
+
+| Deliverable | Status |
+|------------|--------|
+| 199 additional entities registered in the CRUD registry (288 total) with permission-correct view/create/update/delete mappings | Live |
+| 158 dashboard pages migrated off direct browser Supabase writes onto `/api/v2/crud/[entity]` (290 mutation call sites converted) | Live |
+| Array / multi-row flows rewritten as per-row CRUD loops (contract milestones, project-entry invoicing, MES AI insights, BI assistant messages, RFQ award rejections, printer defaults) | Live |
+| Upsert removed in favor of fetch-or-create/update (`bi_kpi_snapshots`) | Live |
+| Only control-plane tables keep direct browser writes (`companies`, `user_profiles`, `user_sessions`, `qr_codes`, `config_change_log`) | By design |
+| Typecheck / vitest (163) / security suite (93) / readiness audit (0 issues) / production build | Green |
+
+
 
 Closes the data-layer RBAC gap: any authenticated company member could previously
 INSERT / UPDATE / DELETE business data directly through the browser client because

@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function ValuationPage() {
   const { auth } = useUser();
@@ -62,7 +63,7 @@ export default function ValuationPage() {
   const snapshot = async () => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("inventory_valuations").insert({
+    const crudRes = await crudCreate("inventory_valuations", {
       company_id: auth.profile.company_id,
       valuation_date: new Date().toISOString().slice(0, 10),
       method: "weighted_average",
@@ -71,7 +72,7 @@ export default function ValuationPage() {
       notes: "Manual valuation snapshot",
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Valuation snapshot saved");
       load();

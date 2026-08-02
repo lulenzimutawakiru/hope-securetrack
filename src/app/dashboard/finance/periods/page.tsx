@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function PeriodsPage() {
   const { auth } = useUser();
@@ -50,11 +51,8 @@ export default function PeriodsPage() {
       patch.closed_at = new Date().toISOString();
       patch.closed_by = auth?.profile.id;
     }
-    const { error } = await supabase
-      .from("fiscal_periods")
-      .update(patch)
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("fiscal_periods", id, patch);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Period ${status.replace(/_/g, " ")}`);
       load();
@@ -67,7 +65,7 @@ export default function PeriodsPage() {
     <div>
       <PageHeader
         title="Fiscal Periods"
-        description="Open · soft close · close · lock · reopen with approval"
+        description="Open Â· soft close Â· close Â· lock Â· reopen with approval"
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/dashboard/finance">Hub</Link>

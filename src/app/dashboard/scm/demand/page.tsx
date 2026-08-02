@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function DemandPlanningPage() {
   const { auth } = useUser();
@@ -68,7 +69,7 @@ export default function DemandPlanningPage() {
     if (!auth) return;
     const supabase = createClient();
     const code = `FC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const { error } = await supabase.from("demand_forecasts").insert({
+    const crudRes = await crudCreate("demand_forecasts", {
       company_id: auth.profile.company_id,
       forecast_code: code,
       product_id: form.product_id || null,
@@ -81,7 +82,7 @@ export default function DemandPlanningPage() {
       confidence_pct: 75,
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Forecast ${code} saved`);
       setOpen(false);

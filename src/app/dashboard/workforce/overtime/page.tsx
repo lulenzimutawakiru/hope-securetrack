@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function OvertimePage() {
   const { auth } = useUser();
@@ -69,7 +70,7 @@ export default function OvertimePage() {
       const rate = Number(emp?.hourly_rate || 15000);
       const cost = hours * rate * 1.5;
       const supabase = createClient();
-      const { error } = await supabase.from("overtime_requests").insert({
+      const crudRes2 = await crudCreate("overtime_requests", {
         company_id: auth.profile.company_id,
         employee_id: form.employee_id,
         work_date: form.work_date,
@@ -79,7 +80,7 @@ export default function OvertimePage() {
         estimated_cost: cost,
         status: "pending",
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Overtime submitted for approval");
       setOpen(false);
       load();
@@ -93,15 +94,12 @@ export default function OvertimePage() {
   const decide = async (id: string, status: "approved" | "rejected") => {
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("overtime_requests")
-      .update({
+    const crudRes = await crudUpdate("overtime_requests", id, {
         status,
         approved_by: auth.profile.id,
         approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Overtime ${status}`);
       load();

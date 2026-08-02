@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { nextPrtCode, createHighVolumeBatch } from "@/lib/print";
 
 export default function ProductLabelsPage() {
@@ -83,7 +84,7 @@ export default function ProductLabelsPage() {
         created_by: auth?.user?.id,
       });
 
-      await createClient().from("prt_product_label_jobs").insert({
+      const crudRes = await crudCreate("prt_product_label_jobs", {
         company_id: companyId,
         job_number,
         product_name: form.product_name,

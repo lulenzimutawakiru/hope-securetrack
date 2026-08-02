@@ -11,6 +11,7 @@ import {
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { formatBillNumber } from "@/lib/billing";
 
 type Seq = {
@@ -50,9 +51,7 @@ export default function BillingNumberingPage() {
   const save = async (row: Seq) => {
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("bill_sequences")
-        .update({
+      const crudRes = await crudUpdate("bill_sequences", row.id, {
           name: row.name,
           prefix: row.prefix,
           branch_code: row.branch_code,
@@ -63,22 +62,21 @@ export default function BillingNumberingPage() {
           check_digit: row.check_digit,
           separator: row.separator,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", row.id);
-      if (error) throw error;
+        });
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success(`${row.sequence_code} saved`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     }
   };
 
-  if (loading) return <LoadingState message="Loading sequences…" />;
+  if (loading) return <LoadingState message="Loading sequencesâ€¦" />;
 
   return (
     <div>
       <PageHeader
         title="Invoice Numbering Engine"
-        description="HDG-INV-2026-000001 · branch · year · month · sequence · check digit"
+        description="HDG-INV-2026-000001 Â· branch Â· year Â· month Â· sequence Â· check digit"
       />
       <div className="rounded-md border overflow-x-auto">
         <Table>

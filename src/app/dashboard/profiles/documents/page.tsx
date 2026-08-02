@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 type Doc = {
   id: string;
@@ -61,15 +62,12 @@ export default function ProfileDocumentsPage() {
   }, [filter]);
 
   const approve = async (id: string) => {
-    const { error } = await createClient()
-      .from("profile_documents")
-      .update({
+    const crudRes = await crudUpdate("profile_documents", id, {
         status: "active",
         approved_by: auth?.user?.id,
         approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Document approved");
       await load();

@@ -35,6 +35,7 @@ import { LabelCard } from "@/components/labels/label-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import type { LabelData } from "@/lib/labels";
 import { buildLabelQrValue } from "@/lib/verification";
 import type { ProductionBatch, QrCode } from "@/types/database";
@@ -237,7 +238,7 @@ export default function LabelsPage() {
       if (error) throw error;
 
       // Create print job record
-      await supabase.from("print_jobs").insert({
+      const crudRes = await crudCreate("print_jobs", {
         company_id: auth.profile.company_id,
         batch_id: batchId || null,
         job_type: "label_sheet",

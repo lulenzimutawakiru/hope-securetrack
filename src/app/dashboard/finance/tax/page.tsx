@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function TaxPage() {
   const { auth } = useUser();
@@ -51,7 +52,7 @@ export default function TaxPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("tax_codes").insert({
+    const crudRes2 = await crudCreate("tax_codes", {
       company_id: auth.profile.company_id,
       code: form.code,
       name: form.name,
@@ -59,7 +60,7 @@ export default function TaxPage() {
       rate: Number(form.rate),
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Tax code created");
       setOpen(false);
@@ -69,11 +70,8 @@ export default function TaxPage() {
 
   const toggle = async (id: string, is_active: boolean) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("tax_codes")
-      .update({ is_active: !is_active })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("tax_codes", id, { is_active: !is_active });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else load();
   };
 

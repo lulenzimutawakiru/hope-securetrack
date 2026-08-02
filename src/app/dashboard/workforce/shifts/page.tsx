@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 interface ShiftTemplate {
   id: string;
@@ -92,7 +93,7 @@ export default function ShiftsPage() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("shift_assignments").insert({
+      const crudRes = await crudCreate("shift_assignments", {
         company_id: auth.profile.company_id,
         employee_id: form.employee_id,
         shift_template_id: form.shift_template_id,
@@ -101,7 +102,7 @@ export default function ShiftsPage() {
         status: "scheduled",
         assigned_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Shift assigned");
       setOpen(false);
       load();

@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const CHANNELS = ["email", "sms", "push", "in_app", "whatsapp"];
 
@@ -134,18 +135,18 @@ export default function NotificationsSettingsPage() {
       is_active: true,
       updated_at: new Date().toISOString(),
     };
-    let error;
     if (editId) {
-      ({ error } = await supabase.from("notification_templates").update(payload).eq("id", editId));
+      const crudRes2 = await crudUpdate("notification_templates", editId, payload);
+      if (!crudRes2.ok) {
+        toast.error(crudRes2.error);
+        return;
+      }
     } else {
-      ({ error } = await supabase.from("notification_templates").insert({
-        ...payload,
-        company_id: auth.profile.company_id,
-      }));
-    }
-    if (error) {
-      toast.error(error.message);
-      return;
+      const crudRes2 = await crudCreate("notification_templates", payload);
+      if (!crudRes2.ok) {
+        toast.error(crudRes2.error);
+        return;
+      }
     }
     await supabase.from("config_change_log").insert({
       company_id: auth.profile.company_id,
@@ -162,11 +163,8 @@ export default function NotificationsSettingsPage() {
 
   const toggle = async (id: string, is_active: boolean) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("notification_templates")
-      .update({ is_active: !is_active })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("notification_templates", id, { is_active: !is_active });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else load();
   };
 

@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function HopeChatKnowledgePage() {
   const { auth } = useUser();
@@ -48,7 +49,7 @@ export default function HopeChatKnowledgePage() {
     if (!companyId) return;
     try {
       const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80);
-      const { error } = await createClient().from("hc_knowledge").insert({
+      const crudRes = await crudCreate("hc_knowledge", {
         company_id: companyId,
         title: form.title,
         slug,
@@ -57,7 +58,7 @@ export default function HopeChatKnowledgePage() {
         status: "published",
         author_id: userId,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Article published");
       setOpen(false);
       await load();

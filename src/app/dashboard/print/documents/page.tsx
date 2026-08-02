@@ -20,6 +20,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { enqueuePrint } from "@/lib/print";
 
 const DOC_TYPES = [
@@ -63,7 +64,7 @@ export default function PrintDocumentsPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("prt_document_profiles").insert({
+      const crudRes = await crudCreate("prt_document_profiles", {
         company_id: companyId,
         profile_code: form.profile_code.toUpperCase(),
         name: form.name,
@@ -73,7 +74,7 @@ export default function PrintDocumentsPage() {
         default_printer_id: form.default_printer_id || null,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Document profile created");
       setOpen(false);
       await load();

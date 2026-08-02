@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { SERVICE_TYPES } from "@/lib/service-desk";
 
 export default function TicketCategoriesPage() {
@@ -56,7 +57,7 @@ export default function TicketCategoriesPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("sd_categories").insert({
+      const crudRes = await crudCreate("sd_categories", {
         company_id: companyId,
         category_code: form.category_code.toUpperCase(),
         name: form.name,
@@ -65,7 +66,7 @@ export default function TicketCategoriesPage() {
         default_priority: form.default_priority,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Category created");
       setOpen(false);
       await load();

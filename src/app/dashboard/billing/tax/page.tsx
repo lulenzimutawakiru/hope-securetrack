@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 
 export default function BillingTaxPage() {
@@ -68,14 +69,14 @@ export default function BillingTaxPage() {
     if (!auth?.profile?.company_id) return;
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("bill_tax_codes").insert({
+      const crudRes = await crudCreate("bill_tax_codes", {
         company_id: auth.profile.company_id,
         tax_code: form.tax_code.toUpperCase(),
         name: form.name,
         tax_type: form.tax_type,
         rate: Number(form.rate),
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Tax code created");
       setOpen(false);
       await load();

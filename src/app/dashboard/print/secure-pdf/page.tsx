@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { nextPrtCode, generateSecureDocumentHtml, enqueuePrint } from "@/lib/print";
 
 export default function SecurePdfPage() {
@@ -69,9 +70,7 @@ export default function SecurePdfPage() {
           Code: pdf_code,
         },
       });
-      const { data, error } = await createClient()
-        .from("prt_secure_pdfs")
-        .insert({
+      const crudRes = await crudCreate("prt_secure_pdfs", {
           company_id: companyId,
           pdf_code,
           title: form.title,
@@ -84,10 +83,9 @@ export default function SecurePdfPage() {
           verification_code: gen.verificationCode,
           pages: 1,
           created_by: auth?.user?.id,
-        })
-        .select("*")
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes.ok) throw new Error(crudRes.error);
+      const data = crudRes.data as Record<string, unknown>;
 
       await enqueuePrint({
         company_id: companyId,

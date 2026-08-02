@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const TYPES = [
   "operational",
@@ -66,7 +67,7 @@ export default function BudgetsPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("budgets").insert({
+    const crudRes2 = await crudCreate("budgets", {
       company_id: auth.profile.company_id,
       budget_code: form.budget_code,
       name: form.name,
@@ -77,7 +78,7 @@ export default function BudgetsPage() {
       version: 1,
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Budget created");
       setOpen(false);
@@ -92,8 +93,8 @@ export default function BudgetsPage() {
       patch.approved_by = auth.profile.id;
       patch.approved_at = new Date().toISOString();
     }
-    const { error } = await supabase.from("budgets").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("budgets", id, patch);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Budget ${status}`);
       load();

@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function RfqPage() {
   const { auth } = useUser();
@@ -67,7 +68,7 @@ export default function RfqPage() {
     if (!auth) return;
     const supabase = createClient();
     const num = `RFQ-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const { error } = await supabase.from("rfqs").insert({
+    const crudRes3 = await crudCreate("rfqs", {
       company_id: auth.profile.company_id,
       rfq_number: num,
       title: form.title,
@@ -78,7 +79,7 @@ export default function RfqPage() {
       close_date: form.close_date || null,
       created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
       toast.success(`Published ${num}`);
       setOpen(false);
@@ -89,23 +90,22 @@ export default function RfqPage() {
   const award = async (quoteId: string, rfqId: string, supplierId: string) => {
     if (!auth) return;
     const supabase = createClient();
-    await supabase
+    const crudRes2 = await crudUpdate("supplier_quotations", quoteId, { status: "awarded" });
+    const { data: rejectedCandidates, error: rejectedErr } = await supabase
       .from("supplier_quotations")
-      .update({ status: "awarded" })
-      .eq("id", quoteId);
-    await supabase
-      .from("supplier_quotations")
-      .update({ status: "rejected" })
+      .select("id")
       .eq("rfq_id", rfqId)
       .neq("id", quoteId);
-    await supabase
-      .from("rfqs")
-      .update({
+    if (rejectedErr) throw new Error(rejectedErr.message);
+    for (const other of (rejectedCandidates ?? []) as Array<{ id: unknown }>) {
+      const crudRes4 = await crudUpdate("supplier_quotations", String(other.id), { status: "rejected" });
+      if (!crudRes4.ok) throw new Error(crudRes4.error);
+    }
+    const crudRes = await crudUpdate("rfqs", rfqId, {
         status: "awarded",
         awarded_supplier_id: supplierId,
         awarded_at: new Date().toISOString(),
-      })
-      .eq("id", rfqId);
+      });
     toast.success("RFQ awarded");
     load();
     loadQuotes(rfqId);

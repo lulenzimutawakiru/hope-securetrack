@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { createWorkOrder } from "@/lib/packaging";
 
 export default function PkgWorkOrdersPage() {
@@ -86,7 +87,7 @@ export default function PkgWorkOrdersPage() {
     const patch: Record<string, unknown> = { status };
     if (status === "completed") patch.completed_at = new Date().toISOString();
     if (status === "in_progress") patch.started_at = new Date().toISOString();
-    await createClient().from("pkg_work_orders").update(patch).eq("id", id);
+    const crudRes = await crudUpdate("pkg_work_orders", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

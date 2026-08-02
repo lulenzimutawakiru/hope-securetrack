@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function CommissionsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -48,11 +49,8 @@ export default function CommissionsPage() {
 
   const markPaid = async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("sales_commissions")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("sales_commissions", id, { status: "paid", paid_at: new Date().toISOString() });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Commission marked paid");
       load();

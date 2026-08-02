@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { printDocument } from "@/lib/documents";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const TYPES = [
   "board_paper",
@@ -90,9 +91,7 @@ export default function DocumentIntelligencePage() {
     const code = form.document_code.toUpperCase();
     const hash = simpleHash(`${code}|${form.title}|${form.version_number}|${Date.now()}`);
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("bi_intelligent_documents")
-      .insert({
+    const crudRes3 = await crudCreate("bi_intelligent_documents", {
         company_id: auth.profile.company_id,
         document_code: code,
         document_type: form.document_type,
@@ -110,15 +109,14 @@ export default function DocumentIntelligencePage() {
         approval_chain: [{ role: "Author", status: "pending" }],
         content: {},
         owner_id: auth.profile.id,
-      })
-      .select("id")
-      .single();
-    if (error) {
-      toast.error(error.message);
+      });
+    if (!crudRes3.ok) {
+      toast.error(crudRes3.error);
       return;
     }
+    const data = crudRes3.data as Record<string, unknown>;
     if (data) {
-      await supabase.from("bi_document_revisions").insert({
+      const crudRes2 = await crudCreate("bi_document_revisions", {
         company_id: auth.profile.company_id,
         document_id: data.id,
         version_number: form.version_number,
@@ -187,17 +185,14 @@ export default function DocumentIntelligencePage() {
           status: "approved",
         }))
       : [{ role: "Approver", status: "approved" }];
-    const { error } = await supabase
-      .from("bi_intelligent_documents")
-      .update({
+    const crudRes = await crudUpdate("bi_intelligent_documents", String(r.id), {
         status: "approved",
         approval_chain: chain,
         approved_by: auth.profile.id,
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", r.id);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Document approved");
       load();

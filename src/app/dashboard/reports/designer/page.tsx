@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const REPORT_TYPES = [
   "tabular",
@@ -67,7 +68,7 @@ export default function ReportDesignerPage() {
     }
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase.from("bi_report_definitions").insert({
+    const crudRes = await crudCreate("bi_report_definitions", {
       company_id: auth.profile.company_id,
       report_code: form.report_code.toUpperCase(),
       name: form.name,
@@ -83,7 +84,7 @@ export default function ReportDesignerPage() {
       owner_id: auth.profile.id,
     });
     setSaving(false);
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Report definition published");
       setForm((f) => ({

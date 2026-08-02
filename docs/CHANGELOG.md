@@ -1,4 +1,29 @@
 # Changelog
+## 2026-08-03 - Phase 10: full CRUD migration of remaining business modules
+
+### Entity registry
+
+- Registered 199 additional business entities in `src/lib/metadata/entity-registry.ts` (288 total) with permission-correct view/create/update/delete mappings across finance, fleet, projects/PPM, production/MES, attendance, payroll support, billing, procurement/SRM, CRM, service desk, reports/BI, inventory, HR, assets, audit, labels, print, communications, workforce, identity and settings
+- Every migrated page now writes through the hardened `/api/v2/crud/[entity]` surface (tenant/company derived from session, identity/lifecycle fields stripped, permission-checked, audited)
+
+### Pages migrated (158) ? browser Supabase writes ? CRUD API
+
+- Converted 290 direct `supabase.from(...).insert/update/upsert` call sites on 158 dashboard pages to `crudCreate` / `crudUpdate`
+- Array / multi-row flows rewritten as per-row CRUD loops with error propagation: `bill_contract_milestones` seeding (billing/contracts), `bill_project_entries` invoice flagging (billing/projects), `mes_ai_insights` generation (production/ai), `bi_assistant_messages` persistence (reports/assistant), `supplier_quotations` RFQ award rejections (procurement/rfq), `printers` default-printer clearing
+- Upsert removed where the CRUD engine keys by `id` only: `bi_kpi_snapshots` now fetch-or-create/update on `(kpi_id, snapshot_date)`
+- `notification_templates` / `document_sequences` settings saves moved to `crudCreate` / `crudUpdate` (config change logging stays a direct append-only write)
+
+### Remaining direct browser writes (by design)
+
+- Control-plane / identity tables only: `companies`, `user_profiles`, `user_sessions`, `qr_codes`, `config_change_log` (identity lifecycle and system config stay on the client-admin path; see entity-registry exclusions)
+
+### Validation
+
+- typecheck, vitest (163), security suite (93), production-readiness audit (0 issues) all green
+
+---
+
+
 
 ## 2026-08-03 - Observability, CRUD validation & defense-in-depth (Phase 9)
 

@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import {
   nextPrtCode, enqueuePrint, generateIdCardVars, defaultCanvas, renderLabelHtml,
 } from "@/lib/print";
@@ -82,7 +83,7 @@ export default function PrintIdCardsPage() {
         payload_json: { ...vars, card_type: form.card_type, front: true, back: true },
         submitted_by: auth?.user?.id,
       });
-      const { error } = await createClient().from("prt_id_card_jobs").insert({
+      const crudRes = await crudCreate("prt_id_card_jobs", {
         company_id: companyId,
         job_number,
         card_type: form.card_type,
@@ -99,7 +100,7 @@ export default function PrintIdCardsPage() {
         status: "printing",
         created_by: auth?.user?.id,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("ID card job queued (front + back layout)");
       setOpen(false);
       await load();

@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { createMaintenanceFromTag } from "@/lib/assets";
 
 export default function AssetMaintenancePage() {
@@ -76,14 +77,8 @@ export default function AssetMaintenancePage() {
   };
 
   const closeWo = async (id: string, assetId: string) => {
-    await createClient()
-      .from("ast_maintenance_links")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", id);
-    await createClient()
-      .from("ast_assets")
-      .update({ status: "active", updated_at: new Date().toISOString() })
-      .eq("id", assetId);
+    const crudRes2 = await crudUpdate("ast_maintenance_links", id, { status: "completed", completed_at: new Date().toISOString() });
+    const crudRes = await crudUpdate("ast_assets", assetId, { status: "active", updated_at: new Date().toISOString() });
     toast.success("Completed");
     await load();
   };

@@ -23,6 +23,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import {
   activateCredential,
   suspendCredential,
@@ -146,22 +147,19 @@ function CardsInner() {
       printCardHtml(html);
 
       const supabase = createClient();
-      await supabase
-        .from("wid_credentials")
-        .update({
+      const crudRes3 = await crudUpdate("wid_credentials", c.id, {
           status: c.status === "active" ? "active" : "printed",
           printed_at: new Date().toISOString(),
           print_count: (c.print_count || 0) + 1,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", c.id);
+        });
 
       if (auth?.profile?.company_id) {
         const { count } = await supabase
           .from("wid_print_jobs")
           .select("*", { count: "exact", head: true })
           .eq("company_id", auth.profile.company_id);
-        await supabase.from("wid_print_jobs").insert({
+        const crudRes2 = await crudCreate("wid_print_jobs", {
           company_id: auth.profile.company_id,
           credential_id: c.id,
           job_number: generateJobNumber((count ?? 0) + 1),
@@ -171,7 +169,7 @@ function CardsInner() {
           completed_at: new Date().toISOString(),
           requested_by: auth.profile.id,
         });
-        await supabase.from("wid_print_history").insert({
+        const crudRes = await crudCreate("wid_print_history", {
           company_id: auth.profile.company_id,
           credential_id: c.id,
           event_type: "printed",

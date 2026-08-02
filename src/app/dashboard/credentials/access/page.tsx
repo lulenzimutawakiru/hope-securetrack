@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import type { WidAccessZone, WidAccessProfile } from "@/lib/workforce-id";
 
 type Assignment = {
@@ -97,7 +98,7 @@ export default function AccessPage() {
     if (!auth?.profile?.company_id || !form.identity_id) return;
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("wid_access_assignments").insert({
+      const crudRes3 = await crudCreate("wid_access_assignments", {
         company_id: auth.profile.company_id,
         identity_id: form.identity_id,
         profile_id: form.grant_type === "profile" ? form.profile_id || null : null,
@@ -107,7 +108,7 @@ export default function AccessPage() {
         reason: "Manual assignment",
         assigned_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
       toast.success("Access assigned");
       setAssignOpen(false);
       await load();
@@ -118,10 +119,7 @@ export default function AccessPage() {
 
   const revoke = async (id: string) => {
     const supabase = createClient();
-    await supabase
-      .from("wid_access_assignments")
-      .update({ status: "revoked", updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes2 = await crudUpdate("wid_access_assignments", id, { status: "revoked", updated_at: new Date().toISOString() });
     toast.success("Access revoked");
     await load();
   };
@@ -132,7 +130,7 @@ export default function AccessPage() {
       return;
     }
     const supabase = createClient();
-    await supabase.from("wid_access_events").insert({
+    const crudRes = await crudCreate("wid_access_events", {
       company_id: auth.profile.company_id,
       identity_id: identities[0].id,
       zone_id: zones[0].id,

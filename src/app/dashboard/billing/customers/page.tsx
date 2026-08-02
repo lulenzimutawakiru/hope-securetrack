@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { ENTITY_TYPES } from "@/lib/billing";
 
 type Cust = {
@@ -88,7 +89,7 @@ export default function BillingCustomersPage() {
     try {
       const supabase = createClient();
       const code = form.code || `CUS-${String(rows.length + 1).padStart(4, "0")}`;
-      const { error } = await supabase.from("customers").insert({
+      const crudRes = await crudCreate("customers", {
         company_id: auth.profile.company_id,
         code,
         name: form.name,
@@ -109,7 +110,7 @@ export default function BillingCustomersPage() {
         country: form.country || "Uganda",
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Customer billing profile created");
       setOpen(false);
       await load();

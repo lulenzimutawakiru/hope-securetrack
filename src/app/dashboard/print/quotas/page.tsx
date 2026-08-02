@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function PrintQuotasPage() {
   const { auth } = useUser();
@@ -58,7 +59,7 @@ export default function PrintQuotasPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("prt_quotas").insert({
+      const crudRes = await crudCreate("prt_quotas", {
         company_id: companyId,
         scope_type: form.scope_type,
         scope_key: form.scope_key,
@@ -69,7 +70,7 @@ export default function PrintQuotasPage() {
         used_labels: 0,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Quota created");
       setOpen(false);
       await load();

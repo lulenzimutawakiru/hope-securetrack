@@ -25,6 +25,7 @@ import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function GrnPage() {
   const { auth } = useUser();
@@ -97,9 +98,7 @@ export default function GrnPage() {
     const unitCost = Number(form.unit_cost || product?.standard_cost || 0);
     const qty = Number(form.qty_received || 0);
 
-    const { data: grn, error } = await supabase
-      .from("goods_receipts")
-      .insert({
+    const crudRes2 = await crudCreate("goods_receipts", {
         company_id: auth.profile.company_id,
         grn_number: grnNumber,
         warehouse_id: form.warehouse_id,
@@ -110,16 +109,14 @@ export default function GrnPage() {
         notes: form.notes || null,
         received_by: auth.profile.id,
         created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (error || !grn) {
-      toast.error(error?.message ?? "Failed to create GRN");
+      });
+    if (!crudRes2.ok) {
+      toast.error(crudRes2.error ?? "Failed to create GRN");
       return;
     }
+    const grn = crudRes2.data as Record<string, unknown>;
 
-    const { error: lineErr } = await supabase.from("goods_receipt_lines").insert({
+    const crudRes = await crudCreate("goods_receipt_lines", {
       grn_id: grn.id,
       company_id: auth.profile.company_id,
       line_number: 1,
@@ -132,7 +129,7 @@ export default function GrnPage() {
       qc_status: "pending",
     });
 
-    if (lineErr) toast.error(lineErr.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Created ${grnNumber}`);
       setOpen(false);

@@ -20,6 +20,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function HardwarePage() {
   const { auth } = useUser();
@@ -51,7 +52,7 @@ export default function HardwarePage() {
     try {
       const supabase = createClient();
       const code = `HW-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("intg_hardware_devices").insert({
+      const crudRes = await crudCreate("intg_hardware_devices", {
         company_id: auth.profile.company_id,
         device_code: code,
         name: form.name,
@@ -62,7 +63,7 @@ export default function HardwarePage() {
         status: "online",
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Hardware registered");
       setOpen(false);
       await load();

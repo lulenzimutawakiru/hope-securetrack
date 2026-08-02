@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import {
   DYNAMIC_FIELDS,
   buildCardPrintHtml,
@@ -167,18 +168,15 @@ export default function DesignerPage() {
       if (templateId) {
         const current = templates.find((t) => t.id === templateId);
         const nextVersion = (current?.version || 1) + 1;
-        const { error } = await supabase
-          .from("wid_card_templates")
-          .update({
+        const crudRes3 = await crudUpdate("wid_card_templates", templateId, {
             name,
             category,
             design_json: design,
             version: nextVersion,
             updated_at: new Date().toISOString(),
-          })
-          .eq("id", templateId);
-        if (error) throw error;
-        await supabase.from("wid_template_versions").insert({
+          });
+        if (!crudRes3.ok) throw new Error(crudRes3.error);
+        const crudRes2 = await crudCreate("wid_template_versions", {
           company_id: auth.profile.company_id,
           template_id: templateId,
           version: nextVersion,
@@ -188,20 +186,17 @@ export default function DesignerPage() {
         });
         toast.success(`Saved v${nextVersion} — ${issues[0]}`);
       } else {
-        const { data, error } = await supabase
-          .from("wid_card_templates")
-          .insert({
+        const crudRes = await crudCreate("wid_card_templates", {
             company_id: auth.profile.company_id,
             template_code: code || `TPL-${Date.now().toString(36).toUpperCase()}`,
             name,
             category,
             design_json: design,
             created_by: auth.profile.id,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        setTemplateId(data.id);
+          });
+        if (!crudRes.ok) throw new Error(crudRes.error);
+        const data = crudRes.data as Record<string, unknown>;
+        setTemplateId(String(data.id));
         toast.success("Template created");
       }
       await load();

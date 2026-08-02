@@ -17,6 +17,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { createKnowledgeArticle, searchKnowledge } from "@/lib/service-desk";
 
 export default function KnowledgePage() {
@@ -99,7 +100,7 @@ export default function KnowledgePage() {
     const patch = yes
       ? { helpful_yes: Number(a.helpful_yes || 0) + 1 }
       : { helpful_no: Number(a.helpful_no || 0) + 1 };
-    await createClient().from("sd_knowledge_articles").update(patch).eq("id", id);
+    const crudRes2 = await crudUpdate("sd_knowledge_articles", id, patch);
     toast.success("Thanks for the feedback");
     await load();
   };
@@ -188,10 +189,7 @@ export default function KnowledgePage() {
                 type="button"
                 onClick={async () => {
                   setSelected(a);
-                  await createClient()
-                    .from("sd_knowledge_articles")
-                    .update({ view_count: Number(a.view_count || 0) + 1 })
-                    .eq("id", String(a.id));
+                  const crudRes = await crudUpdate("sd_knowledge_articles", String(a.id), { view_count: Number(a.view_count || 0) + 1 });
                 }}
                 className={`w-full text-left rounded-lg border p-3 hover:bg-muted/40 ${
                   selected && String(selected.id) === String(a.id) ? "border-primary bg-primary/5" : ""

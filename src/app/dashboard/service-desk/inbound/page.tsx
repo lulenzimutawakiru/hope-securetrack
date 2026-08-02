@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { convertInboundToTicket } from "@/lib/service-desk";
 import { formatDateTime } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ export default function InboundTicketsPage() {
   };
 
   const ignore = async (id: string) => {
-    await createClient().from("sd_inbound_items").update({ status: "ignored" }).eq("id", id);
+    const crudRes = await crudUpdate("sd_inbound_items", id, { status: "ignored" });
     toast.success("Ignored");
     await load();
   };

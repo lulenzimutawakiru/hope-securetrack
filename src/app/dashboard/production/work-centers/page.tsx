@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 type WC = {
   id: string;
@@ -72,7 +73,7 @@ export default function WorkCentersPage() {
     if (!companyId) return toast.error("No company");
     setSaving(true);
     try {
-      const { error } = await createClient().from("mes_work_centers").insert({
+      const crudRes = await crudCreate("mes_work_centers", {
         company_id: companyId,
         center_code: form.center_code,
         name: form.name,
@@ -85,7 +86,7 @@ export default function WorkCentersPage() {
         status: "available",
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Work center created");
       setOpen(false);
       await load();

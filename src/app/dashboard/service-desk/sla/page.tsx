@@ -18,6 +18,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function SlaPage() {
   const { auth } = useUser();
@@ -53,7 +54,7 @@ export default function SlaPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId) return;
-    const { error } = await createClient().from("sd_sla_policies").insert({
+    const crudRes = await crudCreate("sd_sla_policies", {
       company_id: companyId,
       policy_code: form.policy_code,
       name: form.name,
@@ -62,7 +63,7 @@ export default function SlaPage() {
       resolve_minutes: Number(form.resolve_minutes),
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("SLA policy created");
       setOpen(false);

@@ -16,6 +16,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { securityChecklist, buildSecurityOverlay, hashPayload } from "@/lib/print";
 
 export default function PrintSecurityPage() {
@@ -52,7 +53,7 @@ export default function PrintSecurityPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("prt_security_profiles").insert({
+      const crudRes = await crudCreate("prt_security_profiles", {
         company_id: companyId,
         profile_code: form.profile_code.toUpperCase(),
         name: form.name,
@@ -65,7 +66,7 @@ export default function PrintSecurityPage() {
         uv_placeholder: false,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Security profile created");
       setOpen(false);
       await load();

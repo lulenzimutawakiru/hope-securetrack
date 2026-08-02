@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function PkgRulesPage() {
   const { auth } = useUser();
@@ -55,7 +56,7 @@ export default function PkgRulesPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("pkg_product_rules").insert({
+      const crudRes = await crudCreate("pkg_product_rules", {
         company_id: companyId,
         product_name: form.product_name,
         product_code: form.product_code,
@@ -69,7 +70,7 @@ export default function PkgRulesPage() {
         instructions: form.instructions || null,
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Pack rule created");
       setOpen(false);
       await load();

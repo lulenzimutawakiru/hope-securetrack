@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const EXIT_TYPES = [
   "resignation",
@@ -73,7 +74,7 @@ export default function ExitPage() {
     if (!auth) return;
     const supabase = createClient();
     const num = `EXIT-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
-    const { error } = await supabase.from("employee_exits").insert({
+    const crudRes3 = await crudCreate("employee_exits", {
       company_id: auth.profile.company_id,
       exit_number: num,
       employee_id: form.employee_id,
@@ -84,7 +85,7 @@ export default function ExitPage() {
       status: "initiated",
       processed_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
       toast.success(`Exit ${num} opened`);
       setOpen(false);
@@ -109,16 +110,13 @@ export default function ExitPage() {
       patch.status = "completed";
       // Terminate employee
       if (row?.employee_id) {
-        await supabase
-          .from("employees")
-          .update({ status: "terminated", end_date: new Date().toISOString().slice(0, 10) })
-          .eq("id", row.employee_id as string);
+        const crudRes2 = await crudUpdate("employees", row.employee_id as string, { status: "terminated", end_date: new Date().toISOString().slice(0, 10) });
       }
     } else {
       patch.status = "in_progress";
     }
-    const { error } = await supabase.from("employee_exits").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("employee_exits", id, patch);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Clearance updated");
       load();

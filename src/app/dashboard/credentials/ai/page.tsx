@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import {
   generateCardDesign,
   analyzeDesign,
@@ -47,9 +48,7 @@ export default function AiDesignerPage() {
     try {
       const supabase = createClient();
       const code = `TPL-AI-${Date.now().toString(36).toUpperCase()}`;
-      const { data, error } = await supabase
-        .from("wid_card_templates")
-        .insert({
+      const crudRes2 = await crudCreate("wid_card_templates", {
           company_id: auth.profile.company_id,
           template_code: code,
           name: name || result.name,
@@ -59,11 +58,10 @@ export default function AiDesignerPage() {
           security_features: result.security_features,
           default_access_profile_code: result.default_access_profile_code,
           created_by: auth.profile.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await supabase.from("wid_ai_design_logs").insert({
+        });
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
+      const data = crudRes2.data as Record<string, unknown>;
+      const crudRes = await crudCreate("wid_ai_design_logs", {
         company_id: auth.profile.company_id,
         prompt,
         result_summary: result.description,

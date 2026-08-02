@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { evaluateAbac, explainAbac } from "@/lib/idm";
 
 export default function AbacPage() {
@@ -71,7 +72,7 @@ export default function AbacPage() {
       toast.error("Invalid conditions JSON");
       return;
     }
-    const { error } = await createClient().from("idm_abac_rules").insert({
+    const crudRes = await crudCreate("idm_abac_rules", {
       company_id: companyId,
       rule_code: form.rule_code,
       name: form.name,
@@ -82,7 +83,7 @@ export default function AbacPage() {
       priority: Number(form.priority) || 100,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("ABAC rule created");
       setOpen(false);

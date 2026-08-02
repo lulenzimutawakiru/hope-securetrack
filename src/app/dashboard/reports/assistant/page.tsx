@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 const SUGGESTIONS = [
   "Why did production efficiency decline last month?",
@@ -48,16 +49,17 @@ export default function AiAssistantPage() {
         return;
       }
       const supabase = createClient();
-      const { data } = await supabase
-        .from("bi_assistant_sessions")
-        .insert({
+      const crudRes = await crudCreate("bi_assistant_sessions", {
           company_id: auth.profile.company_id,
           user_id: auth.profile.id,
           title: "Executive session",
-        })
-        .select("id")
-        .single();
-      setSessionId(data?.id ?? null);
+        });
+      if (!crudRes.ok) {
+        setLoading(false);
+        return;
+      }
+      const data = crudRes.data as Record<string, unknown>;
+      setSessionId(data?.id ? String(data.id) : null);
       setLoading(false);
     }
     init();
@@ -122,15 +124,13 @@ export default function AiAssistantPage() {
     setMessages((m) => [...m, assistantMsg]);
 
     if (sessionId) {
-      await supabase.from("bi_assistant_messages").insert([
+      const messagesToSave = [
         {
-          company_id: auth.profile.company_id,
           session_id: sessionId,
           role: "user",
           content: question.trim(),
         },
         {
-          company_id: auth.profile.company_id,
           session_id: sessionId,
           role: "assistant",
           content,
@@ -138,7 +138,11 @@ export default function AiAssistantPage() {
           confidence: matched ? 0.82 : 0.4,
           sources: matched?.data_hooks ?? [],
         },
-      ]);
+      ];
+      for (const msg of messagesToSave) {
+        const crudRes2 = await crudCreate("bi_assistant_messages", msg);
+        if (!crudRes2.ok) toast.error(crudRes2.error);
+      }
     }
     setBusy(false);
   };

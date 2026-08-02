@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { testConnection } from "@/lib/integration";
 
 export default function ConnectionsPage() {
@@ -61,7 +62,7 @@ export default function ConnectionsPage() {
     try {
       const supabase = createClient();
       const code = `CONN-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("intg_connections").insert({
+      const crudRes2 = await crudCreate("intg_connections", {
         company_id: auth.profile.company_id,
         connector_id: form.connector_id,
         connection_code: code,
@@ -72,7 +73,7 @@ export default function ConnectionsPage() {
         is_enabled: true,
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Connection created");
       setOpen(false);
       await load();
@@ -94,14 +95,11 @@ export default function ConnectionsPage() {
 
   const toggle = async (row: Record<string, unknown>) => {
     const supabase = createClient();
-    await supabase
-      .from("intg_connections")
-      .update({
+    const crudRes = await crudUpdate("intg_connections", String(row.id), {
         is_enabled: !row.is_enabled,
         status: row.is_enabled ? "disabled" : row.status === "disabled" ? "draft" : row.status,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
+      });
     toast.success(row.is_enabled ? "Disabled" : "Enabled");
     await load();
   };

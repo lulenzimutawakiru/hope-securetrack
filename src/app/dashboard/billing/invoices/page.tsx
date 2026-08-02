@@ -26,6 +26,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import {
   INVOICE_TYPES,
   PAYMENT_METHODS,
@@ -237,15 +238,12 @@ export default function BillingInvoicesPage() {
   const markSent = async (inv: Inv) => {
     try {
       const supabase = createClient();
-      await supabase
-        .from("invoices")
-        .update({
+      const crudRes3 = await crudUpdate("invoices", inv.id, {
           sent_at: new Date().toISOString(),
           sent_via: "email",
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", inv.id);
-      await supabase.from("bill_delivery_logs").insert({
+        });
+      const crudRes2 = await crudCreate("bill_delivery_logs", {
         company_id: auth?.profile?.company_id,
         invoice_id: inv.id,
         channel: "email",
@@ -378,15 +376,12 @@ export default function BillingInvoicesPage() {
   const voidInv = async (id: string) => {
     if (!confirm("Void this invoice?")) return;
     const supabase = createClient();
-    await supabase
-      .from("invoices")
-      .update({
+    const crudRes = await crudUpdate("invoices", id, {
         status: "void",
         voided_at: new Date().toISOString(),
         void_reason: "Voided from billing console",
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+      });
     toast.success("Invoice voided");
     await load();
   };

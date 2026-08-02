@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function IdentityApprovalsPage() {
   const { auth } = useUser();
@@ -55,7 +56,7 @@ export default function IdentityApprovalsPage() {
     if (!auth) return;
     const unlimited = form.is_unlimited === "true";
     const supabase = createClient();
-    const { error } = await supabase.from("approval_authority").insert({
+    const crudRes = await crudCreate("approval_authority", {
       company_id: auth.profile.company_id,
       document_type: form.document_type,
       max_amount: unlimited ? null : parseFloat(form.max_amount),
@@ -63,7 +64,7 @@ export default function IdentityApprovalsPage() {
       is_unlimited: unlimited,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Authority rule added");
       setOpen(false);

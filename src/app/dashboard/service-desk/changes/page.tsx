@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { CHANGE_TYPES, createChange, approveChange } from "@/lib/service-desk";
 
 export default function ChangesPage() {
@@ -72,7 +73,7 @@ export default function ChangesPage() {
   };
 
   const submitCab = async (id: string) => {
-    await createClient().from("sd_changes").update({ status: "cab_review" }).eq("id", id);
+    const crudRes3 = await crudUpdate("sd_changes", id, { status: "cab_review" });
     toast.success("Submitted to CAB");
     await load();
   };
@@ -195,10 +196,7 @@ export default function ChangesPage() {
                         size="sm"
                         variant="outline"
                         onClick={async () => {
-                          await createClient()
-                            .from("sd_changes")
-                            .update({ status: "implementing" })
-                            .eq("id", String(r.id));
+                          const crudRes2 = await crudUpdate("sd_changes", String(r.id), { status: "implementing" });
                           toast.success("Implementing");
                           await load();
                         }}
@@ -210,13 +208,10 @@ export default function ChangesPage() {
                       <Button
                         size="sm"
                         onClick={async () => {
-                          await createClient()
-                            .from("sd_changes")
-                            .update({
+                          const crudRes = await crudUpdate("sd_changes", String(r.id), {
                               status: "implemented",
                               implemented_at: new Date().toISOString(),
-                            })
-                            .eq("id", String(r.id));
+                            });
                           toast.success("Implemented");
                           await load();
                         }}

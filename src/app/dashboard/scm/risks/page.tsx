@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const CATEGORIES = [
   "supplier",
@@ -66,7 +67,7 @@ export default function ScmRisksPage() {
     if (!auth) return;
     const supabase = createClient();
     const code = `RSK-${String(Date.now()).slice(-6)}`;
-    const { error } = await supabase.from("supply_chain_risks").insert({
+    const crudRes2 = await crudCreate("supply_chain_risks", {
       company_id: auth.profile.company_id,
       risk_code: code,
       title: form.title,
@@ -76,7 +77,7 @@ export default function ScmRisksPage() {
       mitigation_plan: form.mitigation_plan || null,
       status: "open",
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Risk registered");
       setOpen(false);
@@ -86,11 +87,8 @@ export default function ScmRisksPage() {
 
   const setStatus = async (id: string, status: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("supply_chain_risks")
-      .update({ status })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("supply_chain_risks", id, { status });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success(`Marked ${status}`);
       load();

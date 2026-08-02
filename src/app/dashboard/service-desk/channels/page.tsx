@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function ChannelsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -29,7 +30,7 @@ export default function ChannelsPage() {
   }, []);
 
   const toggle = async (id: string, active: boolean) => {
-    await createClient().from("sd_channels").update({ is_active: !active }).eq("id", id);
+    const crudRes = await crudUpdate("sd_channels", id, { is_active: !active });
     toast.success(active ? "Channel disabled" : "Channel enabled");
     await load();
   };

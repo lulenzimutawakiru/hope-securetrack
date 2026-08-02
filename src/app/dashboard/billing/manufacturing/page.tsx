@@ -15,6 +15,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { createInvoice } from "@/lib/billing";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -106,17 +107,14 @@ export default function ManufacturingBillingPage() {
         created_by: auth.profile.id,
       });
 
-      await supabase
-        .from("invoices")
-        .update({
+      const crudRes3 = await crudUpdate("invoices", inv.id, {
           dispatch_id: d.id,
           batch_numbers: batch || null,
           warranty_note: warranty || null,
           production_order_ref: String(d.production_order_ref || d.dispatch_number),
-        })
-        .eq("id", inv.id);
+        });
 
-      await supabase.from("bill_delivery_links").insert({
+      const crudRes2 = await crudCreate("bill_delivery_links", {
         company_id: auth.profile.company_id,
         dispatch_id: d.id,
         sales_order_id: d.sales_order_id || null,
@@ -130,7 +128,7 @@ export default function ManufacturingBillingPage() {
 
       // link reverse on dispatch if column allows
       try {
-        await supabase.from("dispatches").update({ invoice_id: inv.id }).eq("id", d.id);
+        const crudRes = await crudUpdate("dispatches", String(d.id), { invoice_id: inv.id });
       } catch {
         /* optional */
       }

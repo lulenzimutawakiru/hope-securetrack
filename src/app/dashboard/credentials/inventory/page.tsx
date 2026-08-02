@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 
 type Inv = {
@@ -76,7 +77,7 @@ export default function CardInventoryPage() {
     try {
       const qty = Number(form.quantity_received) || 0;
       const supabase = createClient();
-      const { error } = await supabase.from("wid_card_inventory").insert({
+      const crudRes2 = await crudCreate("wid_card_inventory", {
         company_id: auth.profile.company_id,
         batch_number: form.batch_number || `BATCH-${Date.now()}`,
         card_type: form.card_type,
@@ -88,7 +89,7 @@ export default function CardInventoryPage() {
         location_name: form.location_name || null,
         status: "available",
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Stock batch recorded");
       setOpen(false);
       await load();
@@ -100,14 +101,11 @@ export default function CardInventoryPage() {
   const markDamaged = async (row: Inv) => {
     if (row.quantity_available < 1) return;
     const supabase = createClient();
-    await supabase
-      .from("wid_card_inventory")
-      .update({
+    const crudRes = await crudUpdate("wid_card_inventory", row.id, {
         quantity_available: row.quantity_available - 1,
         quantity_damaged: (row.quantity_damaged || 0) + 1,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
+      });
     toast.success("1 card marked damaged");
     await load();
   };

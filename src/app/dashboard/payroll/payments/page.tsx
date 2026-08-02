@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function PayPaymentsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -46,11 +47,8 @@ export default function PayPaymentsPage() {
   };
 
   const confirm = async (id: string) => {
-    const { error } = await createClient()
-      .from("pay_payment_batches")
-      .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("pay_payment_batches", id, { status: "confirmed", confirmed_at: new Date().toISOString() });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Payment confirmed");
       await load();

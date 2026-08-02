@@ -18,6 +18,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function AutomationPage() {
   const { auth } = useUser();
@@ -58,7 +59,7 @@ export default function AutomationPage() {
       toast.error("Invalid JSON in conditions or actions");
       return;
     }
-    const { error } = await createClient().from("sd_automations").insert({
+    const crudRes2 = await crudCreate("sd_automations", {
       company_id: companyId,
       name: form.name,
       trigger_event: form.trigger_event,
@@ -66,7 +67,7 @@ export default function AutomationPage() {
       actions,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Automation created");
       setOpen(false);
@@ -75,7 +76,7 @@ export default function AutomationPage() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await createClient().from("sd_automations").update({ is_active: !active }).eq("id", id);
+    const crudRes = await crudUpdate("sd_automations", id, { is_active: !active });
     toast.success(active ? "Disabled" : "Enabled");
     await load();
   };

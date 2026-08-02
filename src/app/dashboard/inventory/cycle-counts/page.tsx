@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function CycleCountsPage() {
   const { auth } = useUser();
@@ -70,22 +71,19 @@ export default function CycleCountsPage() {
     if (!auth || !whId) return;
     const supabase = createClient();
     const num = `CC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const { data: cc, error } = await supabase
-      .from("cycle_counts")
-      .insert({
+    const crudRes7 = await crudCreate("cycle_counts", {
         company_id: auth.profile.company_id,
         count_number: num,
         warehouse_id: whId,
         status: "counting",
         notes,
         created_by: auth.profile.id,
-      })
-      .select("id")
-      .single();
-    if (error || !cc) {
-      toast.error(error?.message ?? "Failed");
+      });
+    if (!crudRes7.ok) {
+      toast.error(crudRes7.error ?? "Failed");
       return;
     }
+    const cc = crudRes7.data as Record<string, unknown>;
 
     const { data: bals } = await supabase
       .from("stock_balances")
@@ -94,22 +92,22 @@ export default function CycleCountsPage() {
       .limit(50);
 
     if (bals?.length) {
-      await supabase.from("cycle_count_lines").insert(
-        bals.map((b) => ({
+      for (const b of bals) {
+        const crudRes6 = await crudCreate("cycle_count_lines", {
           cycle_count_id: cc.id,
           company_id: auth.profile.company_id,
           product_id: b.product_id,
           bin_id: b.bin_id,
           batch_number: b.batch_number,
           system_qty: b.quantity_on_hand,
-        }))
-      );
+        });
+      }
     }
 
     toast.success(`Cycle count ${num} started`);
     setOpen(false);
     load();
-    loadLines(cc.id);
+    loadLines(String(cc.id));
   };
 
   const saveCount = async (lineId: string, counted: number) => {
@@ -119,16 +117,13 @@ export default function CycleCountsPage() {
     const system = Number(line.system_qty || 0);
     const variance = counted - system;
     const supabase = createClient();
-    const { error } = await supabase
-      .from("cycle_count_lines")
-      .update({
+    const crudRes5 = await crudUpdate("cycle_count_lines", lineId, {
         counted_qty: counted,
         variance,
         counted_by: auth.profile.id,
         counted_at: new Date().toISOString(),
-      })
-      .eq("id", lineId);
-    if (error) toast.error(error.message);
+      });
+    if (!crudRes5.ok) toast.error(crudRes5.error);
     else {
       toast.success(variance === 0 ? "Count matches" : `Variance ${variance > 0 ? "+" : ""}${variance}`);
       if (selected) loadLines(selected);
@@ -149,9 +144,7 @@ export default function CycleCountsPage() {
     const cc = counts.find((c) => c.id === id);
     if (varLines?.length && cc) {
       const adjNum = `ADJ-CC-${String(Date.now()).slice(-6)}`;
-      const { data: adj } = await supabase
-        .from("stock_adjustments")
-        .insert({
+      const crudRes4 = await crudCreate("stock_adjustments", {
           company_id: auth.profile.company_id,
           adjustment_number: adjNum,
           warehouse_id: cc.warehouse_id,
@@ -161,13 +154,13 @@ export default function CycleCountsPage() {
           approved_by: auth.profile.id,
           approved_at: new Date().toISOString(),
           created_by: auth.profile.id,
-        })
-        .select("id")
-        .single();
+        });
+      if (!crudRes4.ok) throw new Error(crudRes4.error);
+      const adj = crudRes4.data as Record<string, unknown>;
 
       if (adj) {
         for (const vl of varLines) {
-          await supabase.from("stock_adjustment_lines").insert({
+          const crudRes3 = await crudCreate("stock_adjustment_lines", {
             adjustment_id: adj.id,
             company_id: auth.profile.company_id,
             product_id: vl.product_id,
@@ -187,26 +180,20 @@ export default function CycleCountsPage() {
               .maybeSingle();
             if (bal) {
               const newQty = Number(vl.counted_qty);
-              await supabase
-                .from("stock_balances")
-                .update({
+              const crudRes2 = await crudUpdate("stock_balances", bal.id, {
                   quantity_on_hand: newQty,
                   total_value: newQty * Number(bal.unit_cost || 0),
-                })
-                .eq("id", bal.id);
+                });
             }
           }
         }
       }
     }
 
-    await supabase
-      .from("cycle_counts")
-      .update({
+    const crudRes = await crudUpdate("cycle_counts", id, {
         status: "completed",
         completed_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+      });
 
     toast.success("Cycle count completed; variances posted");
     load();

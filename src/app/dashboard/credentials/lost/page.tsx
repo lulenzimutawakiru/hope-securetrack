@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import {
   generateIncidentNumber,
   issueCredential,
@@ -98,7 +99,7 @@ export default function LostStolenPage() {
         .from("wid_card_incidents")
         .select("*", { count: "exact", head: true })
         .eq("company_id", auth.profile.company_id);
-      const { error } = await supabase.from("wid_card_incidents").insert({
+      const crudRes4 = await crudCreate("wid_card_incidents", {
         company_id: auth.profile.company_id,
         credential_id: form.credential_id,
         identity_id: cred.identity_id,
@@ -108,7 +109,7 @@ export default function LostStolenPage() {
         reported_by: auth.profile.id,
         status: "reported",
       });
-      if (error) throw error;
+      if (!crudRes4.ok) throw new Error(crudRes4.error);
       toast.success("Incident reported — proceed through approval workflow");
       setOpen(false);
       await load();
@@ -144,13 +145,10 @@ export default function LostStolenPage() {
           inc.credential_id,
           `${inc.incident_type} — disabled via incident ${inc.incident_number}`
         );
-        await supabase
-          .from("wid_credentials")
-          .update({
+        const crudRes3 = await crudUpdate("wid_credentials", inc.credential_id, {
             status: inc.incident_type === "stolen" ? "stolen" : inc.incident_type === "damaged" ? "damaged" : "lost",
             updated_at: new Date().toISOString(),
-          })
-          .eq("id", inc.credential_id);
+          });
       }
       if (next === "replacement_issued") {
         const newCred = await issueCredential(supabase, {
@@ -162,18 +160,15 @@ export default function LostStolenPage() {
           created_by: auth.profile.id,
           auto_queue_print: true,
         });
-        await supabase
-          .from("wid_credentials")
-          .update({ replacement_of: inc.credential_id })
-          .eq("id", newCred.id);
+        const crudRes2 = await crudUpdate("wid_credentials", newCred.id, { replacement_of: inc.credential_id });
         patch.replacement_credential_id = newCred.id;
       }
       if (next === "closed") {
         patch.closed_at = new Date().toISOString();
       }
 
-      const { error } = await supabase.from("wid_card_incidents").update(patch).eq("id", inc.id);
-      if (error) throw error;
+      const crudRes = await crudUpdate("wid_card_incidents", inc.id, patch);
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success(`Advanced to ${next.replace(/_/g, " ")}`);
       await load();
     } catch (err) {

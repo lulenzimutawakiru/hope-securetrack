@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 import { RETENTION_PRESETS } from "@/lib/audit";
 
 export default function AuditRetentionPage() {
@@ -53,14 +54,14 @@ export default function AuditRetentionPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("eal_retention_policies").insert({
+      const crudRes = await crudCreate("eal_retention_policies", {
         company_id: companyId,
         name: form.name,
         module_scope: form.module_scope,
         retention_days: Number(form.retention_days),
         is_active: true,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Retention policy created");
       setOpen(false);
       await load();

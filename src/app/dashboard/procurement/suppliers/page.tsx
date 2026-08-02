@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 type SupplierRow = {
   id: string;
@@ -70,7 +71,7 @@ export default function SuppliersPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("suppliers").insert({
+    const crudRes = await crudCreate("suppliers", {
       company_id: auth.profile.company_id,
       code: form.code,
       name: form.name,
@@ -81,7 +82,7 @@ export default function SuppliersPage() {
       is_approved_vendor: false,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Supplier created");
       setOpen(false);
@@ -116,7 +117,7 @@ export default function SuppliersPage() {
         header: "Category",
         cell: ({ getValue }) => (
           <span className="capitalize text-sm">
-            {String(getValue() ?? "—").replace(/_/g, " ")}
+            {String(getValue() ?? "â€”").replace(/_/g, " ")}
           </span>
         ),
       },
@@ -147,7 +148,7 @@ export default function SuppliersPage() {
                     : "border-green-300 text-green-700"
               }
             >
-              {String(getValue() ?? "—")}
+              {String(getValue() ?? "â€”")}
             </Badge>
           );
         },
@@ -180,7 +181,7 @@ export default function SuppliersPage() {
     <div className="space-y-4">
       <PageHeader
         title="Suppliers"
-        description="Enterprise grid · vendor master · risk · OTD · export"
+        description="Enterprise grid Â· vendor master Â· risk Â· OTD Â· export"
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">
@@ -256,11 +257,11 @@ export default function SuppliersPage() {
         storageKey="grid:suppliers"
         height={520}
         exportFilename="suppliers"
-        emptyMessage="No suppliers — add approved vendors"
+        emptyMessage="No suppliers â€” add approved vendors"
       />
       <p className="text-caption flex items-center gap-1">
         <Users className="h-3 w-3" />
-        Pin Code column · save filter presets · bulk export CSV
+        Pin Code column Â· save filter presets Â· bulk export CSV
       </p>
     </div>
   );

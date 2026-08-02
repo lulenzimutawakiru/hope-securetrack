@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function QueuePage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -34,10 +35,7 @@ export default function QueuePage() {
 
   const requeue = async (id: string) => {
     const supabase = createClient();
-    await supabase
-      .from("intg_queue_messages")
-      .update({ status: "queued", attempts: 0, error_message: null, available_at: new Date().toISOString() })
-      .eq("id", id);
+    const crudRes2 = await crudUpdate("intg_queue_messages", id, { status: "queued", attempts: 0, error_message: null, available_at: new Date().toISOString() });
     toast.success("Re-queued");
     await load();
   };
@@ -55,14 +53,11 @@ export default function QueuePage() {
       toast.message("Queue empty");
       return;
     }
-    await supabase
-      .from("intg_queue_messages")
-      .update({
+    const crudRes = await crudUpdate("intg_queue_messages", msg.id, {
         status: "done",
         attempts: (msg.attempts || 0) + 1,
         locked_at: new Date().toISOString(),
-      })
-      .eq("id", msg.id);
+      });
     toast.success(`Processed ${msg.message_type}`);
     await load();
   };

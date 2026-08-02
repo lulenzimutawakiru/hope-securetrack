@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function RegulatoryPage() {
   const { auth } = useUser();
@@ -49,7 +50,7 @@ export default function RegulatoryPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("bi_regulatory_packages").insert({
+    const crudRes3 = await crudCreate("bi_regulatory_packages", {
       company_id: auth.profile.company_id,
       package_code: form.package_code.toUpperCase(),
       name: form.name,
@@ -64,7 +65,7 @@ export default function RegulatoryPage() {
       ],
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
       toast.success("Package created");
       setOpen(false);
@@ -74,11 +75,8 @@ export default function RegulatoryPage() {
 
   const markFiled = async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("bi_regulatory_packages")
-      .update({ last_filed_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes2 = await crudUpdate("bi_regulatory_packages", id, { last_filed_at: new Date().toISOString() });
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Marked filed");
       load();
@@ -92,11 +90,8 @@ export default function RegulatoryPage() {
     if (!checklist[index]) return;
     checklist[index] = { ...checklist[index], done: !checklist[index].done };
     const supabase = createClient();
-    const { error } = await supabase
-      .from("bi_regulatory_packages")
-      .update({ checklist })
-      .eq("id", pkg.id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("bi_regulatory_packages", String(pkg.id), { checklist });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else load();
   };
 

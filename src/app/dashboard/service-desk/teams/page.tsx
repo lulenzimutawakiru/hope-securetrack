@@ -21,6 +21,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function TeamsPage() {
   const { auth } = useUser();
@@ -55,7 +56,7 @@ export default function TeamsPage() {
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId) return;
-    const { error } = await createClient().from("sd_teams").insert({
+    const crudRes2 = await crudCreate("sd_teams", {
       company_id: companyId,
       team_code: form.team_code,
       name: form.name,
@@ -63,7 +64,7 @@ export default function TeamsPage() {
       categories: form.categories.split(",").map((s) => s.trim()).filter(Boolean),
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Team created");
       setOpen(false);
@@ -75,7 +76,7 @@ export default function TeamsPage() {
     e.preventDefault();
     if (!companyId) return;
     const user = users.find((u) => u.id === agentForm.user_id);
-    const { error } = await createClient().from("sd_agents").insert({
+    const crudRes = await crudCreate("sd_agents", {
       company_id: companyId,
       user_id: agentForm.user_id,
       team_id: agentForm.team_id || null,
@@ -85,7 +86,7 @@ export default function TeamsPage() {
       is_available: true,
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Agent registered");
       setAgentOpen(false);

@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { runMrpForOrder } from "@/lib/mes";
 
 type Sug = {
@@ -78,11 +79,8 @@ export default function MrpPage() {
   };
 
   const closeSug = async (id: string) => {
-    const { error } = await createClient()
-      .from("mes_mrp_suggestions")
-      .update({ status: "closed" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("mes_mrp_suggestions", id, { status: "closed" });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Suggestion closed");
       await load();

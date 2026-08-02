@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default function RevenuePage() {
@@ -62,9 +63,7 @@ export default function RevenuePage() {
       const end = new Date();
       end.setMonth(end.getMonth() + months);
       const supabase = createClient();
-      const { data: sch, error } = await supabase
-        .from("bill_revenue_schedules")
-        .insert({
+      const crudRes3 = await crudCreate("bill_revenue_schedules", {
           company_id: auth.profile.company_id,
           invoice_id: inv.id,
           customer_id: inv.customer_id,
@@ -75,14 +74,13 @@ export default function RevenuePage() {
           end_date: end.toISOString().slice(0, 10),
           recognition_method: "straight_line",
           status: "open",
-        })
-        .select()
-        .single();
-      if (error) throw error;
+        });
+      if (!crudRes3.ok) throw new Error(crudRes3.error);
+      const sch = crudRes3.data as Record<string, unknown>;
 
       // post first period entry
       const monthly = Number(inv.total_amount) / months;
-      await supabase.from("bill_revenue_entries").insert({
+      const crudRes2 = await crudCreate("bill_revenue_entries", {
         company_id: auth.profile.company_id,
         schedule_id: sch.id,
         period_label: start.toISOString().slice(0, 7),
@@ -90,10 +88,7 @@ export default function RevenuePage() {
         amount: monthly,
         status: "posted",
       });
-      await supabase
-        .from("bill_revenue_schedules")
-        .update({ recognized_amount: monthly })
-        .eq("id", sch.id);
+      const crudRes = await crudUpdate("bill_revenue_schedules", String(sch.id), { recognized_amount: monthly });
 
       toast.success("Revenue schedule created");
       setOpen(false);

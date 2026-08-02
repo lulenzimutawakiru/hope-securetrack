@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function AuditSessionsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
@@ -33,13 +34,10 @@ export default function AuditSessionsPage() {
   }, []);
 
   const terminate = async (id: string) => {
-    await createClient()
-      .from("eal_sessions")
-      .update({
+    const crudRes = await crudUpdate("eal_sessions", id, {
         status: "terminated",
         logout_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+      });
     toast.success("Session terminated");
     await load();
   };

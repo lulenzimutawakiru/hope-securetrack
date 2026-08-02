@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 
 export default function CreditPage() {
   const { auth } = useUser();
@@ -49,11 +50,8 @@ export default function CreditPage() {
 
   const setCreditStatus = async (id: string, credit_status: string) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("customers")
-      .update({ credit_status })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes3 = await crudUpdate("customers", id, { credit_status });
+    if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
       toast.success("Credit status updated");
       load();
@@ -63,20 +61,14 @@ export default function CreditPage() {
   const decideReview = async (id: string, decision: string, orderId?: string) => {
     if (!auth) return;
     const supabase = createClient();
-    await supabase
-      .from("credit_reviews")
-      .update({ decision, reviewed_by: auth.profile.id })
-      .eq("id", id);
+    const crudRes2 = await crudUpdate("credit_reviews", id, { decision, reviewed_by: auth.profile.id });
     if (decision === "approved" && orderId) {
-      await supabase
-        .from("sales_orders")
-        .update({
+      const crudRes = await crudUpdate("sales_orders", orderId, {
           credit_approved: true,
           credit_approved_by: auth.profile.id,
           credit_approved_at: new Date().toISOString(),
           status: "confirmed",
-        })
-        .eq("id", orderId);
+        });
     }
     toast.success(`Credit ${decision}`);
     load();

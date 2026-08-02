@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { AUTOMATION_EVENTS, firePrintAutomation } from "@/lib/print";
 
 export default function PrintAutomationPage() {
@@ -62,7 +63,7 @@ export default function PrintAutomationPage() {
     e.preventDefault();
     if (!companyId) return;
     try {
-      const { error } = await createClient().from("prt_automation_rules").insert({
+      const crudRes2 = await crudCreate("prt_automation_rules", {
         company_id: companyId,
         rule_code: form.rule_code.toUpperCase(),
         name: form.name,
@@ -72,7 +73,7 @@ export default function PrintAutomationPage() {
         is_active: true,
         priority: 5,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Automation rule created");
       setOpen(false);
       await load();
@@ -102,7 +103,7 @@ export default function PrintAutomationPage() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await createClient().from("prt_automation_rules").update({ is_active: !active }).eq("id", id);
+    const crudRes = await crudUpdate("prt_automation_rules", id, { is_active: !active });
     await load();
   };
 

@@ -25,6 +25,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import type { FraudAlert } from "@/types/database";
 
 export default function FraudPage() {
@@ -59,8 +60,8 @@ export default function FraudPage() {
     if (status === "resolved" || status === "dismissed") {
       updates.resolved_at = new Date().toISOString();
     }
-    const { error } = await supabase.from("fraud_alerts").update(updates).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("fraud_alerts", id, updates);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Alert updated");
       load();

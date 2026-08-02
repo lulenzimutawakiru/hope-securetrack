@@ -12,6 +12,7 @@ import {
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { formatIdentityNumber } from "@/lib/workforce-id";
 
 type Seq = {
@@ -52,9 +53,7 @@ export default function NumberingPage() {
   const save = async (row: Seq) => {
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("wid_id_sequences")
-        .update({
+      const crudRes = await crudUpdate("wid_id_sequences", row.id, {
           name: row.name,
           prefix: row.prefix,
           category_code: row.category_code,
@@ -67,9 +66,8 @@ export default function NumberingPage() {
           separator: row.separator,
           is_active: row.is_active,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", row.id);
-      if (error) throw error;
+        });
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success(`${row.sequence_code} saved`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");

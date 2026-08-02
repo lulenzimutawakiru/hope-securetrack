@@ -16,6 +16,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate } from "@/lib/api/crud-client";
 
 export default function GpsPage() {
   const { auth } = useUser();
@@ -47,7 +48,7 @@ export default function GpsPage() {
       const lat = 0.3476 + (Math.random() - 0.5) * 0.05;
       const lng = 32.5825 + (Math.random() - 0.5) * 0.05;
       const supabase = createClient();
-      const { error } = await supabase.from("intg_gps_positions").insert({
+      const crudRes = await crudCreate("intg_gps_positions", {
         company_id: auth.profile.company_id,
         vehicle_code: vehicle,
         latitude: lat,
@@ -56,7 +57,7 @@ export default function GpsPage() {
         fuel_pct: 20 + Math.random() * 70,
         heading: Math.random() * 360,
       });
-      if (error) throw error;
+      if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("GPS position recorded");
       setOpen(false);
       await load();

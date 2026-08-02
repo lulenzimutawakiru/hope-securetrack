@@ -45,6 +45,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import type { PrintJob, ProductionBatch } from "@/types/database";
 
 export default function PrintingPage() {
@@ -89,7 +90,7 @@ export default function PrintingPage() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("print_jobs").insert({
+      const crudRes2 = await crudCreate("print_jobs", {
         company_id: auth.profile.company_id,
         batch_id: form.batchId,
         job_type: "batch",
@@ -98,7 +99,7 @@ export default function PrintingPage() {
         total_labels: parseInt(form.totalLabels, 10),
         created_by: auth.profile.id,
       });
-      if (error) throw error;
+      if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Print job created — open Label Studio to print");
       setOpen(false);
       load();
@@ -114,8 +115,8 @@ export default function PrintingPage() {
     const updates: Record<string, unknown> = { status };
     if (status === "printing") updates.started_at = new Date().toISOString();
     if (status === "completed") updates.completed_at = new Date().toISOString();
-    const { error } = await supabase.from("print_jobs").update(updates).eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("print_jobs", id, updates);
+    if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Job updated");
       load();

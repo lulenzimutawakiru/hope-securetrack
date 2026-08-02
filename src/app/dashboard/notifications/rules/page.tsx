@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 export default function NotificationRulesPage() {
   const { auth } = useUser();
@@ -56,7 +57,7 @@ export default function NotificationRulesPage() {
     e.preventDefault();
     if (!auth) return;
     const supabase = createClient();
-    const { error } = await supabase.from("notification_rules").insert({
+    const crudRes2 = await crudCreate("notification_rules", {
       company_id: auth.profile.company_id,
       rule_code: form.rule_code.toUpperCase(),
       name: form.name,
@@ -70,7 +71,7 @@ export default function NotificationRulesPage() {
       audience: { roles: ["super_administrator"] },
       is_active: true,
     });
-    if (error) toast.error(error.message);
+    if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success("Rule created");
       setOpen(false);
@@ -80,11 +81,8 @@ export default function NotificationRulesPage() {
 
   const toggle = async (id: string, is_active: boolean) => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("notification_rules")
-      .update({ is_active: !is_active, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
+    const crudRes = await crudUpdate("notification_rules", id, { is_active: !is_active, updated_at: new Date().toISOString() });
+    if (!crudRes.ok) toast.error(crudRes.error);
     else load();
   };
 
