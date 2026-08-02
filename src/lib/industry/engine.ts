@@ -3,8 +3,6 @@
  * Provides constants and helpers to initialise a tenant for a specific sector.
  */
 
-import { ENTITY_REGISTRY } from "@/lib/metadata/entity-registry";
-
 export interface IndustryTemplate {
   name: string;
   description: string;
