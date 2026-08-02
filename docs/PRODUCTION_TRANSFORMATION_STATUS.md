@@ -20,7 +20,16 @@ permissive `*_all` policies were gated only by `company_id = user_company_id()`.
 | Phase 4: 164 finance/payroll/HR/CRM/sales/procurement/billing/service-desk tables | Live `20260801000004` |
 | RESTRICTIVE write policies (INSERT/UPDATE/DELETE) gated on `has_any_permission` or super admin; ANDs with migration-71 tenant isolation | Live |
 | SELECT stays open to company members for the client UI | Live |
-| Static RLS contract tests (250 tables, 750 policies, verified slugs) | Live `tests/security/rls-permission-gates.test.ts` |
+| Static RLS contract tests (519 tables, 1,557 policies, verified slugs, all four migrations) | Live `tests/security/rls-permission-gates.test.ts` |
+
+## RLS business permission enforcement (2026-08-02, Phase 5)
+
+| Deliverable | Status |
+|-------------|--------|
+| Phase 5: 269 asset tracking / digital identity / underwriting / SRM / reporting / print / labels / packaging / communications + shared org/inventory/SCM/HR/dispatch/SD catalog/workflow tables | Live `20260801000005` |
+| RESTRICTIVE write policies (INSERT/UPDATE/DELETE) gated on `has_any_permission` or super admin; ANDs with migration-71 tenant isolation | Live |
+| SELECT stays open to company members for the client UI | Live |
+| Static RLS contract tests extended to all four migrations (519 tables, 1,557 policies) | Live `tests/security/rls-permission-gates.test.ts` |
 
 ## Enterprise Hardening Layer (2026-07-30)
 

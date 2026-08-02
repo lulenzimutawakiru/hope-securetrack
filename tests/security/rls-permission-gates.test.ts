@@ -720,3 +720,492 @@ describe("RLS permission enforcement migration part 3 (finance/payroll/hr/crm/sa
     }
   });
 });
+
+/**
+ * Phase 5 - RLS business permission enforcement part 4 (static contract).
+ *
+ * Verifies supabase/migrations/20260801000005_rls_business_permission_enforcement_part4.sql
+ * extends the hardening to the remaining ERP modules: asset tracking, digital
+ * identity, underwriting, supplier relationship management, business
+ * intelligence / reporting, the remaining finance & accounting tables,
+ * print / labels / packaging, communications, and the shared org / inventory /
+ * SCM / HR / dispatch / SD catalog / workflow support tables. Same guarantees as
+ * Phases 2-4: RESTRICTIVE write policies (INSERT / UPDATE / DELETE) gated on
+ * module permissions or super admin, SELECT stays open to company members, and
+ * every permission slug is verified against the live permissions catalog.
+ */
+const MIGRATION_PART4 = resolve(
+  process.cwd(),
+  "supabase/migrations/20260801000005_rls_business_permission_enforcement_part4.sql"
+);
+
+const sqlPart4 = readFileSync(MIGRATION_PART4, "utf8");
+
+/** Every table hardened in Phase 5 (269 tables x 3 write actions = 807 policies). */
+const HARDENED_TABLES_PART4 = [
+  // Asset Tracking
+  "ast_assets",
+  "ast_categories",
+  "ast_assignments",
+  "ast_locations",
+  "ast_documents",
+  "ast_identifiers",
+  "ast_number_sequences",
+  "ast_tag_templates",
+  "ast_maintenance_links",
+  "ast_audits",
+  "ast_audit_lines",
+  "ast_events",
+  "ast_alerts",
+  // Digital Identity
+  "di_org_units",
+  "di_lifecycle_events",
+  "di_provision_templates",
+  "di_provision_jobs",
+  "di_provision_checklist",
+  "di_job_sequences",
+  "di_sync_rules",
+  "di_clearance_assignments",
+  "di_clearance_matrix",
+  "di_id_card_templates",
+  "di_id_cards",
+  "di_biometric_profiles",
+  "di_biometric_devices",
+  "di_document_vault",
+  "di_asset_assignments",
+  "di_approval_routes",
+  // Underwriting
+  "uw_persons",
+  "uw_person_links",
+  "uw_module_entitlements",
+  "uw_identity_events",
+  "uw_upid_sequences",
+  "uw_merge_log",
+  // Supplier Relationship Management
+  "srm_categories",
+  "srm_contacts",
+  "srm_onboarding",
+  "srm_documents",
+  "srm_timeline",
+  "srm_quality_inspections",
+  "srm_ncrs",
+  "srm_scorecards",
+  "srm_risks",
+  "srm_communications",
+  "srm_portal_requests",
+  "srm_rfq_evaluations",
+  "srm_match_logs",
+  "srm_registry_items",
+  "srm_registry_approvals",
+  "srm_material_lots",
+  "srm_trace_links",
+  "srm_compliance_items",
+  "srm_demand_forecasts",
+  "srm_capacity_confirmations",
+  "srm_delivery_slots",
+  "srm_collab_documents",
+  "srm_procurement_savings",
+  // Business Intelligence / Reporting
+  "bi_dashboards",
+  "bi_dashboard_widgets",
+  "bi_kpis",
+  "bi_kpi_snapshots",
+  "bi_report_definitions",
+  "bi_report_runs",
+  "bi_report_schedules",
+  "bi_report_shares",
+  "bi_report_approvals",
+  "bi_analytics_models",
+  "bi_data_marts",
+  "bi_dwh_objects",
+  "bi_chart_catalog",
+  "bi_document_jobs",
+  "bi_document_revisions",
+  "bi_intelligent_documents",
+  "bi_forecast_results",
+  "bi_regulatory_packages",
+  "bi_service_registry",
+  // Finance / Accounting
+  "fin_banks",
+  "fin_bank_statements",
+  "fin_account_groups",
+  "fin_ap_credit_notes",
+  "fin_ap_debit_notes",
+  "fin_ar_debit_notes",
+  "fin_approvals",
+  "fin_asset_capitalizations",
+  "fin_asset_disposals",
+  "fin_asset_impairments",
+  "fin_asset_revaluations",
+  "fin_asset_transfers",
+  "fin_budget_revisions",
+  "fin_budget_templates",
+  "fin_budget_variance",
+  "fin_business_units",
+  "fin_cash_counts",
+  "fin_cash_forecasts",
+  "fin_cip",
+  "fin_close_adjustments",
+  "fin_close_checklists",
+  "fin_collections",
+  "fin_corporate_tax",
+  "fin_cost_rolls",
+  "fin_cost_variances",
+  "fin_costing_methods",
+  "fin_currency_translation",
+  "fin_customer_statements",
+  "fin_deferred_revenue",
+  "fin_dimension_values",
+  "fin_dimensions",
+  "fin_electronic_payments",
+  "fin_elimination_entries",
+  "fin_excise_duty",
+  "fin_expense_claims",
+  "fin_export_revenue",
+  "fin_forecasts",
+  "fin_government_contracts",
+  "fin_group_consolidation",
+  "fin_guarantees",
+  "fin_import_duty",
+  "fin_intercompany_txns",
+  "fin_internal_controls",
+  "fin_inventory_adjustments",
+  "fin_inventory_valuation",
+  "fin_investments",
+  "fin_journal_templates",
+  "fin_leases",
+  "fin_letters_of_credit",
+  "fin_liquidity",
+  "fin_loans",
+  "fin_mobile_money_txns",
+  "fin_payment_plans",
+  "fin_payment_runs",
+  "fin_payroll_journals",
+  "fin_period_locks",
+  "fin_petty_cash",
+  "fin_policies",
+  "fin_posting_batches",
+  "fin_posting_rules",
+  "fin_production_profitability",
+  "fin_profit_centers",
+  "fin_project_billing",
+  "fin_project_costs",
+  "fin_project_profitability",
+  "fin_reconciliations",
+  "fin_recurring_invoices",
+  "fin_recurring_journals",
+  "fin_revenue_recognition",
+  "fin_risk_register",
+  "fin_settings",
+  "fin_sod_rules",
+  "fin_standard_costs",
+  "fin_stock_revaluations",
+  "fin_subscription_revenue",
+  "fin_supplier_recon",
+  "fin_supplier_statements",
+  "fin_tax_calendar",
+  "fin_tax_jurisdictions",
+  "fin_trial_balance",
+  "fin_wip",
+  "fin_withholding_tax",
+  "fiscal_years",
+  // ERP
+  "fiscal_periods",
+  // Finance / Accounting
+  "fixed_assets",
+  // Inventory / SCM
+  "goods_receipts",
+  "goods_receipt_lines",
+  "inventory_inspections",
+  "inventory_valuations",
+  // SCM / Supplier Management
+  "scm_sustainability",
+  "supplier_scorecards",
+  "supply_chain_risks",
+  // HR / Workforce
+  "hr_cases",
+  "labor_cost_entries",
+  "employee_skills",
+  "employee_objectives",
+  "employee_assets",
+  "employee_exits",
+  "job_requisitions",
+  "job_applicants",
+  "skill_catalog",
+  // Production / MRP
+  "mrp_runs",
+  "mrp_recommendations",
+  "production_machines",
+  "demand_forecasts",
+  // Inventory / SCM
+  "cycle_counts",
+  "cycle_count_lines",
+  "cartons",
+  "reams",
+  // Sales / CRM
+  "retailers",
+  "distributors",
+  // Production / MRP
+  "factories",
+  // Org / Settings
+  "branches",
+  // Finance / Accounting
+  "exchange_rates",
+  // Settings
+  "erp_modules",
+  // Settings / Sequences
+  "document_sequences",
+  // Workflow
+  "approval_authority",
+  "approval_workflows",
+  "wf_instances",
+  // Security / Workflow
+  "sec_dual_control_requests",
+  // Dispatch / Field
+  "dispatches",
+  "field_jobs",
+  // Sales / CRM
+  "sales_call_logs",
+  "sales_competitors",
+  // Service Desk Catalog
+  "sd_catalog_categories",
+  "sd_catalog_items",
+  "sd_catalog_requests",
+  // Print
+  "printers",
+  "prt_designs",
+  "prt_templates",
+  "prt_servers",
+  "prt_server_printers",
+  "prt_batches",
+  "prt_rules",
+  "prt_automation_rules",
+  "prt_schedules",
+  "prt_security_profiles",
+  "prt_department_access",
+  "prt_quotas",
+  "prt_id_card_jobs",
+  "prt_product_label_jobs",
+  "prt_media",
+  "prt_document_profiles",
+  "prt_consumables",
+  "prt_barcode_presets",
+  "prt_inventory_labels",
+  "prt_secure_pdfs",
+  // Labels
+  "lbl_barcodes",
+  "lbl_batches",
+  "lbl_categories",
+  "lbl_compliance",
+  "lbl_documents",
+  "lbl_fields",
+  "lbl_formats",
+  "lbl_gs1",
+  "lbl_instances",
+  "lbl_jobs",
+  "lbl_materials",
+  "lbl_pallet",
+  "lbl_printer_profiles",
+  "lbl_reprints",
+  "lbl_rules",
+  "lbl_security",
+  "lbl_settings",
+  "lbl_shelf",
+  "lbl_shipping",
+  "lbl_stock",
+  "lbl_templates",
+  "lbl_variables",
+  // Packaging
+  "pkg_carton_sizes",
+  "pkg_lines",
+  "pkg_material_issues",
+  "pkg_materials",
+  "pkg_packing_lists",
+  "pkg_pallet_cartons",
+  "pkg_pallets",
+  "pkg_product_rules",
+  "pkg_qc_checks",
+  "pkg_rule_materials",
+  "pkg_sessions",
+  "pkg_weights",
+  "pkg_work_orders",
+  // Communications
+  "comm_announcements",
+  "comm_campaigns",
+  "comm_document_jobs",
+  "comm_event_rules",
+  "comm_messages",
+  "comm_providers",
+  "comm_reminders",
+  "comm_schedules",
+  "comm_sequences",
+  "comm_templates",
+] as const;
+
+/** Permission slugs verified against the live permissions catalog. */
+const VERIFIED_SLUGS_PART4 = [
+  "ast.assign",
+  "ast.audit",
+  "ast.manage",
+  "ast.print",
+  "billing.projects",
+  "billing.recurring",
+  "comm.admin",
+  "comm.broadcast",
+  "comm.manage",
+  "comm.templates",
+  "crm.manage",
+  "di.admin",
+  "di.biometrics",
+  "di.cards",
+  "di.clearance",
+  "di.manage",
+  "di.org",
+  "di.provision",
+  "dispatch.manage",
+  "ec.risk",
+  "finance.admin",
+  "finance.approve",
+  "finance.bank",
+  "finance.close",
+  "finance.consolidate",
+  "finance.costing",
+  "finance.fpa",
+  "finance.manage",
+  "finance.post",
+  "finance.tax",
+  "finance.treasury",
+  "hr.manage",
+  "hr.performance",
+  "hr.recruit",
+  "iam.manage",
+  "inventory.adjust",
+  "inventory.grn",
+  "inventory.manage",
+  "inventory.qc",
+  "inventory.valuation",
+  "lbl.admin",
+  "lbl.approve",
+  "lbl.design",
+  "lbl.manage",
+  "lbl.print",
+  "lbl.security",
+  "mes.manage",
+  "mes.planning",
+  "payroll.costing",
+  "payroll.manage",
+  "pkg.approve",
+  "pkg.manage",
+  "pkg.operate",
+  "ppm.finance",
+  "print.admin",
+  "print.design",
+  "print.manage",
+  "print.operate",
+  "print.security",
+  "procurement.manage",
+  "production.manage",
+  "products.manage",
+  "reports.assistant",
+  "reports.dashboards",
+  "reports.documents",
+  "reports.dwh",
+  "reports.export",
+  "reports.intelligence",
+  "reports.kpis",
+  "reports.manage",
+  "reports.regulatory",
+  "reports.schedule",
+  "sales.forecast",
+  "sales.manage",
+  "scm.manage",
+  "scm.risk",
+  "sd.manage",
+  "sd.portal",
+  "security.admin",
+  "settings.manage",
+  "settings.sequences",
+  "settings.workflows",
+  "srm.admin",
+  "srm.approve",
+  "srm.contracts",
+  "srm.manage",
+  "srm.portal",
+  "srm.quality",
+  "uw.admin",
+  "uw.manage",
+  "uw.merge",
+  "wfm.field",
+  "workflow.manage",
+] as const;
+
+describe("RLS permission enforcement migration part 4 (ast/di/uw/srm/bi/fin/print/lbl/pkg/comm/support)", () => {
+  it("exists and is non-trivial", () => {
+    expect(sqlPart4.length).toBeGreaterThan(10_000);
+  });
+
+  it("hardens every module table with write policies", () => {
+    for (const table of HARDENED_TABLES_PART4) {
+      for (const action of WRITE_ACTIONS) {
+        const policy = `${table}_write_restrict_${action}`;
+        expect(
+          sqlPart4,
+          `${policy} must be defined for ${table}`
+        ).toContain(`CREATE POLICY ${policy} ON ${table}`);
+        expect(
+          sqlPart4,
+          `${policy} must be RESTRICTIVE`
+        ).toContain(
+          `CREATE POLICY ${policy} ON ${table} AS RESTRICTIVE FOR ${action.toUpperCase()}`
+        );
+      }
+    }
+  });
+
+  it("defines exactly 807 write policies (269 tables x 3 actions)", () => {
+    const created =
+      sqlPart4.match(/CREATE POLICY \w+_write_restrict_(insert|update|delete) ON \w+/g) ?? [];
+    expect(created.length).toBe(HARDENED_TABLES_PART4.length * WRITE_ACTIONS.length);
+    // No duplicate CREATE statements for the same policy name
+    expect(new Set(created).size).toBe(created.length);
+    // Drop-first convention: every CREATE has a matching DROP IF EXISTS
+    const dropped =
+      sqlPart4.match(/DROP POLICY IF EXISTS \w+_write_restrict_(insert|update|delete) ON \w+/g) ?? [];
+    expect(dropped.length).toBe(created.length);
+  });
+
+  it("keeps SELECT open to company members (no restrictive SELECT gate)", () => {
+    expect(sqlPart4.match(/AS RESTRICTIVE FOR SELECT/i)).toBeNull();
+  });
+
+  it("gates writes on module permissions or super admin", () => {
+    const policyBodies = sqlPart4.match(/CREATE POLICY \w+_write_restrict_\w+[\s\S]*?;/g) ?? [];
+    expect(policyBodies.length).toBe(HARDENED_TABLES_PART4.length * WRITE_ACTIONS.length);
+    for (const body of policyBodies) {
+      expect(
+        body,
+        `write policy must enforce permission: ${body.slice(0, 120)}`
+      ).toMatch(/is_super_admin\(\)|has_any_permission\(/);
+    }
+  });
+
+  it("uses only permission slugs verified against the live catalog", () => {
+    const slugRe = /'([a-z]+\.[a-z]+)'/g;
+    const found = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = slugRe.exec(sqlPart4)) !== null) {
+      found.add(match[1]);
+    }
+    expect(found.size).toBeGreaterThan(20);
+    const verified = new Set<string>(VERIFIED_SLUGS_PART4);
+    for (const slug of found) {
+      expect(verified.has(slug), `unverified slug ${slug}`).toBe(true);
+    }
+  });
+
+  it("does not reference permission slugs absent from the live catalog", () => {
+    for (const banned of ["sales.approve", "hr.admin", "hr.delete", "finance.tax.manage"]) {
+      expect(sqlPart4, `banned slug ${banned}`).not.toContain(`'${banned}'`);
+    }
+  });
+});

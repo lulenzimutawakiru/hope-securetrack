@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-02 - RLS business permission enforcement (Phase 5)
+
+### Database / RLS
+- Migration `20260801000005` - RESTRICTIVE write policies on 269 asset tracking, digital identity, underwriting, supplier relationship management, business intelligence / reporting, remaining finance & accounting, print / labels / packaging, communications and shared org / inventory / SCM / HR / dispatch / SD catalog / workflow support tables
+- Every write policy is gated on module permissions (`public.has_any_permission`) or `super_administrator`, ANDs with the migration-71 `tenant_isolation_restrict` policy; SELECT stays open to company members for the client UI
+
+### Tests
+- `tests/security/rls-permission-gates.test.ts` - static contract extended to all four migrations (519 hardened tables, 1,557 write policies total), every permission slug verified against the live catalog
+
+---
+
 ## 2026-08-02 - RLS business permission enforcement (Phases 2-4)
 
 ### Database / RLS
