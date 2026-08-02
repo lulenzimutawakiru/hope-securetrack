@@ -13,7 +13,7 @@ $$ language plpgsql;
 -- Profiles table (linked to Supabase auth.users)
 create table if not exists profiles (
   id uuid not null primary key references auth.users(id) on delete cascade,
-  tenant_id uuid not null default (auth.jwt() ->> 'tenant_id')::uuid,
+  tenant_id uuid,
   company_id uuid,
   first_name text,
   last_name text,
@@ -30,7 +30,7 @@ create table if not exists profiles (
 -- Audit log table
 create table if not exists audit_log (
   id bigserial primary key,
-  tenant_id uuid not null default (auth.jwt() ->> 'tenant_id')::uuid,
+  tenant_id uuid,
   company_id uuid,
   event text not null,
   details jsonb,
