@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -77,14 +78,11 @@ export default function Customer360Page() {
 
   const addNote = async () => {
     if (!auth || !noteBody.trim() || !id) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("crm_notes").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("crm_notes", {
       customer_id: id,
       body: noteBody.trim(),
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       setNoteBody("");
       toast.success("Note added");
@@ -95,9 +93,7 @@ export default function Customer360Page() {
   const addContact = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth || !id) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("crm_contacts").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("crm_contacts", {
       customer_id: id,
       first_name: contactForm.first_name,
       last_name: contactForm.last_name || null,
@@ -106,7 +102,7 @@ export default function Customer360Page() {
       title: contactForm.title || null,
       is_primary: contacts.length === 0,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Contact added");
       setContactForm({ first_name: "", last_name: "", email: "", phone: "", title: "" });

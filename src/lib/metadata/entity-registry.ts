@@ -409,6 +409,80 @@ defineEntity("crm_activities", "crm_activities", "crm", {
   hasUpdatedAt: false,
 });
 
+// ---- CRM advanced --------------------------------------------------------
+defineEntity("crm_notes", "crm_notes", "crm", {
+  view: "crm.view",
+  create: "crm.manage",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  searchable: ["body"],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("crm_campaigns", "crm_campaigns", "crm", {
+  view: "crm.view",
+  create: "crm.marketing",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  softDelete: true,
+  searchable: ["name", "code"],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("crm_contracts", "crm_contracts", "crm", {
+  view: "crm.view",
+  create: "crm.manage",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  searchable: ["contract_number", "title"],
+  createdBy: true,
+});
+
+defineEntity("crm_documents", "crm_documents", "crm", {
+  view: "crm.view",
+  create: "crm.manage",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  softDelete: true,
+  searchable: ["title", "file_name"],
+});
+
+defineEntity("crm_loyalty_ledger", "crm_loyalty_ledger", "crm", {
+  view: "crm.view",
+  create: "crm.marketing",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  searchable: [],
+  createdBy: true,
+  hasUpdatedAt: false,
+});
+
+defineEntity("crm_segments", "crm_segments", "crm", {
+  view: "crm.view",
+  create: "crm.marketing",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  searchable: ["name", "code"],
+  createdBy: true,
+});
+
+defineEntity("distributors", "distributors", "crm", {
+  view: "crm.view",
+  create: "crm.manage",
+  update: "crm.manage",
+  delete: "crm.manage",
+}, {
+  searchable: ["name", "code"],
+});
+
 // ---- Sales -------------------------------------------------------------
 defineEntity("sales_orders", "sales_orders", "sales", {
   view: "sales.view",
@@ -452,6 +526,40 @@ defineEntity("quotations", "quotations", "sales", {
   searchable: ["quote_number", "customer_name"],
   createdBy: true,
   updatedBy: true,
+});
+
+// ---- Sales line items & returns ----------------------------------------
+defineEntity("sales_order_lines", "sales_order_lines", "sales", {
+  view: "sales.view",
+  create: "sales.manage",
+  update: "sales.manage",
+  delete: "sales.manage",
+}, {
+  softDelete: true,
+  searchable: ["product_code", "product_name", "description"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("quotation_lines", "quotation_lines", "sales", {
+  view: "sales.view",
+  create: "sales.quotes",
+  update: "sales.manage",
+  delete: "sales.manage",
+}, {
+  softDelete: true,
+  searchable: ["product_code", "product_name", "description"],
+  hasUpdatedAt: false,
+});
+
+defineEntity("sales_returns", "sales_returns", "sales", {
+  view: "sales.view",
+  create: "sales.returns",
+  update: "sales.manage",
+  delete: "sales.manage",
+}, {
+  softDelete: true,
+  searchable: ["return_number", "rma_number", "customer_name"],
+  createdBy: true,
 });
 
 defineEntity("dispatches", "dispatches", "dispatch", {

@@ -19,12 +19,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function ReturnsPage() {
-  const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -57,11 +56,8 @@ export default function ReturnsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const supabase = createClient();
     const num = `RMA-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("sales_returns").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("sales_returns", {
       return_number: num,
       customer_id: form.customer_id || null,
       reason: form.reason,
@@ -69,9 +65,8 @@ export default function ReturnsPage() {
       total_amount: parseFloat(form.total_amount) || 0,
       currency: "UGX",
       status: "requested",
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Return ${num} logged`);
       setOpen(false);
@@ -80,12 +75,11 @@ export default function ReturnsPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const updates: Record<string, unknown> = { status };
     if (status === "closed" || status === "refunded") {
       updates.resolved_at = new Date().toISOString();
     }
-    await supabase.from("sales_returns").update(updates).eq("id", id);
+    await crudUpdate("sales_returns", id, updates);
     toast.success("Return updated");
     load();
   };

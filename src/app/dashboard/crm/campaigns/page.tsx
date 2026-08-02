@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -52,10 +53,8 @@ export default function CrmCampaignsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const code = `CMP-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("crm_campaigns").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("crm_campaigns", {
       code,
       name: form.name,
       channel: form.channel,
@@ -63,9 +62,8 @@ export default function CrmCampaignsPage() {
       budget: parseFloat(form.budget) || 0,
       currency: "UGX",
       status: "draft",
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Campaign created");
       setOpen(false);
@@ -74,9 +72,9 @@ export default function CrmCampaignsPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    await supabase.from("crm_campaigns").update({ status }).eq("id", id);
-    toast.success("Campaign updated");
+    const res = await crudUpdate("crm_campaigns", id, { status });
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Campaign updated");
     load();
   };
 

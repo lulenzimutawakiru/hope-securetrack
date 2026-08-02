@@ -23,7 +23,7 @@ import {
 } from "@/components/enterprise/data-grid";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
-import { softDeleteMany, restoreMany } from "@/lib/soft-delete";
+import { crudCreate, crudDelete, crudRestore, crudUpdate } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types/database";
 
@@ -74,9 +74,7 @@ export default function ProductsPage() {
     if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("products").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("products", {
         name: form.name,
         product_code: form.product_code,
         paper_size: form.paper_size,
@@ -86,7 +84,7 @@ export default function ProductsPage() {
         reams_per_carton: 5,
         is_active: true,
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Product created");
       setOpen(false);
       setForm({
@@ -123,19 +121,15 @@ export default function ProductsPage() {
     if (!editing) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: form.name,
-          product_code: form.product_code,
-          paper_size: form.paper_size,
-          gsm: parseInt(form.gsm, 10),
-          color: form.color,
-          category_id: form.category_id || null,
-        })
-        .eq("id", editing.id);
-      if (error) throw error;
+      const res = await crudUpdate("products", editing.id, {
+        name: form.name,
+        product_code: form.product_code,
+        paper_size: form.paper_size,
+        gsm: parseInt(form.gsm, 10),
+        color: form.color,
+        category_id: form.category_id || null,
+      });
+      if (!res.ok) throw new Error(res.error);
       toast.success("Product updated");
       setEditOpen(false);
       setEditing(null);
@@ -207,14 +201,8 @@ export default function ProductsPage() {
                     variant="ghost"
                     onClick={async () => {
                       if (!confirm(`Archive ${p.product_code}?`)) return;
-                      const supabase = createClient();
-                      const { error } = await softDeleteMany(
-                        supabase,
-                        "products",
-                        [p.id],
-                        { is_active: false }
-                      );
-                      if (error) toast.error(error.message);
+                      const res = await crudDelete("products", p.id);
+                      if (!res.ok) toast.error(res.error);
                       else {
                         toast.success("Archived");
                         load();
@@ -230,11 +218,8 @@ export default function ProductsPage() {
                   size="sm"
                   variant="ghost"
                   onClick={async () => {
-                    const supabase = createClient();
-                    const { error } = await restoreMany(supabase, "products", [p.id], {
-                      is_active: true,
-                    });
-                    if (error) toast.error(error.message);
+                    const res = await crudRestore("products", p.id);
+                    if (!res.ok) toast.error(res.error);
                     else {
                       toast.success("Restored");
                       load();
@@ -359,11 +344,11 @@ export default function ProductsPage() {
           const ids = selected.filter((r) => !r.deleted_at).map((r) => r.id);
           if (!ids.length) return;
           if (!confirm(`Archive ${ids.length} product(s)?`)) return;
-          const supabase = createClient();
-          const { error } = await softDeleteMany(supabase, "products", ids, {
-            is_active: false,
-          });
-          if (error) toast.error(error.message);
+          const results = await Promise.all(
+            ids.map((id) => crudDelete("products", id))
+          );
+          const failed = results.filter((r) => !r.ok);
+          if (failed.length) toast.error(failed[0].error);
           else {
             toast.success(`Archived ${ids.length}`);
             load();
@@ -372,11 +357,11 @@ export default function ProductsPage() {
         bulkRestore={async (selected) => {
           const ids = selected.filter((r) => r.deleted_at).map((r) => r.id);
           if (!ids.length) return;
-          const supabase = createClient();
-          const { error } = await restoreMany(supabase, "products", ids, {
-            is_active: true,
-          });
-          if (error) toast.error(error.message);
+          const results = await Promise.all(
+            ids.map((id) => crudRestore("products", id))
+          );
+          const failed = results.filter((r) => !r.ok);
+          if (failed.length) toast.error(failed[0].error);
           else {
             toast.success(`Restored ${ids.length}`);
             load();

@@ -1,6 +1,38 @@
 # Changelog
 
-## 2026-08-02 - Server-side mutation migration (Phase 7)
+## 2026-08-02 - Server-side mutation migration (Phase 8) — sales / CRM / products via CRUD API
+
+
+### Database / RLS
+
+- Migration `20260802000001` - tenant/company scoping for `quotation_lines` + `sales_order_lines`: adds tenant_id/company_id (NOT NULL, FK, index), backfills from parent headers + companies, RESTRICTIVE `tenant_isolation_restrict` dual-key policy, `trg_set_company_from_sales_parent` trigger (derives company_id from the parent quote/order) wired ahead of migration-71's `trg_set_tenant_from_company`, and permission-gated `quotation_lines_write_restrict_*` policies (`sales.manage`/`sales.quotes`/`sales.admin` + parent-company gate). `sales_order_lines` write gates were already live from Phase 6.
+
+
+### Entity registry / CRUD API
+
+- Registered 10 entities: `sales_order_lines`, `quotation_lines`, `sales_returns`, `crm_notes`, `crm_campaigns`, `crm_contracts`, `crm_documents`, `crm_loyalty_ledger`, `crm_segments`, `distributors`
+
+- `/api/sales/orders` admin insert now supplies company_id/tenant_id for the new NOT NULL scope columns
+
+
+### Pages migrated (13) — browser Supabase writes → crudCreate/crudUpdate/crudDelete/crudRestore
+
+- Sales: pipeline (leads/opportunities), quotations (quote + line with rollback), returns
+
+- CRM: accounts (notes/contacts), activities (incl. customer last_contact_at), campaigns, contracts, documents, loyalty (ledger + customer points with rollback), segments, service desk
+
+- Products: create / update / soft-delete / restore (single + bulk)
+
+
+### Validation
+
+- typecheck, vitest, security suite, production-readiness audit, production build all green
+
+
+---
+
+
+
 
 ### New hardened API routes (session tenant/company, permission-gated, rate-limited, audited)
 - Payroll: overtime claims + approval, bonuses + approval, benefit plans/enrollments, salary structures (server computes hourly rate, multipliers, amounts; generates OT-/BN-/STR- numbers; rolls back structure lines on failure)

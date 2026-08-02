@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -59,10 +60,8 @@ export default function CrmServicePage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `TKT-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("support_tickets").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("support_tickets", {
       ticket_number: num,
       customer_id: form.customer_id || null,
       subject: form.subject,
@@ -71,9 +70,8 @@ export default function CrmServicePage() {
       priority: form.priority,
       status: "open",
       assigned_to: auth.profile.id,
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Ticket ${num} created`);
       setOpen(false);
@@ -82,9 +80,9 @@ export default function CrmServicePage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    await supabase.from("support_tickets").update({ status }).eq("id", id);
-    toast.success("Ticket updated");
+    const res = await crudUpdate("support_tickets", id, { status });
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Ticket updated");
     load();
   };
 

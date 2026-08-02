@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -72,28 +73,30 @@ export default function CrmLoyaltyPage() {
     if (!points) return;
     const delta =
       form.entry_type === "redeem" ? -Math.abs(points) : Math.abs(points);
-    const supabase = createClient();
-    const { error } = await supabase.from("crm_loyalty_ledger").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("crm_loyalty_ledger", {
       customer_id: form.customer_id,
       points: delta,
       entry_type: form.entry_type,
       reason: form.reason || null,
-      created_by: auth.profile.id,
     });
-    if (error) {
-      toast.error(error.message);
+    if (!res.ok) {
+      toast.error(res.error);
       return;
     }
     const cust = customers.find((c) => c.id === form.customer_id);
     const next = Math.max(0, Number(cust?.loyalty_points || 0) + delta);
-    await supabase
-      .from("customers")
-      .update({
-        loyalty_points: next,
-        loyalty_level: tierFromPoints(next),
-      })
-      .eq("id", form.customer_id);
+    const cu = await crudUpdate("customers", form.customer_id, {
+      loyalty_points: next,
+      loyalty_level: tierFromPoints(next),
+    });
+    if (!cu.ok) {
+      const ledgerId = (res.data as Record<string, unknown> | undefined)?.id;
+      if (typeof ledgerId === "string") {
+        await crudDelete("crm_loyalty_ledger", ledgerId);
+      }
+      toast.error(cu.error);
+      return;
+    }
     toast.success("Loyalty updated");
     setOpen(false);
     load();

@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -65,10 +66,8 @@ export default function PipelinePage() {
   const createLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `LD-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("sales_leads").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("sales_leads", {
       lead_number: num,
       company_name: leadForm.company_name,
       contact_name: leadForm.contact_name || null,
@@ -79,9 +78,8 @@ export default function PipelinePage() {
       currency: "UGX",
       status: "new",
       assigned_to: auth.profile.id,
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Lead ${num} created`);
       setLeadOpen(false);
@@ -92,10 +90,8 @@ export default function PipelinePage() {
   const createOpp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `OPP-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("sales_opportunities").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("sales_opportunities", {
       opportunity_number: num,
       name: oppForm.name,
       stage: oppForm.stage,
@@ -104,7 +100,7 @@ export default function PipelinePage() {
       currency: "UGX",
       owner_id: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Opportunity ${num} created`);
       setOppOpen(false);
@@ -113,16 +109,14 @@ export default function PipelinePage() {
   };
 
   const setLeadStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    await supabase.from("sales_leads").update({ status }).eq("id", id);
+    await crudUpdate("sales_leads", id, { status });
     load();
   };
 
   const setOppStage = async (id: string, stage: string) => {
-    const supabase = createClient();
     const probability =
       stage === "won" ? 100 : stage === "lost" ? 0 : stage === "negotiation" ? 70 : stage === "proposal" ? 50 : 30;
-    await supabase.from("sales_opportunities").update({ stage, probability }).eq("id", id);
+    await crudUpdate("sales_opportunities", id, { stage, probability });
     load();
   };
 

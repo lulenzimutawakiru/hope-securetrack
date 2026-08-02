@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-30T14:22:43.771Z",
+  "generatedAt": "2026-08-02T19:02:01.628Z",
   "product": "SecureTrack ERP",
   "summary": {
     "critical": 0,
@@ -10,10 +10,10 @@
   },
   "info": [
     "Dashboard pages: 978",
-    "API routes: 36",
+    "API routes: 65",
     "Pages with placeholder-like text (sample scan): 0",
     "NAV hrefs checked: 55; missing pages: 0",
-    "Migrations: 70"
+    "Migrations: 126"
   ],
   "issues": []
 }

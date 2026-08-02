@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import type { Distributor } from "@/types/database";
@@ -65,13 +66,11 @@ export default function DistributorsPage() {
     if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("distributors").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("distributors", {
         ...form,
         is_active: true,
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Distributor added");
       setOpen(false);
       setForm({

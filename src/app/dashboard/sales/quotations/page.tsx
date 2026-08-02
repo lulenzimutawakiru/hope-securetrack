@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -63,7 +64,6 @@ export default function QuotationsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const qty = parseInt(form.quantity, 10);
     const price = parseFloat(form.unit_price);
     const disc = parseFloat(form.discount_pct) || 0;
@@ -75,34 +75,29 @@ export default function QuotationsPage() {
     const num = `QT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
     const product = products.find((p) => p.id === form.product_id);
 
-    const { data: quote, error } = await supabase
-      .from("quotations")
-      .insert({
-        company_id: auth.profile.company_id,
-        quote_number: num,
-        version: 1,
-        customer_id: form.customer_id,
-        status: "sent",
-        quote_date: new Date().toISOString().slice(0, 10),
-        valid_until: valid.toISOString().slice(0, 10),
-        currency: "UGX",
-        subtotal: line,
-        tax_amount: tax,
-        discount_amount: qty * price * (disc / 100),
-        total_amount: total,
-        payment_terms: "Net 30",
-        delivery_terms: "Ex-works Hope Design factory",
-        sales_rep_id: auth.profile.id,
-        created_by: auth.profile.id,
-      })
-      .select()
-      .single();
-    if (error) {
-      toast.error(error.message);
+    const quoteRes = await crudCreate("quotations", {
+      quote_number: num,
+      version: 1,
+      customer_id: form.customer_id,
+      status: "sent",
+      quote_date: new Date().toISOString().slice(0, 10),
+      valid_until: valid.toISOString().slice(0, 10),
+      currency: "UGX",
+      subtotal: line,
+      tax_amount: tax,
+      discount_amount: qty * price * (disc / 100),
+      total_amount: total,
+      payment_terms: "Net 30",
+      delivery_terms: "Ex-works Hope Design factory",
+      sales_rep_id: auth.profile.id,
+    });
+    if (!quoteRes.ok) {
+      toast.error(quoteRes.error);
       return;
     }
-    await supabase.from("quotation_lines").insert({
-      quotation_id: quote.id,
+    const quoteId = (quoteRes.data as { id: string }).id;
+    const lineRes = await crudCreate("quotation_lines", {
+      quotation_id: quoteId,
       product_id: form.product_id || null,
       description: product?.name || "Product",
       quantity: qty,
@@ -111,6 +106,11 @@ export default function QuotationsPage() {
       discount_pct: disc,
       tax_rate: 18,
     });
+    if (!lineRes.ok) {
+      await crudDelete("quotations", quoteId);
+      toast.error(lineRes.error);
+      return;
+    }
     toast.success(`Quotation ${num} issued`);
     setOpen(false);
     load();
@@ -126,47 +126,47 @@ export default function QuotationsPage() {
       .select("*")
       .eq("quotation_id", quoteId);
     const orderNumber = `SO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
-    const { data: order, error } = await supabase
-      .from("sales_orders")
-      .insert({
-        company_id: auth.profile.company_id,
-        order_number: orderNumber,
-        customer_id: quote.customer_id,
-        quotation_id: quoteId,
-        status: "confirmed",
-        order_type: "standard",
-        order_date: new Date().toISOString().slice(0, 10),
-        subtotal: quote.subtotal,
-        tax_amount: quote.tax_amount,
-        total_amount: quote.total_amount,
-        currency: "UGX",
-        credit_approved: true,
-        sales_rep_id: auth.profile.id,
-        created_by: auth.profile.id,
-      })
-      .select()
-      .single();
-    if (error) {
-      toast.error(error.message);
+    const orderRes = await crudCreate("sales_orders", {
+      order_number: orderNumber,
+      customer_id: quote.customer_id,
+      quotation_id: quoteId,
+      status: "confirmed",
+      order_type: "standard",
+      order_date: new Date().toISOString().slice(0, 10),
+      subtotal: quote.subtotal,
+      tax_amount: quote.tax_amount,
+      total_amount: quote.total_amount,
+      currency: "UGX",
+      credit_approved: true,
+      sales_rep_id: auth.profile.id,
+    });
+    if (!orderRes.ok) {
+      toast.error(orderRes.error);
       return;
     }
+    const orderId = (orderRes.data as { id: string }).id;
     if (lines?.length) {
-      await supabase.from("sales_order_lines").insert(
-        lines.map((l) => ({
-          order_id: order.id,
+      for (const l of lines) {
+        const lineRes = await crudCreate("sales_order_lines", {
+          order_id: orderId,
           product_id: l.product_id,
           description: l.description,
           quantity: l.quantity,
           unit: l.unit,
           unit_price: l.unit_price,
           tax_rate: l.tax_rate,
-        }))
-      );
+        });
+        if (!lineRes.ok) {
+          await crudDelete("sales_orders", orderId);
+          toast.error(lineRes.error);
+          return;
+        }
+      }
     }
-    await supabase
-      .from("quotations")
-      .update({ status: "converted", converted_order_id: order.id })
-      .eq("id", quoteId);
+    await crudUpdate("quotations", quoteId, {
+      status: "converted",
+      converted_order_id: orderId,
+    });
     toast.success(`Converted to ${orderNumber}`);
     load();
   };

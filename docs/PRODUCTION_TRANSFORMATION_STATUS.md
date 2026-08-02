@@ -169,7 +169,28 @@ Moves the highest-risk money and record mutations off the browser Supabase clien
 | Pages rewired to server APIs (invoices, finance/AP+journals, payroll, billing, procurement, inventory, CRM, HR, sales, workforce, dispatch, fleet) | Live |
 | CRUD API permission contract test | Live tests/security/v2-crud-permissions.test.ts |
 
-## Remaining programme (roadmap / ops)
+## Server-side mutation migration (2026-08-02, Phase 8) — sales / CRM / products
+
+
+Moves the sales line-item tables under dual-key tenant isolation and rewires the remaining high-volume sales / CRM / product-master browser mutations onto the permission-gated, audited CRUD API.
+
+
+| Deliverable | Status |
+
+|------------|--------|
+
+| `quotation_lines` + `sales_order_lines` scoped (tenant_id/company_id NOT NULL, FK, index, backfill, RESTRICTIVE tenant policy, parent-derivation trigger) | Live `20260802000001` |
+
+| 10 entities registered in the CRUD registry (sales lines/returns, CRM notes/campaigns/contracts/documents/loyalty/segments, distributors) | Live |
+
+| 13 pages migrated to crudCreate / crudUpdate / crudDelete / crudRestore | Live |
+
+| Rollback paths for multi-write flows (quote→line, order→lines, loyalty ledger→customer) | Live |
+
+| Typecheck / tests / security suite / readiness audit / production build | Green |
+
+
+
 
 1. ~~Engineering phases 1–5 + hardening layer~~ **done**  
 2. Migrate remaining high-risk browser mutations to `createApiHandler` routes  

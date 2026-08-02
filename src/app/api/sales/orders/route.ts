@@ -182,6 +182,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { error: lineErr } = await admin.from("sales_order_lines").insert({
+      company_id: companyId,
+      tenant_id: auth.ctx.tenantId,
       order_id: order.id,
       product_id: product.id,
       description: product.name ?? "Product",

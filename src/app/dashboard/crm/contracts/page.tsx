@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -59,10 +60,8 @@ export default function CrmContractsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `CTR-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from("crm_contracts").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("crm_contracts", {
       contract_number: num,
       customer_id: form.customer_id,
       title: form.title,
@@ -73,9 +72,8 @@ export default function CrmContractsPage() {
       value: parseFloat(form.value) || 0,
       currency: "UGX",
       owner_id: auth.profile.id,
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Contract ${num} created`);
       setOpen(false);

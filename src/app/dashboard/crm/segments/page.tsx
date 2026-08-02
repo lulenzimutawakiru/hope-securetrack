@@ -16,6 +16,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate } from "@/lib/api/crud-client";
 import { listSegments, campaignTargetHint } from "@/lib/crm";
 import { toast } from "sonner";
 
@@ -44,18 +45,15 @@ export default function CrmSegmentsPage() {
     e.preventDefault();
     if (!auth) return;
     try {
-      const supabase = createClient();
       const code = form.code || form.name.slice(0, 8).toUpperCase().replace(/\s/g, "-");
-      const { error } = await supabase.from("crm_segments").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("crm_segments", {
         code,
         name: form.name,
         description: form.description || null,
         is_dynamic: true,
         is_active: true,
-        created_by: auth.user.id,
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Segment created");
       setOpen(false);
       load();

@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate } from "@/lib/api/crud-client";
 import { listCustomers } from "@/lib/crm";
 import { toast } from "sonner";
 
@@ -68,9 +69,7 @@ export default function CrmDocumentsPage() {
     e.preventDefault();
     if (!auth || !form.customer_id) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("crm_documents").insert({
-        company_id: auth.profile.company_id,
+      const res = await crudCreate("crm_documents", {
         customer_id: form.customer_id,
         doc_type: form.doc_type,
         title: form.title,
@@ -81,7 +80,7 @@ export default function CrmDocumentsPage() {
         is_latest: true,
         uploaded_by: auth.user.id,
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error);
       toast.success("Document registered");
       setOpen(false);
       load();

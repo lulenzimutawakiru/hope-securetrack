@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -72,9 +73,7 @@ export default function CrmActivitiesPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("crm_activities").insert({
-      company_id: auth.profile.company_id,
+    const res = await crudCreate("crm_activities", {
       customer_id: form.customer_id || null,
       activity_type: form.activity_type,
       subject: form.subject,
@@ -84,15 +83,14 @@ export default function CrmActivitiesPage() {
       location: form.location || null,
       status: "planned",
       owner_id: auth.profile.id,
-      created_by: auth.profile.id,
     });
-    if (error) toast.error(error.message);
+    if (!res.ok) toast.error(res.error);
     else {
       if (form.customer_id) {
-        await supabase
-          .from("customers")
-          .update({ last_contact_at: new Date().toISOString() })
-          .eq("id", form.customer_id);
+        const cu = await crudUpdate("customers", form.customer_id, {
+          last_contact_at: new Date().toISOString(),
+        });
+        if (!cu.ok) toast.error(cu.error);
       }
       toast.success("Activity scheduled");
       setOpen(false);
@@ -101,12 +99,12 @@ export default function CrmActivitiesPage() {
   };
 
   const complete = async (id: string) => {
-    const supabase = createClient();
-    await supabase
-      .from("crm_activities")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", id);
-    toast.success("Marked completed");
+    const res = await crudUpdate("crm_activities", id, {
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    });
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Marked completed");
     load();
   };
 
