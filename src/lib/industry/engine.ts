@@ -3,6 +3,8 @@
  * Provides constants and helpers to initialise a tenant for a specific sector.
  */
 
+import { ENTITY_REGISTRY } from "@/lib/metadata/entity-registry";
+
 export interface IndustryTemplate {
   name: string;
   description: string;
@@ -132,4 +134,41 @@ export function getIndustryTemplate(key: string): IndustryTemplate | undefined {
  */
 export function listIndustries(): string[] {
   return Object.keys(INDUSTRY_TEMPLATES);
+}
+
+/**
+ * Seed default modules for a tenant based on its industry.
+ * This function should be called when provisioning a new tenant.
+ */
+export async function seedTenantDefaults(
+  supabase: any,
+  tenantId: string,
+  industry: string
+) {
+  const template = getIndustryTemplate(industry);
+  if (!template) return;
+
+  // Insert default module enablement records (example)
+  for (const moduleCode of template.modules) {
+    await supabase.from("tenant_modules").upsert({
+      tenant_id: tenantId,
+      module_code: moduleCode,
+      enabled: true,
+    });
+  }
+
+  // Seed custom fields from the template into custom_fields table for the tenant
+  for (const [entityType, fields] of Object.entries(template.customFields)) {
+    for (const field of fields) {
+      await supabase.from("custom_fields").insert({
+        tenant_id: tenantId,
+        entity_type: entityType,
+        field_name: field.field_name,
+        field_label: field.field_label,
+        field_type: field.field_type,
+        required: field.required,
+        options: field.options ?? [],
+      });
+    }
+  }
 }
