@@ -55,8 +55,8 @@ create table if not exists profiles (
   permissions text[] default '{}',
   roles jsonb,
   avatar_url text,
-  created_by uuid default auth.uid(),
-  updated_by uuid default auth.uid(),
+  created_by uuid,
+  updated_by uuid,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -69,7 +69,7 @@ create table if not exists audit_log (
   event text not null,
   details jsonb,
   user_id uuid references auth.users(id) on delete set null,
-  created_by uuid default auth.uid(),
+  created_by uuid,
   created_at timestamptz default now(),
   timestamp timestamptz default now()
 );
