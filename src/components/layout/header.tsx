@@ -15,17 +15,32 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
-import { NotificationBell } from "@/components/notifications/notification-bell";
-import { CommandPalette } from "@/components/enterprise/command-palette";
-import { LiveStatus } from "@/components/enterprise/live-status";
-import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "@/components/layout/sidebar";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { toast } from "sonner";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { logClientEvent } from "@/lib/audit";
 import { EN } from "@/lib/translations/en";
+
+// Lazy imports – these components are loaded only when needed
+const NotificationBell = dynamic(
+  () => import("@/components/notifications/notification-bell").then((mod) => mod.NotificationBell),
+  { ssr: false }
+);
+const CommandPalette = dynamic(
+  () => import("@/components/enterprise/command-palette").then((mod) => mod.CommandPalette),
+  { ssr: false }
+);
+const LiveStatus = dynamic(
+  () => import("@/components/enterprise/live-status").then((mod) => mod.LiveStatus),
+  { ssr: false }
+);
+const TenantSwitcher = dynamic(
+  () => import("@/components/layout/tenant-switcher").then((mod) => mod.TenantSwitcher),
+  { ssr: false }
+);
 
 export function Header({ title }: { title?: string }) {
   const { theme, setTheme } = useTheme();
@@ -41,7 +56,6 @@ export function Header({ title }: { title?: string }) {
     : null;
 
   const handleLogout = async () => {
-    // Log the logout event before signing out
     logClientEvent({
       event: "logout",
       userId: auth?.user?.id,
@@ -58,7 +72,6 @@ export function Header({ title }: { title?: string }) {
   return (
     <header className="sticky top-0 z-30 flex h-[var(--header-height)] items-center justify-between gap-2 border-b bg-card/90 px-3 sm:px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-card/75">
       <div className="flex min-w-0 items-center gap-2">
-        {/* Mobile menu */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button
@@ -88,7 +101,9 @@ export function Header({ title }: { title?: string }) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* TenantSwitcher is now lazy loaded */}
         <TenantSwitcher />
+        {/* CommandPalette, LiveStatus, NotificationBell – all lazy */}
         <CommandPalette />
         <LiveStatus />
 
