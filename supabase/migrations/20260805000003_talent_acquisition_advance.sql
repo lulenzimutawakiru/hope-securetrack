@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.ta_attachments (
   storage_path TEXT NOT NULL,
   uploaded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ
 );
 
@@ -58,12 +59,18 @@ COMMENT ON TABLE public.ta_attachments IS 'Attachment metadata for talent acquis
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.ta_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ta_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ta_comments FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.ta_attachments FORCE ROW LEVEL SECURITY;
 
 -- Backfill tenant_id from companies (migration 71's dynamic loop already ran)
 UPDATE public.ta_comments tc SET tenant_id = c.tenant_id
   FROM public.companies c WHERE c.id = tc.company_id AND tc.tenant_id IS NULL;
 UPDATE public.ta_attachments ta SET tenant_id = c.tenant_id
   FROM public.companies c WHERE c.id = ta.company_id AND ta.tenant_id IS NULL;
+
+-- tenant_id is mandatory for tenant isolation
+ALTER TABLE public.ta_comments ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE public.ta_attachments ALTER COLUMN tenant_id SET NOT NULL;
 
 -- ta_comments policies
 DROP POLICY IF EXISTS ta_comments_select ON public.ta_comments;
@@ -74,6 +81,7 @@ DROP POLICY IF EXISTS ta_comments_insert ON public.ta_comments;
 CREATE POLICY ta_comments_insert ON public.ta_comments FOR INSERT TO authenticated
   WITH CHECK (
     company_id = public.user_company_id()
+    AND author_id = auth.uid()
     AND (public.is_super_admin() OR public.has_any_permission(ARRAY['ta.manage','ta.admin','ta.recruit','ta.approve','hr.recruit']))
   );
 
@@ -104,6 +112,7 @@ DROP POLICY IF EXISTS ta_attachments_insert ON public.ta_attachments;
 CREATE POLICY ta_attachments_insert ON public.ta_attachments FOR INSERT TO authenticated
   WITH CHECK (
     company_id = public.user_company_id()
+    AND uploaded_by = auth.uid()
     AND (public.is_super_admin() OR public.has_any_permission(ARRAY['ta.manage','ta.admin','ta.recruit','ta.approve','hr.recruit']))
   );
 
