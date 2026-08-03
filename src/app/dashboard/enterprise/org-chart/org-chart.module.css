@@ -1,0 +1,93 @@
+/* Modern org-chart tree connectors + canvas polish */
+.treeRoot {
+  text-align: center;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem;
+  width: max-content;
+  min-width: 100%;
+}
+.treeLevel {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 1.25rem 0 0;
+  position: relative;
+}
+.treeLevel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 1px solid hsl(var(--border));
+  width: 0;
+  height: 1.25rem;
+}
+.treeRoot > li,
+.treeLevel > li {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 0 0.5rem;
+}
+.treeLevel > li {
+  padding-top: 1.25rem;
+}
+.treeLevel > li::before,
+.treeLevel > li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 1px solid hsl(var(--border));
+  width: 50%;
+  height: 1.25rem;
+}
+.treeLevel > li::after {
+  right: auto;
+  left: 50%;
+  border-left: 1px solid hsl(var(--border));
+}
+.treeLevel > li:only-child::before,
+.treeLevel > li:only-child::after {
+  display: none;
+}
+.treeLevel > li:only-child {
+  padding-top: 0;
+}
+.treeLevel > li:first-child::before {
+  border: 0 none;
+}
+.treeLevel > li:last-child::after {
+  border: 0 none;
+}
+.treeLevel > li:last-child::before {
+  border-right: 1px solid hsl(var(--border));
+  border-radius: 0 8px 0 0;
+}
+.treeLevel > li:first-child::after {
+  border-radius: 8px 0 0 0;
+}
+/* Scrollable canvas with slim scrollbar */
+.scrollArea {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollArea::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.scrollArea::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollArea::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+.scrollArea::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
