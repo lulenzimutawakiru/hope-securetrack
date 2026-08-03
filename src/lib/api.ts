@@ -5,6 +5,7 @@ import {
   memoryRateLimit,
   rateLimitRequest,
 } from "@/lib/security/rate-limit";
+import { log } from "@/lib/observability/logger";
 
 export type ApiErrorCode =
   | "UNAUTHORIZED"
@@ -92,6 +93,8 @@ export function rateLimit(
  * Falls back to memory if Redis is not configured.
  * When RATE_LIMIT_FAIL_CLOSED=true and Redis is required but unavailable, deny the request.
  */
+let warnedRedisMissing = false;
+
 export async function rateLimitStrict(
   key: string,
   limit: number,
@@ -101,6 +104,18 @@ export async function rateLimitStrict(
     process.env.RATE_LIMIT_FAIL_CLOSED === "true" ||
     (process.env.NODE_ENV === "production" &&
       process.env.RATE_LIMIT_REQUIRE_REDIS === "true");
+  if (
+    !warnedRedisMissing &&
+    process.env.NODE_ENV === "production" &&
+    !process.env.UPSTASH_REDIS_REST_URL &&
+    !process.env.UPSTASH_REDIS_REST_TOKEN
+  ) {
+    warnedRedisMissing = true;
+    log.warn(
+      "rateLimitStrict: UPSTASH_REDIS_REST_URL/TOKEN are not configured in production; strict rate limits degrade to single-instance memory limits and can be bypassed across instances.",
+      { module: "api", action: "rate_limit_strict" }
+    );
+  }
   return rateLimitRequest(key, limit, windowMs, { failClosed });
 }
 
