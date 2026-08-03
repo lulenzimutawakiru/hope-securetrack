@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Hash, Lock, MessageSquare, Plus, Send, Pin, Smile,
   Sparkles, Ticket, CheckSquare, Phone, Video, Search, Users, Megaphone,
+  Gauge, Bot, Bell,
   Paperclip, Settings, BookOpen, BarChart3, Home, Download, FileText,
   Edit3, Trash2, UserPlus, Loader2,
 } from "lucide-react";
@@ -41,13 +42,18 @@ import { formatDateTime } from "@/lib/utils";
 
 const SIDE_LINKS = [
   { href: "/dashboard/chat", label: "Chats", icon: MessageSquare },
+  { href: "/dashboard/chat/executive", label: "Executive", icon: Gauge },
+  { href: "/dashboard/chat/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/dashboard/chat/teams", label: "Teams", icon: Users },
   { href: "/dashboard/chat/meetings", label: "Meetings", icon: Video },
   { href: "/dashboard/chat/calls", label: "Calls", icon: Phone },
   { href: "/dashboard/chat/announcements", label: "Announce", icon: Megaphone },
   { href: "/dashboard/chat/files", label: "Files", icon: Paperclip },
+  { href: "/dashboard/chat/ai-agent", label: "AI Agent", icon: Bot },
   { href: "/dashboard/chat/ai", label: "SecureTrackAI", icon: Sparkles },
   { href: "/dashboard/chat/knowledge", label: "Knowledge", icon: BookOpen },
+  { href: "/dashboard/chat/search", label: "Search", icon: Search },
+  { href: "/dashboard/chat/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/chat/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/chat/settings", label: "Settings", icon: Settings },
 ];

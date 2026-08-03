@@ -43,6 +43,34 @@ BEGIN
   END IF;
 END$$;
 
+DO $$
+DECLARE c RECORD;
+BEGIN
+  FOR c IN SELECT id, tenant_id FROM public.companies LOOP
+    INSERT INTO public.sd_integrations (tenant_id, company_id, integration_type, category, name, description, endpoint, is_connected, is_active) VALUES
+      (c.tenant_id, c.id, 'entra_id',      'identity',      'Microsoft Entra ID',   'SSO, identity lifecycle and directory sync', 'https://login.microsoftonline.com', false, true),
+      (c.tenant_id, c.id, 'google_ws',     'identity',      'Google Workspace',     'SSO and directory sync',                    'https://admin.google.com',           false, true),
+      (c.tenant_id, c.id, 'ldap',          'identity',      'LDAP / Active Directory', 'Directory authentication',               NULL,                                 false, true),
+      (c.tenant_id, c.id, 'sso_saml',      'identity',      'SSO (SAML/OIDC)',      'Federated sign-in for portal and agents',   NULL,                                 false, true),
+      (c.tenant_id, c.id, 'smtp',          'communication', 'Email (SMTP)',          'Email-to-ticket ingestion',                 NULL,                                 false, true),
+      (c.tenant_id, c.id, 'sms',           'communication', 'SMS Gateway',          'SLA and escalation alerts',                 NULL,                                 false, true),
+      (c.tenant_id, c.id, 'teams',         'communication', 'Microsoft Teams',      'Ticket notifications and war room',         NULL,                                 false, true),
+      (c.tenant_id, c.id, 'slack',         'communication', 'Slack',                'Ticket notifications and collaboration',    NULL,                                 false, true),
+      (c.tenant_id, c.id, 'whatsapp',      'communication', 'WhatsApp Business',    'Customer support channel',                  NULL,                                 false, true),
+      (c.tenant_id, c.id, 'zabbix',        'monitoring',    'Zabbix',               'Infrastructure monitoring alerts',          NULL,                                 false, true),
+      (c.tenant_id, c.id, 'nagios',        'monitoring',    'Nagios',               'Infrastructure monitoring alerts',          NULL,                                 false, true),
+      (c.tenant_id, c.id, 'prometheus',    'monitoring',    'Prometheus',           'Metrics and alerting',                      NULL,                                 false, true),
+      (c.tenant_id, c.id, 'grafana',       'monitoring',    'Grafana',              'Dashboards and alert annotations',          NULL,                                 false, true),
+      (c.tenant_id, c.id, 'erp_finance',   'erp',           'Finance ERP',          'Financial services and approvals',          NULL,                                 false, true),
+      (c.tenant_id, c.id, 'erp_hr',        'erp',           'HR System',            'HR request fulfillment',                    NULL,                                 false, true),
+      (c.tenant_id, c.id, 'erp_payroll',   'erp',           'Payroll',              'Payroll services',                          NULL,                                 false, true),
+      (c.tenant_id, c.id, 'erp_procurement','erp',          'Procurement',          'Purchase and vendor services',              NULL,                                 false, true),
+      (c.tenant_id, c.id, 'erp_assets',    'erp',           'Asset Management',     'Asset registry and CMDB sync',              NULL,                                 false, true),
+      (c.tenant_id, c.id, 'ai_copilot',    'automation',    'AI Service Assistant', 'Classification, triage and copilot',        NULL,                                 false, true),
+      (c.tenant_id, c.id, 'webhook',       'automation',    'Outbound Webhooks',    'Automation engine actions',                 NULL,                                 false, true)
+    ON CONFLICT (company_id, integration_type) DO NOTHING;
+  END LOOP;
+END$$;
 -- NOT NULL when safe
 DO $$
 BEGIN
@@ -81,34 +109,6 @@ BEGIN
 END$$;
 
 -- seed default integration catalog per company
-DO $$
-DECLARE c RECORD;
-BEGIN
-  FOR c IN SELECT id, tenant_id FROM public.companies LOOP
-    INSERT INTO public.sd_integrations (tenant_id, company_id, integration_type, category, name, description, endpoint, is_connected, is_active) VALUES
-      ('entra_id',      'identity',      'Microsoft Entra ID',   'SSO, identity lifecycle and directory sync', 'https://login.microsoftonline.com', false, true),
-      ('google_ws',     'identity',      'Google Workspace',     'SSO and directory sync',                    'https://admin.google.com',           false, true),
-      ('ldap',          'identity',      'LDAP / Active Directory', 'Directory authentication',               NULL,                                 false, true),
-      ('sso_saml',      'identity',      'SSO (SAML/OIDC)',      'Federated sign-in for portal and agents',   NULL,                                 false, true),
-      ('smtp',          'communication', 'Email (SMTP)',          'Email-to-ticket ingestion',                 NULL,                                 false, true),
-      ('sms',           'communication', 'SMS Gateway',          'SLA and escalation alerts',                 NULL,                                 false, true),
-      ('teams',         'communication', 'Microsoft Teams',      'Ticket notifications and war room',         NULL,                                 false, true),
-      ('slack',         'communication', 'Slack',                'Ticket notifications and collaboration',    NULL,                                 false, true),
-      ('whatsapp',      'communication', 'WhatsApp Business',    'Customer support channel',                  NULL,                                 false, true),
-      ('zabbix',        'monitoring',    'Zabbix',               'Infrastructure monitoring alerts',          NULL,                                 false, true),
-      ('nagios',        'monitoring',    'Nagios',               'Infrastructure monitoring alerts',          NULL,                                 false, true),
-      ('prometheus',    'monitoring',    'Prometheus',           'Metrics and alerting',                      NULL,                                 false, true),
-      ('grafana',       'monitoring',    'Grafana',              'Dashboards and alert annotations',          NULL,                                 false, true),
-      ('erp_finance',   'erp',           'Finance ERP',          'Financial services and approvals',          NULL,                                 false, true),
-      ('erp_hr',        'erp',           'HR System',            'HR request fulfillment',                    NULL,                                 false, true),
-      ('erp_payroll',   'erp',           'Payroll',              'Payroll services',                          NULL,                                 false, true),
-      ('erp_procurement','erp',          'Procurement',          'Purchase and vendor services',              NULL,                                 false, true),
-      ('erp_assets',    'erp',           'Asset Management',     'Asset registry and CMDB sync',              NULL,                                 false, true),
-      ('ai_copilot',    'automation',    'AI Service Assistant', 'Classification, triage and copilot',        NULL,                                 false, true),
-      ('webhook',       'automation',    'Outbound Webhooks',    'Automation engine actions',                 NULL,                                 false, true)
-    ON CONFLICT (company_id, integration_type) DO NOTHING;
-  END LOOP;
-END$$;
 
 -- ------------------------------------------------------------
 -- Analytics indexes on support_tickets
@@ -117,5 +117,106 @@ CREATE INDEX IF NOT EXISTS idx_sd_tickets_first_response ON public.support_ticke
 CREATE INDEX IF NOT EXISTS idx_sd_tickets_resolved_at ON public.support_tickets (resolved_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_sd_tickets_category ON public.support_tickets (company_id, category);
 CREATE INDEX IF NOT EXISTS idx_sd_tickets_assigned_sla ON public.support_tickets (assigned_to, sla_resolve_due) WHERE deleted_at IS NULL;
+
+COMMIT;
+
+-- ------------------------------------------------------------
+-- sd_calendars / sd_holidays - tenant + audit hardening
+-- Legacy tables predate the tenant model; align them with the
+-- platform baseline (tenant_id, audit columns, soft delete) so
+-- the generic CRUD surface can enforce tenant isolation.
+-- ------------------------------------------------------------
+BEGIN;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='sd_calendars' AND column_name='company_id') THEN
+    BEGIN
+      ALTER TABLE public.sd_calendars ADD COLUMN IF NOT EXISTS tenant_id UUID;
+      ALTER TABLE public.sd_calendars ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE public.sd_calendars ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL;
+      ALTER TABLE public.sd_calendars ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL;
+      ALTER TABLE public.sd_calendars ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Alter sd_calendars skipped: %', SQLERRM;
+    END;
+  END IF;
+END$$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='sd_holidays' AND column_name='company_id') THEN
+    BEGIN
+      ALTER TABLE public.sd_holidays ADD COLUMN IF NOT EXISTS tenant_id UUID;
+      ALTER TABLE public.sd_holidays ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE public.sd_holidays ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE public.sd_holidays ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL;
+      ALTER TABLE public.sd_holidays ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL;
+      ALTER TABLE public.sd_holidays ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Alter sd_holidays skipped: %', SQLERRM;
+    END;
+  END IF;
+END$$;
+
+-- tenant backfill
+DO $$
+BEGIN
+  UPDATE public.sd_calendars t SET tenant_id = c.tenant_id
+  FROM public.companies c
+  WHERE t.company_id = c.id AND (t.tenant_id IS NULL OR t.tenant_id IS DISTINCT FROM c.tenant_id);
+  UPDATE public.sd_holidays t SET tenant_id = c.tenant_id
+  FROM public.companies c
+  WHERE t.company_id = c.id AND (t.tenant_id IS NULL OR t.tenant_id IS DISTINCT FROM c.tenant_id);
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Backfill calendars/holidays skipped: %', SQLERRM;
+END$$;
+
+-- NOT NULL when safe
+DO $$
+BEGIN
+  IF (SELECT count(1) FROM public.sd_calendars WHERE tenant_id IS NULL) = 0 THEN
+    BEGIN
+      ALTER TABLE public.sd_calendars ALTER COLUMN tenant_id SET NOT NULL;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'sd_calendars tenant NOT NULL skipped: %', SQLERRM;
+    END;
+  END IF;
+  IF (SELECT count(1) FROM public.sd_holidays WHERE tenant_id IS NULL) = 0 THEN
+    BEGIN
+      ALTER TABLE public.sd_holidays ALTER COLUMN tenant_id SET NOT NULL;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'sd_holidays tenant NOT NULL skipped: %', SQLERRM;
+    END;
+  END IF;
+END$$;
+
+-- FK + indexes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='tenants') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu USING (constraint_name, table_schema) WHERE tc.table_name='sd_calendars' AND tc.constraint_type='FOREIGN KEY' AND kcu.column_name='tenant_id') THEN
+      ALTER TABLE public.sd_calendars ADD CONSTRAINT fk_sd_calendars_tenant FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu USING (constraint_name, table_schema) WHERE tc.table_name='sd_holidays' AND tc.constraint_type='FOREIGN KEY' AND kcu.column_name='tenant_id') THEN
+      ALTER TABLE public.sd_holidays ADD CONSTRAINT fk_sd_holidays_tenant FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE RESTRICT;
+    END IF;
+  END IF;
+  EXECUTE 'CREATE INDEX IF NOT EXISTS idx_sd_calendars_tenant ON public.sd_calendars (tenant_id)';
+  EXECUTE 'CREATE INDEX IF NOT EXISTS idx_sd_calendars_tenant_company ON public.sd_calendars (tenant_id, company_id)';
+  EXECUTE 'CREATE INDEX IF NOT EXISTS idx_sd_holidays_tenant ON public.sd_holidays (tenant_id)';
+  EXECUTE 'CREATE INDEX IF NOT EXISTS idx_sd_holidays_tenant_company ON public.sd_holidays (tenant_id, company_id)';
+  EXECUTE 'CREATE INDEX IF NOT EXISTS idx_sd_holidays_calendar ON public.sd_holidays (calendar_id)';
+END$$;
+
+-- RLS tenant isolation (restrictive, additive to existing company policies)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'tenant_company_access') THEN
+    EXECUTE 'DROP POLICY IF EXISTS tenant_isolation_restrict ON public.sd_calendars';
+    EXECUTE $sql$CREATE POLICY tenant_isolation_restrict ON public.sd_calendars AS RESTRICTIVE FOR ALL USING (public.tenant_company_access(tenant_id, company_id)) WITH CHECK (public.tenant_company_access(tenant_id, company_id))$sql$;
+    EXECUTE 'DROP POLICY IF EXISTS tenant_isolation_restrict ON public.sd_holidays';
+    EXECUTE $sql$CREATE POLICY tenant_isolation_restrict ON public.sd_holidays AS RESTRICTIVE FOR ALL USING (public.tenant_company_access(tenant_id, company_id)) WITH CHECK (public.tenant_company_access(tenant_id, company_id))$sql$;
+  END IF;
+END$$;
 
 COMMIT;

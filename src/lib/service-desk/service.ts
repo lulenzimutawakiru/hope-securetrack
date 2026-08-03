@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { calculateSlaDue, slaMinutesForPriority } from "./sla";
 import { routeTicket, detectDuplicate } from "./routing";
-import { analyzeRequest } from "./ai";
+import { analyzeRequest, detectSentiment, extractIntent, predictCsat, suggestAutoReply } from "./ai";
 import type { TicketInput } from "./types";
 
 function sb() {
@@ -1180,4 +1180,135 @@ export async function convertInboundToTicket(input: {
     .eq("id", input.inbound_id);
 
   return ticket;
+}
+
+
+export async function recordNps(input: {
+  company_id: string;
+  ticket_id?: string | null;
+  score: number;
+  comment?: string | null;
+  respondent_name?: string | null;
+}) {
+  if (input.score < 0 || input.score > 10) {
+    throw new Error("NPS score must be between 0 and 10");
+  }
+  const { data, error } = await sb()
+    .from("sd_nps_responses")
+    .insert({
+      company_id: input.company_id,
+      ticket_id: input.ticket_id,
+      score: input.score,
+      comment: input.comment,
+      respondent_name: input.respondent_name,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * AI virtual agent run: classifies the request, detects sentiment + intent,
+ * resolves with a knowledge match when safe (deflection), or creates a ticket,
+ * and records the tenant-scoped session for deflection analytics.
+ */
+export async function virtualAgentRun(input: {
+  company_id: string;
+  user_message: string;
+  channel?: string;
+  created_by?: string | null;
+  requester_name?: string | null;
+  create_ticket?: boolean;
+}) {
+  const { data: articles } = await sb()
+    .from("sd_knowledge_articles")
+    .select("id,title,summary,body,category,tags")
+    .eq("company_id", input.company_id)
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .limit(100);
+
+  const analysis = analyzeRequest(input.user_message, (articles || []) as Array<{
+    id: string;
+    title: string;
+    summary?: string | null;
+    body: string;
+    category?: string | null;
+    tags?: string[] | null;
+  }>);
+  const sentiment = detectSentiment(input.user_message);
+  const intent = extractIntent(input.user_message);
+  const reply = suggestAutoReply(input.user_message, analysis);
+
+  let ticketId: string | null = null;
+  let ticketNumber: string | null = null;
+  let outcome = "resolved_ai";
+
+  if (input.create_ticket !== false && analysis.shouldCreateTicket) {
+    const t = await createTicket({
+      company_id: input.company_id,
+      created_by: input.created_by,
+      ticket: {
+        subject: input.user_message.slice(0, 120),
+        description: input.user_message,
+        category: analysis.suggestedCategory,
+        subcategory: analysis.suggestedSubcategory,
+        service_type: analysis.suggestedServiceType,
+        priority: analysis.suggestedPriority,
+        impact: analysis.suggestedImpact,
+        urgency: analysis.suggestedUrgency,
+        channel: input.channel || "ai",
+        ticket_type: intent.intent === "request_fulfillment" ? "service_request" : "incident",
+        is_major: analysis.isMajor,
+        requester_name: input.requester_name,
+      },
+    });
+    ticketId = t.id;
+    ticketNumber = t.ticket_number;
+    outcome = "ticket_created";
+  }
+
+  const matched = analysis.knowledgeMatches[0] || null;
+
+  const { data, error } = await sb()
+    .from("sd_ai_sessions")
+    .insert({
+      company_id: input.company_id,
+      channel: input.channel || "ai",
+      user_message: input.user_message,
+      intent: intent.intent,
+      sentiment: sentiment.label,
+      sentiment_score: Math.round(sentiment.score * 100) / 100,
+      urgency: intent.urgencyLevel,
+      suggested_category: analysis.suggestedCategory,
+      suggested_priority: analysis.suggestedPriority,
+      matched_article_id: matched?.id || null,
+      matched_article_title: matched?.title || null,
+      ticket_id: ticketId,
+      ticket_number: ticketNumber,
+      assistant_reply: reply,
+      outcome,
+      created_by: input.created_by,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  const predictedCsat = predictCsat({
+    sentimentScore: sentiment.score,
+    isMajor: analysis.isMajor,
+  });
+
+  return {
+    session: data,
+    analysis,
+    sentiment,
+    intent,
+    reply,
+    ticketId,
+    ticketNumber,
+    outcome,
+    predictedCsat,
+  };
 }

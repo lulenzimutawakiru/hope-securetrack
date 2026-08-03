@@ -2083,6 +2083,35 @@ defineEntity("hc_user_settings", "hc_user_settings", "hc", {
   searchable: []
 });
 
+defineEntity("hc_approvals", "hc_approvals", "hc", {
+  view: "hc.view",
+  create: "hc.manage",
+  update: "hc.manage",
+  delete: "hc.manage",
+}, {
+  softDelete: true,
+  searchable: ["title", "description", "entity_label", "requester_name", "approver_name", "entity_type"]
+});
+
+defineEntity("hc_copilot_sessions", "hc_copilot_sessions", "hc", {
+  view: "hc.view",
+  create: "hc.ai",
+  update: "hc.manage",
+  delete: "hc.manage",
+}, {
+  softDelete: true,
+  searchable: ["user_message", "answer", "intent"]
+});
+
+defineEntity("hc_external_participants", "hc_external_participants", "hc", {
+  view: "hc.view",
+  create: "hc.manage",
+  update: "hc.manage",
+  delete: "hc.manage",
+}, {
+  softDelete: true,
+  searchable: ["display_name", "email", "external_type"]
+});
 defineEntity("idm_abac_rules", "idm_abac_rules", "iam", {
   view: "iam.view",
   create: "iam.abac",
@@ -3353,4 +3382,56 @@ defineEntity("wid_workflows", "wid_workflows", "wid", {
   delete: "wid.manage",
 }, {
   searchable: ["name", "description"]
+});
+
+// ---- Service Desk enterprise: integrations / calendars / holidays -----
+defineEntity("sd_integrations", "sd_integrations", "sd", {
+  view: "sd.view",
+  create: "sd.admin",
+  update: "sd.admin",
+  delete: "sd.admin",
+}, {
+  softDelete: true,
+  searchable: ["name", "integration_type", "category"]
+});
+
+defineEntity("sd_calendars", "sd_calendars", "sd", {
+  view: "sd.view",
+  create: "sd.manage",
+  update: "sd.manage",
+  delete: "sd.manage",
+}, {
+  softDelete: true,
+  searchable: ["name", "calendar_code", "timezone"]
+});
+
+defineEntity("sd_holidays", "sd_holidays", "sd", {
+  view: "sd.view",
+  create: "sd.manage",
+  update: "sd.manage",
+  delete: "sd.manage",
+}, {
+  softDelete: true,
+  searchable: ["name"]
+});
+
+// ---- Service Desk current trends: AI sessions + NPS ----
+defineEntity("sd_ai_sessions", "sd_ai_sessions", "sd", {
+  view: "sd.view",
+  create: "sd.agent",
+  update: "sd.agent",
+  delete: "sd.agent",
+}, {
+  softDelete: true,
+  searchable: ["user_message", "assistant_reply", "intent", "outcome", "suggested_category"]
+});
+
+defineEntity("sd_nps_responses", "sd_nps_responses", "sd", {
+  view: "sd.view",
+  create: "sd.agent",
+  update: "sd.agent",
+  delete: "sd.agent",
+}, {
+  softDelete: true,
+  searchable: ["respondent_name", "comment"]
 });

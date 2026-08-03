@@ -7,6 +7,7 @@ import {
   GitBranch, MapPin, BarChart3, Wand2, ShoppingBag, Clock,
   ArrowRight, MessageSquare, Settings, LifeBuoy, PlusCircle,
   UserCog, Siren, CheckSquare, Smartphone, FolderTree, Inbox,
+  Gauge, Cable, ShieldCheck, Settings2, ArrowUp, HeartPulse, Bot,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,11 @@ import { formatNumber } from "@/lib/utils";
 import { SERVICE_DESK_LIFECYCLE } from "@/lib/service-desk";
 
 const MODULES = [
+  { title: "Executive Command Center", href: "/dashboard/service-desk/executive", icon: Gauge, desc: "AI insights · SLA · backlog" },
+  { title: "Escalation Center", href: "/dashboard/service-desk/escalations", icon: ArrowUp, desc: "SLA breach watch · manual escalate" },
+  { title: "Integrations", href: "/dashboard/service-desk/integrations", icon: Cable, desc: "Identity · comms · monitoring · ERP" },
+  { title: "Administration", href: "/dashboard/service-desk/admin", icon: Settings2, desc: "Calendars · holidays · SLA schedule" },
+  { title: "Security & Audit", href: "/dashboard/service-desk/security", icon: ShieldCheck, desc: "Audit trail · permissions · retention" },
   { title: "Smart Create", href: "/dashboard/service-desk/create", icon: PlusCircle, desc: "AI form · QR · templates" },
   { title: "Tickets", href: "/dashboard/service-desk/tickets", icon: Ticket, desc: "Incidents · requests · lifecycle" },
   { title: "Agent Workspace", href: "/dashboard/service-desk/agent", icon: UserCog, desc: "Work logs · replies · resolve" },
@@ -26,6 +32,8 @@ const MODULES = [
   { title: "Approvals", href: "/dashboard/service-desk/approvals", icon: CheckSquare, desc: "Multi-level · catalog" },
   { title: "Categories", href: "/dashboard/service-desk/categories", icon: FolderTree, desc: "Unlimited taxonomy" },
   { title: "Inbound Inbox", href: "/dashboard/service-desk/inbound", icon: Inbox, desc: "Email · IoT · WhatsApp" },
+  { title: "Conversations", href: "/dashboard/service-desk/conversations", icon: Inbox, desc: "Omnichannel inbox · unified threads" },
+  { title: "CX Intelligence", href: "/dashboard/service-desk/cx", icon: HeartPulse, desc: "NPS · sentiment · deflection" },
   { title: "Service Catalog", href: "/dashboard/service-desk/catalog", icon: ShoppingBag, desc: "Self-service marketplace" },
   { title: "Portal", href: "/dashboard/service-desk/portal", icon: LifeBuoy, desc: "Employee & customer portal" },
   { title: "Knowledge Base", href: "/dashboard/service-desk/knowledge", icon: BookOpen, desc: "Articles · FAQs · SOPs" },
@@ -38,6 +46,7 @@ const MODULES = [
   { title: "Automation", href: "/dashboard/service-desk/automation", icon: Settings, desc: "No-code workflow rules" },
   { title: "Channels", href: "/dashboard/service-desk/channels", icon: MessageSquare, desc: "Email · chat · WhatsApp" },
   { title: "AI Assistant", href: "/dashboard/service-desk/ai", icon: Wand2, desc: "Triage · KB · auto-route" },
+  { title: "AI Virtual Agent", href: "/dashboard/service-desk/ai-agent", icon: Bot, desc: "Sentiment · intent · deflection" },
   { title: "Analytics", href: "/dashboard/service-desk/reports", icon: BarChart3, desc: "SLA · CSAT · volume" },
   { title: "CSAT", href: "/dashboard/service-desk/csat", icon: Layers, desc: "Satisfaction scores" },
   { title: "Mobile", href: "/dashboard/service-desk/mobile", icon: Smartphone, desc: "PWA · offline · field" },
@@ -127,6 +136,9 @@ export default function ServiceDeskHubPage() {
         description="Case management · multi-channel · AI triage · major incidents · field · QR assets · SLA"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/service-desk/executive"><Gauge className="h-4 w-4 mr-1" /> Command center</Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href="/dashboard/service-desk/agent"><UserCog className="h-4 w-4 mr-1" /> Agent</Link>
             </Button>
