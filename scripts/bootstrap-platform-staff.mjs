@@ -7,7 +7,7 @@
  * with tenant_id IS NULL. Tenant super admins can never be platform admins
  * (enforced in the DB by is_platform_admin() and the
  * guard_profile_privilege_columns trigger, and in the app by requireApiAuth
- * and the /dashboard/platform layout gate).
+ * and the /platform layout gate).
  *
  * This script is idempotent and creates:
  *   1. the auth user (if the email does not already exist),
@@ -139,7 +139,7 @@ async function main() {
   console.log("\nDone. SecureTrack staff platform admin is ready.");
   console.log("Next steps:");
   console.log(" - Set a strong password and enforce MFA (TOTP) for this account.");
-  console.log(" - Sign in at /login; the platform control plane is at /dashboard/platform.");
+  console.log(" - Sign in at /login; the platform control plane is at /platform.");
 }
 
 main().catch((err) => {

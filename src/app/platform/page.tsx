@@ -25,12 +25,12 @@ import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
 const NAV = [
   { title: "Tenants", href: "/dashboard/tenants", icon: Building2, desc: "Tenant directory & companies" },
-  { title: "Provisioning", href: "/dashboard/platform/provisioning", icon: Workflow, desc: "Auto-provision jobs" },
-  { title: "Events", href: "/dashboard/platform/events", icon: Activity, desc: "Domain event stream" },
-  { title: "Feature flags", href: "/dashboard/platform/flags", icon: Flag, desc: "Module & AI toggles" },
-  { title: "Modules", href: "/dashboard/platform/modules", icon: Layers, desc: "Module catalog" },
-  { title: "Health", href: "/dashboard/platform/health", icon: HeartPulse, desc: "Platform health checks" },
-  { title: "Subscriptions", href: "/dashboard/platform/subscriptions", icon: CreditCard, desc: "Plans & billing" },
+  { title: "Provisioning", href: "/platform/provisioning", icon: Workflow, desc: "Auto-provision jobs" },
+  { title: "Events", href: "/platform/events", icon: Activity, desc: "Domain event stream" },
+  { title: "Feature flags", href: "/platform/flags", icon: Flag, desc: "Module & AI toggles" },
+  { title: "Modules", href: "/platform/modules", icon: Layers, desc: "Module catalog" },
+  { title: "Health", href: "/platform/health", icon: HeartPulse, desc: "Platform health checks" },
+  { title: "Subscriptions", href: "/platform/subscriptions", icon: CreditCard, desc: "Plans & billing" },
   { title: "Security", href: "/dashboard/identity", icon: Shield, desc: "IAM & sessions" },
 ];
 
@@ -74,7 +74,7 @@ export default function PlatformAdminPage() {
               <Link href="/register">Public register</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link href="/dashboard/platform/provisioning">
+              <Link href="/platform/provisioning">
                 <Sparkles className="h-4 w-4 mr-1" /> Provision tenant
               </Link>
             </Button>
@@ -155,7 +155,7 @@ export default function PlatformAdminPage() {
               </div>
             ))}
             <Button size="sm" variant="outline" className="w-full" asChild>
-              <Link href="/dashboard/platform/events">View event stream</Link>
+              <Link href="/platform/events">View event stream</Link>
             </Button>
           </CardContent>
         </Card>
