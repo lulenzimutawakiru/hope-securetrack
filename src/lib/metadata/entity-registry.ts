@@ -1990,6 +1990,48 @@ defineEntity("goods_receipts", "goods_receipts", "inventory", {
   searchable: ["status", "notes", "supplier_name"]
 });
 
+defineEntity("stock_reservations", "stock_reservations", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  createdBy: true,
+  searchable: ["reservation_number", "status", "notes"],
+});
+
+defineEntity("stock_transfers", "stock_transfers", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  createdBy: true,
+  searchable: ["transfer_number", "status", "reason"],
+});
+
+defineEntity("inventory_approvals", "inventory_approvals", "inventory", {
+  view: "inventory.view",
+  create: "inventory.manage",
+  update: "inventory.manage",
+  delete: "inventory.manage",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["document_type", "action", "document_number", "comments"],
+});
+
+defineEntity("batch_trace_events", "batch_trace_events", "inventory", {
+  view: "inventory.view",
+  create: "production.manage",
+  update: "production.manage",
+  delete: "inventory.manage",
+}, {
+  hasCreatedAt: false,
+  hasUpdatedAt: false,
+  sortable: ["event_at"],
+  searchable: ["batch_number", "serial_number", "reference_number"],
+});
+
 defineEntity("hc_bots", "hc_bots", "hc", {
   view: "hc.view",
   create: "hc.manage",

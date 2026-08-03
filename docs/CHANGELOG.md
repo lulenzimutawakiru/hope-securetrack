@@ -1,4 +1,18 @@
 # Changelog
+## 2026-08-03 - Phase 15: frontend roadmap (inventory module CRUD read migration)
+
+### Inventory hub, balances and locations on the hardened data layer
+
+- `src/app/dashboard/inventory/page.tsx` - hub KPIs now read through `/api/v2/crud/[entity]` (`useEntityList` pageSize-1 exact totals for warehouses/GRNs/transfers/reservations/reams, `useEntityAll` for the stock-balance value aggregate and open AI insights); products and purchase-requisition head counts intentionally stay on the RLS-bound browser client (`products.view` / `procurement.view` vs the `inventory.view` warehouse roles) - documented in-page
+- `src/app/dashboard/inventory/balances/page.tsx` - stock-balance grid migrated to `useEntityAll` (updated_at desc, 1000-row cap, warehouse filter composed into the query key); PostgREST joins replaced with client-side reference maps (warehouses/warehouse_bins via CRUD, products via the browser client); grid data resolved inline (join-free CRUD surface)
+- `src/app/dashboard/inventory/locations/page.tsx` - warehouses/zones/bins reads migrated to `useEntityAll` (inventory.view gate); selected-warehouse default derived from the first active warehouse without an effect
+- `src/lib/metadata/entity-registry.ts` - registered `stock_reservations`, `stock_transfers`, `inventory_approvals`, `batch_trace_events` (inventory) with permission slugs and searchable fields; `batch_trace_events` declares `sortable: ["event_at"]` (no created_at/updated_at columns)
+- Known limitation: the hub balance aggregate is capped at 500 rows (CRUD page-walk cap) vs the legacy unbounded read - more than sufficient for the on-hand value KPI, documented in-page
+
+### Validation
+
+- Typecheck, vitest (171), security suite (101), eslint (0 errors on changed files), production build, bundle audit - all green
+
 ## 2026-08-03 - Phase 14: frontend roadmap (serialized inventory on the hardened data layer)
 
 ### Serialized stock migration

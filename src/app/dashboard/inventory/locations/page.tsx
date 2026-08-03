@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { MapPin, Warehouse } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,42 +13,70 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { formatNumber } from "@/lib/utils";
 
+interface WarehouseRow {
+  id: string;
+  name: string;
+  code: string;
+  warehouse_type: string | null;
+  city: string | null;
+  capacity_units: number | null;
+}
+
+interface ZoneRow {
+  id: string;
+  warehouse_id: string | null;
+  code: string;
+  name: string;
+  zone_type: string | null;
+}
+
+interface BinRow {
+  id: string;
+  warehouse_id: string | null;
+  code: string;
+  aisle: string | null;
+  shelf: string | null;
+  barcode: string | null;
+  capacity_units: number | null;
+}
+
 export default function LocationsPage() {
-  const [warehouses, setWarehouses] = useState<Array<Record<string, unknown>>>([]);
-  const [zones, setZones] = useState<Array<Record<string, unknown>>>([]);
-  const [bins, setBins] = useState<Array<Record<string, unknown>>>([]);
   const [selectedWh, setSelectedWh] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const [{ data: wh }, { data: z }, { data: b }] = await Promise.all([
-        supabase
-          .from("warehouses")
-          .select("*")
-          .eq("is_active", true)
-          .order("name"),
-        supabase.from("warehouse_zones").select("*").order("code"),
-        supabase.from("warehouse_bins").select("*").order("code"),
-      ]);
-      setWarehouses(wh ?? []);
-      setZones(z ?? []);
-      setBins(b ?? []);
-      if (wh?.[0]) setSelectedWh(String(wh[0].id));
-      setLoading(false);
-    }
-    load();
-  }, []);
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, rows are permission-checked and dual-key (tenant + company)
+  // scoped. All three location entities gate view on inventory.view, so the
+  // warehouse roles that drive this page resolve through the CRUD surface
+  // with no PostgREST joins.
+  const warehousesQ = useEntityAll<WarehouseRow>("warehouses", {
+    sort: "name",
+    filters: { is_active: true },
+  });
+  const zonesQ = useEntityAll<ZoneRow>("warehouse_zones", {
+    sort: "code",
+  });
+  const binsQ = useEntityAll<BinRow>("warehouse_bins", {
+    sort: "code",
+  });
 
-  if (loading) return <LoadingState />;
+  const warehouses = warehousesQ.data ?? [];
+  const zones = zonesQ.data ?? [];
+  const bins = binsQ.data ?? [];
 
-  const whZones = zones.filter((z) => z.warehouse_id === selectedWh);
-  const whBins = bins.filter((b) => b.warehouse_id === selectedWh);
-  const selected = warehouses.find((w) => w.id === selectedWh);
+  // Default the selected warehouse to the first active warehouse until the
+  // user picks one, preserving the pre-CRUD behaviour without an effect.
+  const activeWhId = selectedWh ?? warehouses[0]?.id ?? null;
+
+  if (warehousesQ.isLoading || zonesQ.isLoading || binsQ.isLoading) {
+    return <LoadingState />;
+  }
+
+  const whZones = zones.filter((z) => z.warehouse_id === activeWhId);
+  const whBins = bins.filter((b) => b.warehouse_id === activeWhId);
+  const selected = warehouses.find((w) => w.id === activeWhId);
 
   return (
     <div>
@@ -75,23 +103,23 @@ export default function LocationsPage() {
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         {warehouses.map((w) => (
           <Card
-            key={String(w.id)}
+            key={w.id}
             className={`cursor-pointer transition-colors ${
-              selectedWh === w.id ? "border-hope-teal ring-1 ring-hope-teal/30" : ""
+              activeWhId === w.id ? "border-hope-teal ring-1 ring-hope-teal/30" : ""
             }`}
-            onClick={() => setSelectedWh(String(w.id))}
+            onClick={() => setSelectedWh(w.id)}
           >
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
-                <span>{String(w.name)}</span>
-                <Badge variant="secondary">{String(w.code)}</Badge>
+                <span>{w.name}</span>
+                <Badge variant="secondary">{w.code}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-1">
               <div className="capitalize">
                 Type: {String(w.warehouse_type ?? "main").replace(/_/g, " ")}
               </div>
-              <div>City: {String(w.city ?? "—")}</div>
+              <div>City: {w.city ?? "—"}</div>
               <div>
                 Capacity:{" "}
                 {w.capacity_units != null
@@ -113,7 +141,7 @@ export default function LocationsPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
             <h3 className="font-medium mb-3">
-              Zones — {String(selected.name)}
+              Zones — {selected.name}
             </h3>
             {whZones.length === 0 ? (
               <p className="text-sm text-muted-foreground">No zones defined</p>
@@ -129,13 +157,13 @@ export default function LocationsPage() {
                   </TableHeader>
                   <TableBody>
                     {whZones.map((z) => (
-                      <TableRow key={String(z.id)}>
+                      <TableRow key={z.id}>
                         <TableCell className="font-mono text-sm">
-                          {String(z.code)}
+                          {z.code}
                         </TableCell>
-                        <TableCell>{String(z.name)}</TableCell>
+                        <TableCell>{z.name}</TableCell>
                         <TableCell className="capitalize">
-                          {String(z.zone_type).replace(/_/g, " ")}
+                          {String(z.zone_type ?? "storage").replace(/_/g, " ")}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -163,14 +191,14 @@ export default function LocationsPage() {
                   </TableHeader>
                   <TableBody>
                     {whBins.map((b) => (
-                      <TableRow key={String(b.id)}>
+                      <TableRow key={b.id}>
                         <TableCell className="font-mono text-sm">
-                          {String(b.code)}
+                          {b.code}
                         </TableCell>
-                        <TableCell>{String(b.aisle ?? "—")}</TableCell>
-                        <TableCell>{String(b.shelf ?? "—")}</TableCell>
+                        <TableCell>{b.aisle ?? "—"}</TableCell>
+                        <TableCell>{b.shelf ?? "—"}</TableCell>
                         <TableCell className="font-mono text-xs">
-                          {String(b.barcode ?? "—")}
+                          {b.barcode ?? "—"}
                         </TableCell>
                         <TableCell className="text-right">
                           {b.capacity_units != null

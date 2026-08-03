@@ -25,6 +25,18 @@ SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 
 | Known limitation: `qr_codes` RLS update policy is restricted to QR/production roles, so warehouse-manager moves do not mirror QR status (matches legacy behavior; logged via warn) - flagged for a follow-up RLS/registry permission alignment | Tracked |
 | Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
 
+## Phase 15 (2026-08-03) - frontend roadmap (inventory module CRUD read migration)
+
+| Deliverable | Status |
+|------------|--------|
+| `inventory` hub migrated to the hardened data layer - exact server-side totals for warehouses/GRNs/transfers/reservations/reams, `useEntityAll` for the balance-value aggregate and open AI insights; products + purchase-requisition head counts stay browser-side by design (`products.view` / `procurement.view` vs warehouse `inventory.view` roles) | Live |
+| `inventory/balances` migrated - `useEntityAll` grid read (updated_at desc, warehouse filter in query key), PostgREST joins replaced by client-side reference maps (warehouses/warehouse_bins via CRUD, products via browser client) | Live |
+| `inventory/locations` migrated - warehouses/zones/bins through `useEntityAll` (inventory.view), default warehouse derived from first active row without an effect | Live |
+| Entity registry: `stock_reservations`, `stock_transfers`, `inventory_approvals`, `batch_trace_events` registered with permission slugs + searchable fields (`batch_trace_events` sorts by `event_at`) | Live |
+| Remaining inventory read migrations (adjustments, traceability, reservations, transfers, cycle-count/GRN/replenishment list reads) are join/search-heavy - deferred to the next phase | Tracked |
+| Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
+
+
 ## Phase 12 (2026-08-03) - frontend roadmap (query layer, auth context, grid UX)
 
 | Deliverable | Status |

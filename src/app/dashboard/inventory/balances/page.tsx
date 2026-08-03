@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Boxes } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,56 +16,93 @@ import {
 } from "@/components/enterprise/data-grid";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { useEntityAll } from "@/hooks/use-entity-all";
 
 interface BalanceRow {
   id: string;
-  quantity_on_hand: number;
-  quantity_reserved: number;
-  quantity_available: number;
-  quantity_quarantine: number;
-  unit_cost: number;
-  total_value: number;
+  product_id: string | null;
+  warehouse_id: string | null;
+  bin_id: string | null;
   batch_number: string | null;
-  products?: { name: string; product_code: string; item_category: string; uom: string } | null;
-  warehouses?: { name: string; code: string } | null;
-  warehouse_bins?: { code: string } | null;
+  quantity_on_hand: number | null;
+  quantity_reserved: number | null;
+  quantity_available: number | null;
+  quantity_quarantine: number | null;
+  unit_cost: number | null;
+  total_value: number | null;
+  /** Resolved client-side reference labels (the CRUD surface is join-free). */
+  product_code?: string | null;
+  product_name?: string | null;
+  warehouse_name?: string | null;
+  bin_code?: string | null;
+}
+
+interface ProductRef {
+  id: string;
+  name: string;
+  product_code: string;
+  item_category: string;
+  uom: string;
 }
 
 export default function StockBalancesPage() {
-  const [rows, setRows] = useState<BalanceRow[]>([]);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
   const [whFilter, setWhFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    const supabase = createClient();
-    let q = supabase
-      .from("stock_balances")
-      .select(
-        "*, products(name, product_code, item_category, uom), warehouses(name, code), warehouse_bins(code)"
-      )
-      .order("updated_at", { ascending: false })
-      .limit(1000);
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, rows are permission-checked and dual-key (tenant + company)
+  // scoped. The legacy query used PostgREST joins (products, warehouses,
+  // warehouse_bins); the CRUD surface is join-free, so reference labels are
+  // resolved client-side from CRUD reads (warehouses and warehouse_bins gate
+  // on inventory.view) plus the RLS-bound browser client for products, whose
+  // CRUD read gate (products.view) the warehouse roles here may not hold.
+  const balancesQ = useEntityAll<BalanceRow>("stock_balances", {
+    sort: "updated_at",
+    order: "desc",
+    max: 1000,
+    filters: whFilter !== "all" ? { warehouse_id: whFilter } : undefined,
+  });
+  const warehousesQ = useEntityAll<{ id: string; name: string }>("warehouses", {
+    select: "id,name",
+    sort: "name",
+    filters: { is_active: true },
+  });
+  const binsQ = useEntityAll<{ id: string; code: string }>("warehouse_bins", {
+    select: "id,code",
+  });
+  const productsQ = useQuery({
+    queryKey: ["stock-balances", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("products")
+        .select("id,name,product_code,item_category,uom");
+      if (error) throw error;
+      return (data ?? []) as ProductRef[];
+    },
+  });
 
-    if (whFilter !== "all") q = q.eq("warehouse_id", whFilter);
-
-    const [{ data }, { data: wh }] = await Promise.all([
-      q,
-      supabase.from("warehouses").select("id,name").eq("is_active", true).order("name"),
-    ]);
-    setRows((data as BalanceRow[]) ?? []);
-    setWarehouses(wh ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [whFilter]);
+  const rows = balancesQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  const bins = binsQ.data ?? [];
+  const products = productsQ.data ?? [];
+  const warehousesMap = new Map(warehouses.map((w) => [w.id, w]));
+  const binsMap = new Map(bins.map((b) => [b.id, b]));
+  const productsMap = new Map(products.map((p) => [p.id, p]));
 
   const totalQty = rows.reduce((s, r) => s + Number(r.quantity_on_hand || 0), 0);
   const totalVal = rows.reduce((s, r) => s + Number(r.total_value || 0), 0);
   const quarantine = rows.reduce((s, r) => s + Number(r.quantity_quarantine || 0), 0);
+
+  // Resolve reference labels inline: the CRUD surface is join-free, and the
+  // 1000-row map is trivial to recompute per render (no memo needed).
+  const resolvedRows = rows.map((r) => ({
+    ...r,
+    product_code: productsMap.get(r.product_id ?? "")?.product_code ?? null,
+    product_name: productsMap.get(r.product_id ?? "")?.name ?? null,
+    warehouse_name: warehousesMap.get(r.warehouse_id ?? "")?.name ?? null,
+    bin_code: binsMap.get(r.bin_id ?? "")?.code ?? null,
+  }));
 
   const columns = useMemo<DataGridColumn<BalanceRow>[]>(
     () => [
@@ -73,32 +110,32 @@ export default function StockBalancesPage() {
         id: "sku",
         header: "SKU",
         defaultPinned: "left",
-        accessorFn: (r) => r.products?.product_code ?? "—",
-        cell: ({ row }) => (
+        accessorKey: "product_code",
+        cell: ({ getValue }) => (
           <span className="font-mono text-sm">
-            {row.original.products?.product_code ?? "—"}
+            {String(getValue() ?? "—")}
           </span>
         ),
       },
       {
         id: "product",
         header: "Product",
-        accessorFn: (r) => r.products?.name ?? "—",
-        cell: ({ row }) => (
+        accessorKey: "product_name",
+        cell: ({ getValue }) => (
           <span className="font-medium text-sm">
-            {row.original.products?.name ?? "—"}
+            {String(getValue() ?? "—")}
           </span>
         ),
       },
       {
         id: "warehouse",
         header: "Warehouse",
-        accessorFn: (r) => r.warehouses?.name ?? "—",
+        accessorFn: (r) => r.warehouse_name ?? "—",
       },
       {
         id: "bin",
         header: "Bin",
-        accessorFn: (r) => r.warehouse_bins?.code ?? "—",
+        accessorFn: (r) => r.bin_code ?? "—",
       },
       {
         accessorKey: "batch_number",
@@ -138,7 +175,7 @@ export default function StockBalancesPage() {
     []
   );
 
-  if (loading) return <LoadingState />;
+  if (balancesQ.isLoading) return <LoadingState />;
 
   return (
     <div className="space-y-4">
@@ -189,7 +226,7 @@ export default function StockBalancesPage() {
       </div>
 
       <EnterpriseDataGrid
-        data={rows}
+        data={resolvedRows}
         columns={columns}
         storageKey="grid:stock-balances"
         height={520}

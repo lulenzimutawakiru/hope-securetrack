@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Warehouse,
@@ -30,6 +29,9 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useEntityList } from "@/hooks/use-entity-query";
 
 const FLOW = [
   "Procurement",
@@ -66,85 +68,105 @@ interface Insight {
   insight_type: string;
 }
 
+interface BalanceValueRow {
+  total_value: number | null;
+  quantity_on_hand: number | null;
+  quantity_reserved: number | null;
+}
+
 export default function InventoryHubPage() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    skus: 0,
-    warehouses: 0,
-    onHandValue: 0,
-    openGrn: 0,
-    openTransfers: 0,
-    openPr: 0,
-    activeReservations: 0,
-    reamsWh: 0,
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked and dual-key (tenant +
+  // company) scoped. Products and purchase requisitions are cross-module
+  // references whose CRUD read gates (products.view / procurement.view) the
+  // warehouse roles driving this hub do not hold, so those head-count reads
+  // stay on the RLS-bound browser client (company-scoped policies).
+  const warehousesQ = useEntityList<{ id: string }>("warehouses", {
+    pageSize: 1,
+    filters: { is_active: true },
   });
-  const [insights, setInsights] = useState<Insight[]>([]);
-
-  useEffect(() => {
-    async function load() {
+  const balancesQ = useEntityAll<BalanceValueRow>("stock_balances", {
+    select: "total_value,quantity_on_hand,quantity_reserved",
+    max: 500,
+  });
+  const grnQ = useEntityList<{ id: string }>("goods_receipts", {
+    pageSize: 1,
+    filters: { status: ["draft", "pending_inspection", "partially_accepted"] },
+  });
+  const transfersQ = useEntityList<{ id: string }>("stock_transfers", {
+    pageSize: 1,
+    filters: { status: ["draft", "in_transit"] },
+  });
+  const resvQ = useEntityList<{ id: string }>("stock_reservations", {
+    pageSize: 1,
+    filters: { status: "active" },
+  });
+  const reamsQ = useEntityList<{ id: string }>("reams", {
+    pageSize: 1,
+    filters: { inventory_status: "in_warehouse" },
+  });
+  const insightsQ = useEntityAll<Insight>("inventory_insights", {
+    sort: "created_at",
+    order: "desc",
+    filters: { status: "open" },
+    max: 6,
+  });
+  const productsQ = useQuery({
+    queryKey: ["inventory-hub", "products-count"],
+    queryFn: async () => {
       const supabase = createClient();
-      const [
-        products,
-        warehouses,
-        balances,
-        grn,
-        transfers,
-        pr,
-        resv,
-        reams,
-        { data: insightData },
-      ] = await Promise.all([
-        supabase.from("products").select("*", { count: "exact", head: true }),
-        supabase.from("warehouses").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("stock_balances").select("total_value, quantity_on_hand, quantity_reserved"),
-        supabase
-          .from("goods_receipts")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["draft", "pending_inspection", "partially_accepted"]),
-        supabase
-          .from("stock_transfers")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["draft", "in_transit"]),
-        supabase
-          .from("purchase_requisitions")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["draft", "submitted", "approved"]),
-        supabase
-          .from("stock_reservations")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "active"),
-        supabase
-          .from("reams")
-          .select("*", { count: "exact", head: true })
-          .eq("inventory_status", "in_warehouse"),
-        supabase
-          .from("inventory_insights")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(6),
-      ]);
+      const { count, error } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+  const prQ = useQuery({
+    queryKey: ["inventory-hub", "pr-count"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from("purchase_requisitions")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["draft", "submitted", "approved"]);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
-      const onHandValue = (balances.data ?? []).reduce(
-        (s, b) => s + Number(b.total_value || 0),
-        0
-      );
+  const balances = balancesQ.data ?? [];
+  const onHandValue = balances.reduce(
+    (s, b) => s + Number(b.total_value || 0),
+    0
+  );
 
-      setStats({
-        skus: products.count ?? 0,
-        warehouses: warehouses.count ?? 0,
-        onHandValue,
-        openGrn: grn.count ?? 0,
-        openTransfers: transfers.count ?? 0,
-        openPr: pr.count ?? 0,
-        activeReservations: resv.count ?? 0,
-        reamsWh: reams.count ?? 0,
-      });
-      setInsights((insightData as Insight[]) ?? []);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  // The legacy read pulled every balance row (unbounded) to aggregate on-hand
+  // value; the CRUD layer caps page walks at 500 rows, which is more than
+  // sufficient for this KPI while keeping the read permission-checked.
+  const stats = {
+    skus: productsQ.data ?? 0,
+    warehouses: warehousesQ.data?.total ?? 0,
+    onHandValue,
+    openGrn: grnQ.data?.total ?? 0,
+    openTransfers: transfersQ.data?.total ?? 0,
+    openPr: prQ.data ?? 0,
+    activeReservations: resvQ.data?.total ?? 0,
+    reamsWh: reamsQ.data?.total ?? 0,
+  };
+  const insights = insightsQ.data ?? [];
+
+  const loading = [
+    warehousesQ,
+    balancesQ,
+    grnQ,
+    transfersQ,
+    resvQ,
+    reamsQ,
+    insightsQ,
+    productsQ,
+    prQ,
+  ].some((q) => q.isLoading);
 
   if (loading) return <LoadingState message="Loading inventory command centre…" />;
 
