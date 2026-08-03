@@ -1167,6 +1167,26 @@ defineEntity("ta_applications", "ta_applications", "ta", {
   updatedBy: true,
 });
 
+defineEntity("ta_comments", "ta_comments", "ta", {
+  view: "ta.view",
+  create: "ta.manage",
+  update: "ta.manage",
+  delete: "ta.manage",
+}, {
+  softDelete: true,
+  searchable: ["body", "author_name"],
+});
+
+defineEntity("ta_attachments", "ta_attachments", "ta", {
+  view: "ta.view",
+  create: "ta.manage",
+  update: "ta.manage",
+  delete: "ta.manage",
+}, {
+  softDelete: true,
+  searchable: ["file_name"],
+});
+
 // ---- Branding / enterprise identity (DAM) --------------------------------
 defineEntity("brand_ui_themes", "brand_ui_themes", "brand", {
   view: "brand.view",
