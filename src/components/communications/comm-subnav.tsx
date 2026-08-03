@@ -19,7 +19,7 @@ const DRILL = [
   { title: "WhatsApp", href: "/dashboard/communications/whatsapp", icon: Smartphone },
   { title: "Push", href: "/dashboard/communications/push", icon: Radio },
   { title: "In-app", href: "/dashboard/communications/in-app", icon: Bell },
-  { title: "HopeChat", href: "/dashboard/communications/hopechat", icon: MessagesSquare },
+  { title: "SecureChat", href: "/dashboard/communications/hopechat", icon: MessagesSquare },
   { title: "Documents", href: "/dashboard/communications/documents", icon: FileText },
   { title: "Templates", href: "/dashboard/communications/templates", icon: Layers },
   { title: "Rules", href: "/dashboard/communications/rules", icon: Workflow },

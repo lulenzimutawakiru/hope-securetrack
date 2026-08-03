@@ -169,7 +169,7 @@ export default function LabelsPage() {
           batchNumber: c.production_batches?.batch_number,
           codeType: c.code_type,
           manufacturingDate: c.production_batches?.manufacturing_date,
-          companyName: "Hope Design Group Ltd",
+          companyName: "SecureTrack ERP",
         };
       });
       setLabels(built);

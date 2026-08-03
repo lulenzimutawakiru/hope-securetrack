@@ -1,6 +1,6 @@
-# Hope SecureTrack — Enterprise Platform Architecture
+# SecureTrack ERP — Enterprise Platform Architecture
 
-**Company:** Hope Design Group Ltd  
+**Company:** SecureTrack ERP  
 **Target class:** SAP Fiori UX · Dynamics 365 / Oracle Fusion capability · Odoo-beating usability  
 
 ## Design system (shipped foundation)

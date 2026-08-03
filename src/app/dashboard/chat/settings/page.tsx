@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { BOT_DOMAINS } from "@/lib/hopechat";
 
-export default function HopeChatSettingsPage() {
+export default function SecureChatSettingsPage() {
   const { auth } = useUser();
   const [theme, setTheme] = useState("system");
   const [density, setDensity] = useState("comfortable");
@@ -67,7 +67,7 @@ export default function HopeChatSettingsPage() {
           dnd_enabled: dnd,
         });
       }
-      toast.success("HopeChat preferences saved");
+      toast.success("SecureChat preferences saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -76,7 +76,7 @@ export default function HopeChatSettingsPage() {
   return (
     <div>
       <PageHeader
-        title="HopeChat Settings"
+        title="SecureChat Settings"
         description="Theme · density · DND · notifications · bots · retention policies"
         actions={
           <Button asChild size="sm" variant="outline"><Link href="/dashboard/chat">Chat</Link></Button>

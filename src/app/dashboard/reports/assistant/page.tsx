@@ -33,7 +33,7 @@ export default function AiAssistantPage() {
     {
       role: "assistant",
       content:
-        "I am the Hope Design Executive Assistant. Ask about production, suppliers, customers, forecasts, board packs, or budgets.",
+        "I am the SecureTrack ERP Executive Assistant. Ask about production, suppliers, customers, forecasts, board packs, or budgets.",
       intent: "system",
     },
   ]);

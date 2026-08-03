@@ -436,7 +436,7 @@
 ### Data & UX
 - Shared CSV parse/validate/import (`src/lib/enterprise/csv.ts`); payroll & finance import helpers.
 - Payroll entity pages: Import CSV, restore soft-deleted rows, fixed mojibake UI strings.
-- HopeChat Calls page loads live `hc_meetings` history.
+- SecureChat Calls page loads live `hc_meetings` history.
 
 ### AI
 - `src/lib/ai/gateway.ts` — OpenAI-compatible LLM with deterministic rules fallback.

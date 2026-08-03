@@ -97,7 +97,7 @@ export default function PackagingHubPage() {
 
       <Card className="mb-6 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardContent className="pt-4 text-sm">
-          <strong>Hope Paper standard:</strong> 1 ream → wrap + QR · 5 reams → carton + master QR · 40 cartons → pallet master QR.
+          <strong>SecureTrack Paper standard:</strong> 1 ream → wrap + QR · 5 reams → carton + master QR · 40 cartons → pallet master QR.
           Full authenticity chain from ream to dispatch.
         </CardContent>
       </Card>

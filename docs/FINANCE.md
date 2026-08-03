@@ -1,12 +1,12 @@
-# Hope SecureTrack — Enterprise Finance & Accounting
+# SecureTrack ERP — Enterprise Finance & Accounting
 
-CFO-grade financial management platform integrated into Hope SecureTrack ERP.
+CFO-grade financial management platform integrated into SecureTrack ERP.
 
 ## Overview
 
 Multi-company GL · AP/AR · Treasury · Manufacturing costing · Tax · Budgeting · AI intelligence · SoD approvals.
 
-Designed for Hope Design Group manufacturing and secure printing profitability, exceeding SAP/Oracle/Dynamics class capabilities in a modern AI-native stack.
+Designed for SecureTrack ERP manufacturing and secure printing profitability, exceeding SAP/Oracle/Dynamics class capabilities in a modern AI-native stack.
 
 ## Routes
 
@@ -85,7 +85,7 @@ supabase db push
 # 00010 + 00016 + 00047 (and billing if needed)
 ```
 
-## Hope Design Group
+## SecureTrack ERP
 
 - Security printing job profitability  
 - Government / education contract cost rollups  

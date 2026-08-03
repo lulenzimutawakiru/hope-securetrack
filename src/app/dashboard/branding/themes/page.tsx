@@ -25,7 +25,7 @@ export default function BrandThemesPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    theme_name: "Hope SecureTrack",
+    theme_name: "SecureTrack ERP",
     primary_color: "#0D7377",
     secondary_color: "#1B263B",
     accent_color: "#00AEEF",

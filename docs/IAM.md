@@ -1,6 +1,6 @@
-# Enterprise User & Identity Management — Hope Design Group Ltd
+# Enterprise User & Identity Management — SecureTrack ERP
 
-**Security foundation of Hope Design ERP**  
+**Security foundation of SecureTrack ERP**  
 **Deployment:** Cloud · On-Premise · Hybrid  
 
 ## Architecture

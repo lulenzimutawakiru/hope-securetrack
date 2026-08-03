@@ -150,7 +150,7 @@ export default function QuotationsPage() {
       discount_amount: qty * price * (disc / 100),
       total_amount: total,
       payment_terms: "Net 30",
-      delivery_terms: "Ex-works Hope Design factory",
+      delivery_terms: "Ex-works SecureTrack ERP factory",
       sales_rep_id: auth.profile.id,
     });
     if (!quoteRes.ok) {

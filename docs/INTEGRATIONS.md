@@ -1,6 +1,6 @@
 # Enterprise Integration Hub (iPaaS)
 
-Hope SecureTrack module for **API management, connectors, webhooks, automation, data sync, IoT, hardware, and monitoring**.
+SecureTrack ERP module for **API management, connectors, webhooks, automation, data sync, IoT, hardware, and monitoring**.
 
 ## Navigation
 

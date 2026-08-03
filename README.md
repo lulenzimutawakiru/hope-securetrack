@@ -1,6 +1,6 @@
-# Hope SecureTrack
+# SecureTrack ERP
 
-Enterprise QR Authentication, Manufacturing Traceability & Batch Printing Platform for **Hope Design Group Ltd**.
+Enterprise QR Authentication, Manufacturing Traceability & Batch Printing Platform for **SecureTrack ERP**.
 
 ## Production
 
@@ -130,4 +130,4 @@ hope-securetrack/
 
 ## License
 
-Proprietary — Hope Design Group Ltd
+Proprietary — SecureTrack ERP

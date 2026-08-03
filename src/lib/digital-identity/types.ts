@@ -89,7 +89,7 @@ export const DEFAULT_PROVISION_STEPS: Array<{
   { step_key: "erp_user", label: "ERP User Account", module: "identity", required: true },
   { step_key: "login_credentials", label: "Login Credentials", module: "identity", required: true },
   { step_key: "company_email", label: "Company Email Profile", module: "identity", required: true },
-  { step_key: "hopechat", label: "HopeChat Account", module: "hopechat", required: true },
+  { step_key: "hopechat", label: "SecureChat Account", module: "hopechat", required: true },
   { step_key: "service_desk", label: "Service Desk Account", module: "service_desk", required: true },
   { step_key: "employee_portal", label: "Employee Portal Access", module: "portal", required: true },
   { step_key: "payroll_profile", label: "Payroll Profile", module: "payroll", required: true },

@@ -67,7 +67,7 @@ export default function CartonizationPage() {
       {!result ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground flex items-center gap-2">
-            <Package className="h-5 w-5" /> Enter quantity and click Calculate (defaults match Hope A4: 5 reams/carton, 40 cartons/pallet).
+            <Package className="h-5 w-5" /> Enter quantity and click Calculate (defaults match SecureTrack A4: 5 reams/carton, 40 cartons/pallet).
           </CardContent>
         </Card>
       ) : (

@@ -56,7 +56,7 @@ export const ARCHITECTURE_LAYERS = [
   "Integration Engine",
   "Message Queue",
   "Transformation Layer",
-  "Hope SecureTrack ERP Core",
+  "SecureTrack ERP Core",
   "Database / Analytics / AI",
 ] as const;
 

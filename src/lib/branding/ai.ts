@@ -66,7 +66,7 @@ export function generateBrandInsights(params: {
     title: "Suggested social caption",
     detail: "Ready-to-use copy for product marketing.",
     actions: ["Copy to clipboard"],
-    sample: `Discover ${name} Premium A4 — secure, traceable, enterprise-grade paper. Authenticate every ream with QR. #HopePaper #SecureTrack`,
+    sample: `Discover ${name} Premium A4 — secure, traceable, enterprise-grade paper. Authenticate every ream with QR. #SecureTrackPaper #SecureTrack`,
   });
 
   insights.push({
@@ -96,7 +96,7 @@ export function generateMarketingCopy(params: {
   brandName?: string;
   tone?: "professional" | "bold" | "friendly";
 }): { headline: string; body: string; cta: string } {
-  const brand = params.brandName || "Hope Design Group";
+  const brand = params.brandName || "SecureTrack ERP";
   const tone = params.tone || "professional";
   if (tone === "bold") {
     return {
@@ -128,7 +128,7 @@ export function suggestEmailSignature(params: {
   primaryColor?: string;
 }): string {
   const color = params.primaryColor || "#0D7377";
-  const brand = params.brandName || "Hope Design Group Ltd";
+  const brand = params.brandName || "SecureTrack ERP";
   const web = params.website || "https://hopedesign.ug";
   return `<p style="font-family:Inter,sans-serif;font-size:13px;color:#1A1A1A">Regards,<br/><strong>${params.fullName}</strong><br/>${params.jobTitle}<br/><span style="color:${color};font-weight:600">${brand}</span><br/>${params.phone || ""} · <a href="${web}" style="color:#00AEEF">${web.replace(/^https?:\/\//, "")}</a></p>`;
 }

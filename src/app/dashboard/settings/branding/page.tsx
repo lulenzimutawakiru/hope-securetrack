@@ -25,7 +25,7 @@ const KEYS = [
 const DEFAULTS: Record<string, string> = {
   "brand.primary_color": "#0D7377",
   "brand.secondary_color": "#1B263B",
-  "brand.app_name": "Hope SecureTrack",
+  "brand.app_name": "SecureTrack ERP",
   "brand.dark_mode_default": "false",
   "brand.font_family": "Inter",
   "brand.login_tagline": "Enterprise security printing ERP",

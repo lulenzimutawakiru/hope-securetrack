@@ -1,6 +1,6 @@
 # Enterprise Identity Management (IDM)
 
-Hope SecureTrack — User account provisioning, RBAC, ABAC, MFA governance, lifecycle.
+SecureTrack ERP — User account provisioning, RBAC, ABAC, MFA governance, lifecycle.
 
 ## Migration
 

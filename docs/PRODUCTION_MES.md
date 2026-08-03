@@ -1,6 +1,6 @@
 # Production · Manufacturing Execution System (MES)
 
-Enterprise MES for Hope SecureTrack — planning, shop floor, quality, OEE, packaging, costing, AI.
+Enterprise MES for SecureTrack ERP — planning, shop floor, quality, OEE, packaging, costing, AI.
 
 ## Migration
 

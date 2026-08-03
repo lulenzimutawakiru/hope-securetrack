@@ -10,7 +10,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/client";
 
-export default function HopeChatAnalyticsPage() {
+export default function SecureChatAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     messages: 0,
@@ -69,14 +69,14 @@ export default function HopeChatAnalyticsPage() {
     load().catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingState message="Loading HopeChat analytics…" />;
+  if (loading) return <LoadingState message="Loading SecureChat analytics…" />;
 
   const max = Math.max(1, ...byChannel.map((c) => c.count));
 
   return (
     <div>
       <PageHeader
-        title="HopeChat Analytics"
+        title="SecureChat Analytics"
         description="DAU proxy · messages · meetings · files · engagement · AI usage"
         actions={
           <Button asChild size="sm" variant="outline"><Link href="/dashboard/chat">Chat</Link></Button>

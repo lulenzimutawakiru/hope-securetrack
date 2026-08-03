@@ -212,7 +212,7 @@ permissive `*_all` policies were gated only by `company_id = user_company_id()`.
 | CSV **import** shared + payroll/finance `*ImportCsv` | Live |
 | Payroll entity UI: import, restore, fixed encoding | Live |
 | SecureTrack **AI gateway** (LLM + rules fallback) | Live `src/lib/ai/gateway.ts` + `POST /api/ai/copilot` |
-| HopeChat Calls: live meeting history (not marketing shell) | Live |
+| SecureChat Calls: live meeting history (not marketing shell) | Live |
 | Domain unit tests: payroll engine, CSV, workflows, tokens | Live `tests/payroll`, `tests/enterprise` |
 
 ## Delivered for production deployment

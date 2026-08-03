@@ -184,7 +184,7 @@ export default function PurchaseOrdersPage() {
       tax: Number(r.tax_amount || 0),
       total: Number(r.total_amount || 0),
       notes: r.notes ? String(r.notes) : undefined,
-      footerNote: "Please acknowledge this purchase order. Hope Design Group Ltd.",
+      footerNote: "Please acknowledge this purchase order. SecureTrack ERP.",
     };
   };
 

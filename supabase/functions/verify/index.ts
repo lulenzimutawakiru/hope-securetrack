@@ -193,7 +193,7 @@ async function buildSuccessResponse(
     isFirstScan,
     safetyMessage: isRecalled
       ? "This product has been recalled. Do not use."
-      : "This is a genuine Hope Design Group product.",
+      : "This is a genuine SecureTrack ERP product.",
   };
 }
 
@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
             result: verification.result,
             message: verification.message,
             safetyMessage:
-              "This product could not be verified. Please contact Hope Design Group.",
+              "This product could not be verified. Please contact SecureTrack ERP.",
           }),
           {
             status: 200,
@@ -321,7 +321,7 @@ Deno.serve(async (req) => {
           result: "invalid",
           message: "Unknown or unregistered product code",
           safetyMessage:
-            "This product could not be verified. Please contact Hope Design Group.",
+            "This product could not be verified. Please contact SecureTrack ERP.",
         }),
         {
           status: 200,
@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
           result: "counterfeit",
           message: "QR code flagged as counterfeit or voided",
           safetyMessage:
-            "Do not use this product. Contact Hope Design Group immediately.",
+            "Do not use this product. Contact SecureTrack ERP immediately.",
         }),
         {
           status: 200,

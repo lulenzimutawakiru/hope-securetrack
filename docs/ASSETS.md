@@ -1,6 +1,6 @@
 # Enterprise Asset Tagging & Digital Identification
 
-Hope SecureTrack — world-class asset identification, register, lifecycle, verification, digital twin, and intelligence platform (QR · barcode · RFID · NFC · GPS · BLE).
+SecureTrack ERP — world-class asset identification, register, lifecycle, verification, digital twin, and intelligence platform (QR · barcode · RFID · NFC · GPS · BLE).
 
 ## Tag format
 

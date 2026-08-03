@@ -19,7 +19,7 @@ import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { crudCreate } from "@/lib/api/crud-client";
 
-export default function HopeChatKnowledgePage() {
+export default function SecureChatKnowledgePage() {
   const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);

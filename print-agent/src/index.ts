@@ -1,5 +1,5 @@
 /**
- * Hope SecureTrack — Niimbot Print Agent (Windows / Node 20+)
+ * SecureTrack ERP — Niimbot Print Agent (Windows / Node 20+)
  *
  * Responsibilities:
  * 1. Heartbeat to Supabase Edge Function `print-agent`
@@ -236,7 +236,7 @@ async function processJobs() {
 
 async function main() {
   assertConfig();
-  log("info", "Hope SecureTrack Print Agent starting");
+  log("info", "SecureTrack ERP Print Agent starting");
   log("info", `Target: ${SUPABASE_URL}`);
   log("info", `Outbox mode: ${OUTBOX_MODE}`);
   log(

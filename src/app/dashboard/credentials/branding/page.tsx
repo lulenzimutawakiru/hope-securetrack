@@ -94,11 +94,11 @@ export default function BrandingPage() {
           company_id: auth.profile.company_id,
           brand_code: code,
           name: "New branch brand",
-          company_display_name: "Hope Design Group Ltd",
+          company_display_name: "SecureTrack ERP",
           primary_color: "#0f766e",
           secondary_color: "#0f172a",
           accent_color: "#f59e0b",
-          watermark_text: "HOPE DESIGN",
+          watermark_text: "SECURETRACK",
           is_default: false,
         });
       if (!crudRes.ok) throw new Error(crudRes.error);

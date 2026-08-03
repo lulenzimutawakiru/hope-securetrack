@@ -1,4 +1,4 @@
-# Workforce Management (WFM) — Hope Design Group Ltd
+# Workforce Management (WFM) — SecureTrack ERP
 
 **Industry:** Security Printing · Manufacturing · Engineering  
 **Deployment:** Cloud · On-Premise · Hybrid · Offline-capable foundation  

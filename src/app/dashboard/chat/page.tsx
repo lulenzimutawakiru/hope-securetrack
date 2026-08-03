@@ -37,13 +37,13 @@ const SIDE_LINKS = [
   { href: "/dashboard/chat/calls", label: "Calls", icon: Phone },
   { href: "/dashboard/chat/announcements", label: "Announce", icon: Megaphone },
   { href: "/dashboard/chat/files", label: "Files", icon: Paperclip },
-  { href: "/dashboard/chat/ai", label: "HopeAI", icon: Sparkles },
+  { href: "/dashboard/chat/ai", label: "SecureTrackAI", icon: Sparkles },
   { href: "/dashboard/chat/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/dashboard/chat/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/chat/settings", label: "Settings", icon: Settings },
 ];
 
-export default function HopeChatPage() {
+export default function SecureChatPage() {
   const { auth } = useUser();
   const [channels, setChannels] = useState<Array<Record<string, unknown>>>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -195,7 +195,7 @@ export default function HopeChatPage() {
     return String(c.name || "").toLowerCase().includes(q.toLowerCase());
   });
 
-  if (loading) return <LoadingState message="Loading HopeChat…" />;
+  if (loading) return <LoadingState message="Loading SecureChat…" />;
 
   return (
     <div className="-m-4 md:-m-6 h-[calc(100vh-4rem)] flex flex-col bg-background">
@@ -203,7 +203,7 @@ export default function HopeChatPage() {
       <header className="flex items-center gap-3 border-b px-3 py-2 bg-card shrink-0">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-primary">
           <MessageSquare className="h-5 w-5" />
-          <span className="hidden sm:inline">HopeChat</span>
+          <span className="hidden sm:inline">SecureChat</span>
         </Link>
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -387,7 +387,7 @@ export default function HopeChatPage() {
                   </Button>
                   <textarea
                     className="flex-1 min-h-[40px] max-h-32 resize-none bg-transparent text-sm outline-none px-1 py-2"
-                    placeholder={`Message #${String(active.name)} · @HopeAI · /hr /it /prod`}
+                    placeholder={`Message #${String(active.name)} · @SecureTrackAI · /hr /it /prod`}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => {

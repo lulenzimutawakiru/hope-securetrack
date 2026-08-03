@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 
-export default function HopeChatTeamsPage() {
+export default function SecureChatTeamsPage() {
   const [channels, setChannels] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
 

@@ -167,7 +167,7 @@ export default function CustomerPortalPage({
             <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
             <p className="font-medium">Invalid or disabled portal link</p>
             <p className="text-sm text-muted-foreground">
-              Contact Hope Design Group finance for a new access link.
+              Contact SecureTrack ERP finance for a new access link.
             </p>
           </CardContent>
         </Card>

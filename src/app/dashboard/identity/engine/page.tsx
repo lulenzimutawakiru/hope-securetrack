@@ -93,7 +93,7 @@ export default function ProvisionEnginePage() {
     <div>
       <PageHeader
         title="Enterprise Provision Engine"
-        description="Create · assign roles · email · HopeChat · MFA · activate · deprovision"
+        description="Create · assign roles · email · SecureChat · MFA · activate · deprovision"
         actions={
           <div className="flex gap-2">
             <Select value={filter} onValueChange={setFilter}>

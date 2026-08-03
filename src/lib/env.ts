@@ -16,7 +16,7 @@ function required(name: string, value: string | undefined): string {
 export const env = {
   app: {
     name: process.env.NEXT_PUBLIC_APP_NAME || "SecureTrack ERP",
-    company: process.env.NEXT_PUBLIC_COMPANY_NAME || "Hope Design Group Ltd",
+    company: process.env.NEXT_PUBLIC_COMPANY_NAME || "SecureTrack ERP",
     url:
       process.env.NEXT_PUBLIC_APP_URL ||
       (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"),

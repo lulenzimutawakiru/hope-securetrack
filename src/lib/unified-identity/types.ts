@@ -134,7 +134,7 @@ export const MODULE_IDENTITY_MAP: Array<{
   },
   {
     module: "hopechat",
-    label: "HopeChat",
+    label: "SecureChat",
     linkTypes: ["hopechat", "auth_account"],
     description: "Presence, channels, meetings",
   },

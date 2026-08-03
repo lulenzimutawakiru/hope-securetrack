@@ -1,6 +1,6 @@
 # Enterprise Dispatch & Delivery Management
 
-Hope SecureTrack — outbound logistics from order/production through loading, GPS, POD, returns, and customer tracking.
+SecureTrack ERP — outbound logistics from order/production through loading, GPS, POD, returns, and customer tracking.
 
 ## Lifecycle
 

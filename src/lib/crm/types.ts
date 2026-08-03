@@ -1,4 +1,4 @@
-/** Enterprise CRM domain types — Hope SecureTrack */
+/** Enterprise CRM domain types — SecureTrack ERP */
 
 export type CustomerStatus =
   | "lead"

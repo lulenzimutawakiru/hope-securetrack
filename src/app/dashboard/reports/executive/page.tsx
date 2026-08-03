@@ -100,7 +100,7 @@ export default function ExecutiveCenterPage() {
       <div className="rounded-lg border bg-gradient-to-r from-hope-navy to-[#0d2847] text-white p-5 mb-6">
         <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide flex items-center gap-2">
           <Crown className="h-3.5 w-3.5" />
-          Hope Design Group Ltd — Executive pack
+          SecureTrack ERP — Executive pack
         </p>
         <p className="text-sm text-white/80 mt-2">
           Security Printing · Paper Manufacturing · Engineering · Commercial Printing

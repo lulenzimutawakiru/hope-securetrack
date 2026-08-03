@@ -1,6 +1,6 @@
 # Enterprise Invoicing & Billing Platform
 
-Hope SecureTrack module for **invoice management, AR, tax, payments, recurring billing, and revenue recognition**.
+SecureTrack ERP module for **invoice management, AR, tax, payments, recurring billing, and revenue recognition**.
 
 ## Navigation
 

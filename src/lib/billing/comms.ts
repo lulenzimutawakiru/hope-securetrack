@@ -19,7 +19,7 @@ const TEMPLATES: Record<
   { subject: string; body: string }
 > = {
   invoice_created: {
-    subject: "Invoice {{invoice_number}} from Hope Design Group",
+    subject: "Invoice {{invoice_number}} from SecureTrack ERP",
     body: "Dear {{customer_name}}, invoice {{invoice_number}} for {{total}} {{currency}} is ready. Due date: {{due_date}}.",
   },
   payment_reminder: {

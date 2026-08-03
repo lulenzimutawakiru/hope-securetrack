@@ -30,7 +30,7 @@ export default function DispatchMobilePage() {
         <CardContent className="pt-4 text-sm flex gap-3">
           <Smartphone className="h-5 w-5 text-primary shrink-0" />
           <p>
-            Install Hope SecureTrack as a Progressive Web App for home-screen access,
+            Install SecureTrack ERP as a Progressive Web App for home-screen access,
             camera scanning, GPS, and offline delivery queues.
           </p>
         </CardContent>

@@ -61,7 +61,7 @@ export default function AuditMobilePage() {
         <CardContent className="pt-4 flex items-start gap-3 text-sm">
           <Smartphone className="h-5 w-5 text-primary shrink-0" />
           <p>
-            Install Hope SecureTrack as a PWA for home-screen access, push-ready alerts,
+            Install SecureTrack ERP as a PWA for home-screen access, push-ready alerts,
             and offline-capable investigation queues.
           </p>
         </CardContent>

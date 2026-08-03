@@ -1,13 +1,13 @@
--- Hope SecureTrack v1.0 - Seed Data
--- Hope Design Group Ltd initial configuration
+-- SecureTrack ERP v1.0 - Seed Data
+-- SecureTrack ERP initial configuration
 
 -- Company
 INSERT INTO companies (id, name, code, legal_name, address, city, country, phone, email, website)
 VALUES (
   'a0000000-0000-4000-8000-000000000001',
-  'Hope Design Group Ltd',
+  'SecureTrack ERP',
   'HDG',
-  'Hope Design Group Limited',
+  'SecureTrack ERP Limited',
   'Industrial Area, Nairobi',
   'Nairobi',
   'Kenya',
@@ -21,7 +21,7 @@ INSERT INTO factories (id, company_id, name, code, address, city, country)
 VALUES (
   'b0000000-0000-4000-8000-000000000001',
   'a0000000-0000-4000-8000-000000000001',
-  'Hope Design Main Factory',
+  'SecureTrack ERP Main Factory',
   'FACT-001',
   'Industrial Area, Nairobi',
   'Nairobi',
@@ -164,16 +164,16 @@ INSERT INTO product_categories (company_id, name, code, description) VALUES
 INSERT INTO products (company_id, category_id, name, product_code, paper_size, gsm, color, reams_per_carton) VALUES
   ('a0000000-0000-4000-8000-000000000001',
    (SELECT id FROM product_categories WHERE code = 'BOND'),
-   'Hope Bond A4 80gsm White', 'HD-BOND-A4-80-W', 'A4', 80, 'White', 5),
+   'SecureTrack Bond A4 80gsm White', 'HD-BOND-A4-80-W', 'A4', 80, 'White', 5),
   ('a0000000-0000-4000-8000-000000000001',
    (SELECT id FROM product_categories WHERE code = 'BOND'),
-   'Hope Bond A4 75gsm White', 'HD-BOND-A4-75-W', 'A4', 75, 'White', 5),
+   'SecureTrack Bond A4 75gsm White', 'HD-BOND-A4-75-W', 'A4', 75, 'White', 5),
   ('a0000000-0000-4000-8000-000000000001',
    (SELECT id FROM product_categories WHERE code = 'BOND'),
-   'Hope Bond A3 80gsm White', 'HD-BOND-A3-80-W', 'A3', 80, 'White', 5),
+   'SecureTrack Bond A3 80gsm White', 'HD-BOND-A3-80-W', 'A3', 80, 'White', 5),
   ('a0000000-0000-4000-8000-000000000001',
    (SELECT id FROM product_categories WHERE code = 'SEC'),
-   'Hope Security A4 100gsm', 'HD-SEC-A4-100', 'A4', 100, 'Cream', 5);
+   'SecureTrack Security A4 100gsm', 'HD-SEC-A4-100', 'A4', 100, 'Cream', 5);
 
 -- Production Machines
 INSERT INTO production_machines (factory_id, name, code, machine_type, production_line, max_capacity_per_hour) VALUES

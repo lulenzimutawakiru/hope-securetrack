@@ -48,7 +48,7 @@ export default function QrHierarchyPage() {
     <div>
       <PageHeader
         title="QR Authentication Hierarchy"
-        description="Pallet QR → Carton QR → Ream QR · Hope Paper 5 reams per carton"
+        description="Pallet QR → Carton QR → Ream QR · SecureTrack Paper 5 reams per carton"
         actions={<Button size="sm" onClick={build}>Build demo tree</Button>}
       />
 

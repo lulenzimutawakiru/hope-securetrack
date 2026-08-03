@@ -1,4 +1,4 @@
-# Enterprise Inventory & Stock Management — Hope Design Group Ltd
+# Enterprise Inventory & Stock Management — SecureTrack ERP
 
 **Real-time multi-warehouse inventory**  
 **Deployment:** Cloud · On-Premise · Hybrid · Offline-capable (agent/outbox paths)

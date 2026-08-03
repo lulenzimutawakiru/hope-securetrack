@@ -293,7 +293,7 @@ export async function renderTemplatePreview(templateId: string, extraTokens: Rec
   const accent = colors?.find((c) => c.color_role === "accent")?.hex_value || "#00AEEF";
 
   const tokens = {
-    company_name: brand?.brand_name || "Hope Design Group Ltd",
+    company_name: brand?.brand_name || "SecureTrack ERP",
     company_address: brand?.address || "",
     company_phone: brand?.phone || "",
     company_email: brand?.email || "",
@@ -391,7 +391,7 @@ export async function syncUiThemeToSettings(companyId: string, userId?: string |
     { key: "brand.secondary_color", value: JSON.stringify(theme.secondary_color) },
     { key: "brand.font_family", value: JSON.stringify(theme.font_family) },
     { key: "brand.login_tagline", value: JSON.stringify(theme.login_tagline || "") },
-    { key: "brand.app_name", value: JSON.stringify(theme.theme_name || "Hope SecureTrack") },
+    { key: "brand.app_name", value: JSON.stringify(theme.theme_name || "SecureTrack ERP") },
   ];
 
   for (const r of rows) {

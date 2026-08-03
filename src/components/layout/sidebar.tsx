@@ -55,6 +55,7 @@ import {
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS, NAV_ITEMS } from "@/lib/constants";
 import { useUser } from "@/hooks/use-user";
+import { useBrand } from "@/components/providers/brand-provider";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +123,7 @@ type SidebarProps = {
 export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { hasPermission, loading } = useUser();
+  const { brand } = useBrand();
   const [collapsed, setCollapsed] = useState(false);
   const [navQuery, setNavQuery] = useState("");
   const isCollapsed = forceExpanded ? false : collapsed;
@@ -224,12 +226,23 @@ export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
         )}
       >
         <div className="flex h-[var(--header-height)] items-center gap-3 border-b border-sidebar-border px-4">
-          <Shield className="h-8 w-8 shrink-0 text-sidebar-primary" />
+          {brand.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={brand.logoUrl}
+              alt={brand.name}
+              className="h-8 w-8 shrink-0 rounded-md bg-sidebar object-contain"
+            />
+          ) : (
+            <Shield className="h-8 w-8 shrink-0 text-sidebar-primary" />
+          )}
           {!isCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold tracking-tight">SecureTrack ERP</p>
+              <p className="truncate text-sm font-bold tracking-tight">
+                {brand.name || "SecureTrack ERP"}
+              </p>
               <p className="truncate text-xs text-sidebar-foreground/60">
-                Multi-tenant platform
+                {brand.tradingName || "Multi-tenant platform"}
               </p>
             </div>
           )}

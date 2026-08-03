@@ -724,7 +724,7 @@ export async function emailInvoiceNotice(
       channel: "email",
       event_type: "invoice_created",
       recipient: input.recipient || "customer",
-      subject: `Invoice ${input.invoice_number} from Hope Design Group`,
+      subject: `Invoice ${input.invoice_number} from SecureTrack ERP`,
       body: `Invoice ${input.invoice_number} for ${input.total ?? ""} ${input.currency || "UGX"} is ready. Due: ${input.due_date || "see invoice"}.`,
       status: "sent",
       sent_at: new Date().toISOString(),

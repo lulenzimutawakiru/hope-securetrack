@@ -31,7 +31,7 @@ export default function ServiceDeskMobilePage() {
         <CardContent className="pt-4 text-sm flex gap-3">
           <Smartphone className="h-5 w-5 text-primary shrink-0" />
           <p>
-            Install Hope SecureTrack as a Progressive Web App for camera, GPS, push-ready
+            Install SecureTrack ERP as a Progressive Web App for camera, GPS, push-ready
             notifications, and offline ticket drafts that sync when connectivity returns.
           </p>
         </CardContent>

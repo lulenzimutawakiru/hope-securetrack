@@ -1,5 +1,5 @@
 /**
- * Hope SecureTrack — Resend email / notification transport
+ * SecureTrack ERP — Resend email / notification transport
  * API key never leaves the server (RESEND_API_KEY).
  */
 
@@ -44,11 +44,11 @@ export function isResendConfigured(): boolean {
 export function getResendFrom(): { email: string; name: string } {
   const email =
     process.env.RESEND_FROM_EMAIL?.trim() ||
-    "Hope SecureTrack <onboarding@resend.dev>";
+    "SecureTrack ERP <onboarding@resend.dev>";
   const name =
     process.env.RESEND_FROM_NAME?.trim() ||
     env.app.name ||
-    "Hope SecureTrack";
+    "SecureTrack ERP";
   // If email already includes "Name <addr>", Resend accepts it as `from`
   return { email, name };
 }

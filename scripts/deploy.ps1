@@ -1,4 +1,4 @@
-# Hope SecureTrack — Deploy helper (Windows PowerShell)
+# SecureTrack ERP — Deploy helper (Windows PowerShell)
 # Prerequisites: logged-in Supabase CLI + Vercel CLI, linked projects
 # Usage: .\scripts\deploy.ps1 [-SkipBuild] [-Prod]
 
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-Write-Host "==> Hope SecureTrack deploy" -ForegroundColor Cyan
+Write-Host "==> SecureTrack ERP deploy" -ForegroundColor Cyan
 
 if (-not $SkipBuild) {
   Write-Host "==> Building Next.js app..." -ForegroundColor Yellow

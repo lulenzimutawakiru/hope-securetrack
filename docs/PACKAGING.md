@@ -1,8 +1,8 @@
 # Enterprise Packaging & Packing Management
 
-Hope SecureTrack — full packaging lifecycle from finished goods to carton, pallet, warehouse, and shipment preparation with QR hierarchy for Hope Paper.
+SecureTrack ERP — full packaging lifecycle from finished goods to carton, pallet, warehouse, and shipment preparation with QR hierarchy for SecureTrack Paper.
 
-## Hope Paper standard
+## SecureTrack Paper standard
 
 ```
 Ream (unique QR)

@@ -125,7 +125,7 @@ export default function PrintIdCardsPage() {
       department: String(r.department || ""),
       employee_number: String(r.employee_number || ""),
       id_token: String(r.qr_token || r.employee_number || ""),
-    }, { companyName: "Hope Design Group" });
+    }, { companyName: "SecureTrack ERP" });
     setPreview(html);
   };
 

@@ -69,7 +69,7 @@ export default function PrintDesignerPage() {
 
   const render = () => {
     const html = renderLabelHtml(layout, {}, {
-      companyName: "Hope Design Group",
+      companyName: "SecureTrack ERP",
       securityWatermark: "AUTHENTIC · HDG",
     });
     setPreview(html);

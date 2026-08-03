@@ -1,6 +1,6 @@
-# Hope SecureTrack — Enterprise CRM Platform
+# SecureTrack ERP — Enterprise CRM Platform
 
-World-class Customer Relationship Management fully integrated into Hope SecureTrack ERP.
+World-class Customer Relationship Management fully integrated into SecureTrack ERP.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Complete customer lifecycle:
 
 **Lead → Qualification → Opportunity → Quotation → Approval → Sales Order → Production → Packaging → Dispatch → Invoice → Payment → Support → Loyalty → Renewal**
 
-Designed to exceed Salesforce, Dynamics 365, HubSpot, Zoho, Oracle CX, and SAP CX for Hope Design Group’s manufacturing, security printing, and channel operations.
+Designed to exceed Salesforce, Dynamics 365, HubSpot, Zoho, Oracle CX, and SAP CX for SecureTrack ERP’s manufacturing, security printing, and channel operations.
 
 ## Routes
 
@@ -93,9 +93,9 @@ src/lib/crm/
 
 ## ERP integrations
 
-Sales · Quotations · Orders · Production · Packaging · Dispatch · Inventory · Finance · Invoicing · Payments · Commissions · Service Desk · HopeChat · QR authentication · Documents · BI · Notifications · Portal
+Sales · Quotations · Orders · Production · Packaging · Dispatch · Inventory · Finance · Invoicing · Payments · Commissions · Service Desk · SecureChat · QR authentication · Documents · BI · Notifications · Portal
 
-## Hope Design Group specifics
+## SecureTrack ERP specifics
 
 1. **QR product authentication** — customers verify authenticity and open tickets
 2. **Dealer / distributor management** — territory, targets, commissions

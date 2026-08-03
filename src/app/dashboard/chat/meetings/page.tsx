@@ -96,7 +96,7 @@ function MeetingsInner() {
     try {
       await endMeeting(
         id,
-        "AI minutes: Attendees reviewed ops agenda. Action items to be assigned in HopeChat tasks."
+        "AI minutes: Attendees reviewed ops agenda. Action items to be assigned in SecureChat tasks."
       );
       setLive(null);
       toast.success("Meeting ended · AI summary saved");
@@ -157,7 +157,7 @@ function MeetingsInner() {
               <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_30%_40%,#0D7377,transparent_50%),radial-gradient(circle_at_70%_60%,#14b8a6,transparent_40%)]" />
               <div className="relative text-center space-y-2 p-4">
                 <Video className="h-10 w-10 mx-auto opacity-80" />
-                <p className="font-medium">HopeChat Conference Room</p>
+                <p className="font-medium">SecureChat Conference Room</p>
                 <p className="text-xs opacity-70">
                   WebRTC mesh ready · Screen share · Whiteboard · Captions · Recording hooks
                 </p>
@@ -233,7 +233,7 @@ function MeetingsInner() {
   );
 }
 
-export default function HopeChatMeetingsPage() {
+export default function SecureChatMeetingsPage() {
   return (
     <Suspense fallback={<LoadingState message="Loading meetings…" />}>
       <MeetingsInner />

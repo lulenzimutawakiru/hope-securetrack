@@ -31,8 +31,8 @@ export default function SecurePdfPage() {
   const [form, setForm] = useState({
     title: "Certificate of Authenticity",
     document_type: "security",
-    body: "This certifies that the product bearing the QR authentication code is genuine Hope Design Group security paper.",
-    watermark: "AUTHENTIC · HOPE DESIGN GROUP",
+    body: "This certifies that the product bearing the QR authentication code is genuine SecureTrack ERP security paper.",
+    watermark: "AUTHENTIC · SECURETRACK GROUP",
     anti_copy: true,
   });
 
@@ -63,9 +63,9 @@ export default function SecurePdfPage() {
         bodyHtml: `<p>${form.body}</p>`,
         watermark: form.watermark,
         antiCopyBg: form.anti_copy,
-        companyName: "Hope Design Group Ltd",
+        companyName: "SecureTrack ERP",
         fields: {
-          Issuer: "Hope Design Group Ltd",
+          Issuer: "SecureTrack ERP",
           Document: form.title,
           Code: pdf_code,
         },

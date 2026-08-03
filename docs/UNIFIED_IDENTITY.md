@@ -1,6 +1,6 @@
 # Unified Identity & Workforce Ecosystem
 
-**One human being → one Universal Person ID (UPID) → consistent identity across every Hope SecureTrack ERP module.**
+**One human being → one Universal Person ID (UPID) → consistent identity across every SecureTrack ERP module.**
 
 ## Vision
 
@@ -24,7 +24,7 @@ Stop treating login accounts, employee records, badges, CRM contacts, and portal
                  └──────────────┬───────────────┘
         ┌───────────┬───────────┼───────────┬───────────┐
         ▼           ▼           ▼           ▼           ▼
-   Auth/IDM     Employee     ID Badge    CRM/SRM     HopeChat
+   Auth/IDM     Employee     ID Badge    CRM/SRM     SecureChat
    (login)      (HR 360°)    (access)    (parties)   (presence)
         │           │           │           │           │
         └───────────┴───────────┴───────────┴───────────┘
@@ -107,9 +107,9 @@ supabase db push
 # or: 20260101000048_unified_workforce_identity.sql
 ```
 
-## Hope Design Group usage
+## SecureTrack ERP usage
 
 - Factory operators, security officers, drivers, office staff → one UPID each.
-- Same person clocks in (HR), wears badge (WID), posts in HopeChat, approves finance, runs shop-floor, receives payroll.
+- Same person clocks in (HR), wears badge (WID), posts in SecureChat, approves finance, runs shop-floor, receives payroll.
 - Contractors and visitors are person kinds with limited entitlements and expiring links.
 - Customers/suppliers portal users can optionally link to the same person model for B2B collaboration without polluting the workforce directory (via `person_kinds` + link types).

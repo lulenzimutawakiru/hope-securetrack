@@ -171,7 +171,7 @@ export default function WorkforceDashboardPage() {
     <div>
       <PageHeader
         title="Workforce Management"
-        description="Hope Design Group Ltd — Security Printing · Manufacturing · Engineering · Multi-site WFM"
+        description="SecureTrack ERP — Security Printing · Manufacturing · Engineering · Multi-site WFM"
         actions={
           <div className="flex gap-2">
             <Link href="/dashboard/workforce/attendance">

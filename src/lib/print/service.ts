@@ -303,7 +303,7 @@ export async function previewTemplate(
   };
 
   return renderLabelHtml(layout, defaults, {
-    companyName: "Hope Design Group",
+    companyName: "SecureTrack ERP",
     securityWatermark: tpl.security_enabled ? "AUTHENTIC · HDG" : undefined,
   });
 }

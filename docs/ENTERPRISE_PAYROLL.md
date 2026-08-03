@@ -1,6 +1,6 @@
 # Enterprise Payroll & Compensation
 
-Hope SecureTrack ERP flagship module for the complete employee compensation lifecycle: processing, statutory compliance (Uganda-first), benefits, loans, incentives, manufacturing labour costing, bank/mobile money, payroll accounting, analytics, and AI assistance.
+SecureTrack ERP flagship module for the complete employee compensation lifecycle: processing, statutory compliance (Uganda-first), benefits, loans, incentives, manufacturing labour costing, bank/mobile money, payroll accounting, analytics, and AI assistance.
 
 ## Entry points
 

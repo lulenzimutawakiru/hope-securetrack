@@ -162,7 +162,7 @@ export default function InvoicesPage() {
       balance,
       notes: inv.notes ?? undefined,
       footerNote:
-        "Thank you for your business. Payment due as stated. Hope Design Group Ltd.",
+        "Thank you for your business. Payment due as stated. SecureTrack ERP.",
     };
   };
 

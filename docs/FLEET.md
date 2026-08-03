@@ -1,6 +1,6 @@
 # Enterprise Fleet & Transport Management Platform
 
-Hope SecureTrack ERP module covering full **FMS + TMS + GPS + Fuel + Maintenance + Drivers + POD + AI**.
+SecureTrack ERP module covering full **FMS + TMS + GPS + Fuel + Maintenance + Drivers + POD + AI**.
 
 ## Capabilities
 

@@ -1,5 +1,5 @@
 /**
- * Hope Design ERP — document print / download helpers
+ * SecureTrack ERP — document print / download helpers
  * Uses browser print (Save as PDF) + HTML/CSV downloads (no extra deps).
  */
 
@@ -51,10 +51,10 @@ export type BusinessDocument = {
 };
 
 const COMPANY_DEFAULT = {
-  name: "Hope Design Group Ltd",
+  name: "SecureTrack ERP",
   sub: "Security Printing · Paper Manufacturing · Engineering",
   address: "Kampala, Uganda",
-  tagline: "Hope SecureTrack ERP",
+  tagline: "SecureTrack ERP",
 };
 
 function money(n: number | string | undefined, currency = "UGX"): string {

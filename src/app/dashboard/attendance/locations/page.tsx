@@ -567,7 +567,7 @@ export default function AttendanceLocationsLivePage() {
               <Input
                 value={form.wifi_ssids}
                 onChange={(e) => setForm({ ...form, wifi_ssids: e.target.value })}
-                placeholder="HOPE-CORP,HOPE-GUEST"
+                placeholder="SECURETRACK-CORP,SECURETRACK-GUEST"
               />
             </div>
             <div>

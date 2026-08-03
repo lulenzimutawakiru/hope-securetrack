@@ -1,6 +1,6 @@
 # Workforce Identity & Credential Management Platform
 
-Hope SecureTrack module for **digital identity, physical ID cards, access control, biometrics (status), print, and security governance**.
+SecureTrack ERP module for **digital identity, physical ID cards, access control, biometrics (status), print, and security governance**.
 
 ## Navigation
 

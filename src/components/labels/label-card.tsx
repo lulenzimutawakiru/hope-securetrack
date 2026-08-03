@@ -65,7 +65,7 @@ export function LabelCard({
         <div className="flex flex-col justify-between min-w-0 flex-1 py-0.5">
           <div>
             <p className="text-[7px] font-bold tracking-wide text-hope-teal uppercase leading-tight">
-              Hope Design · SecureTrack
+              SecureTrack ERP
             </p>
             <p className="font-mono font-bold text-[9px] leading-tight truncate mt-0.5">
               {label.serial}

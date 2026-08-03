@@ -1,6 +1,6 @@
 # Enterprise Finance & Accounting Platform
 
-Complete multi-company finance platform for Hope SecureTrack ERP.
+Complete multi-company finance platform for SecureTrack ERP.
 
 ## Scope
 

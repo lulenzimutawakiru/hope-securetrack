@@ -1,6 +1,6 @@
 # Enterprise Digital Employee Profile Platform
 
-Hope SecureTrack — single source of truth for every person at Hope Design Group Ltd.
+SecureTrack ERP — single source of truth for every person at SecureTrack ERP.
 
 ## Scope
 

@@ -1,4 +1,4 @@
-# Enterprise Supply Chain Management (SCM) — Hope Design Group Ltd
+# Enterprise Supply Chain Management (SCM) — SecureTrack ERP
 
 **Strategic planning, control tower, and resilience layer**  
 Distinct from Procurement & Logistics (execution) — SCM optimizes the full network.

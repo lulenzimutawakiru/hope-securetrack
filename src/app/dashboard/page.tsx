@@ -158,7 +158,7 @@ export default function DashboardPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,0.18),transparent_50%)]" />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2 max-w-2xl">
-            <p className="text-overline text-white/60">Hope Design Group Ltd</p>
+            <p className="text-overline text-white/60">SecureTrack ERP</p>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
               Welcome back
               {auth ? `, ${auth.profile.first_name}` : ""}

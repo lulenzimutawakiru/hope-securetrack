@@ -105,7 +105,7 @@ export default function DocumentGeneratorPage() {
         ],
         lines: [
           {
-            description: `Enterprise ${String(r.document_type)} — Hope SecureTrack Document Intelligence`,
+            description: `Enterprise ${String(r.document_type)} — SecureTrack ERP Document Intelligence`,
             quantity: 1,
             unit: "doc",
             unit_price: 0,
@@ -119,7 +119,7 @@ export default function DocumentGeneratorPage() {
             amount: 0,
           },
         ],
-        notes: "Computer-generated document pack for Hope Design Group Ltd.",
+        notes: "Computer-generated document pack for SecureTrack ERP.",
         footerNote: "Security Printing · Paper Manufacturing · Engineering",
       }, auth?.profile?.company_id);
       toast.success("Print dialog opened");

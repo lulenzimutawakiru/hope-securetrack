@@ -1,4 +1,4 @@
-# Enterprise Procurement & Logistics — Hope Design Group Ltd
+# Enterprise Procurement & Logistics — SecureTrack ERP
 
 **Source-to-pay · inbound logistics · fleet · supplier performance**  
 **Deployment:** Cloud · On-Premise · Hybrid  

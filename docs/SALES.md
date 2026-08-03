@@ -1,6 +1,6 @@
 # Advanced Sales Platform
 
-Enterprise **quote-to-cash** sales for Hope SecureTrack ERP.
+Enterprise **quote-to-cash** sales for SecureTrack ERP.
 
 ## Lifecycle
 

@@ -165,7 +165,7 @@ export default function SrmRegistryPage() {
       </div>
 
       {items.length === 0 ? (
-        <EmptyState title="No registry items" description="Apply migration 00046 for Hope Design registry seeds." />
+        <EmptyState title="No registry items" description="Apply migration 00046 for SecureTrack ERP registry seeds." />
       ) : (
         <>
           <h2 className="text-sm font-semibold mb-2">Approved supplier mappings</h2>

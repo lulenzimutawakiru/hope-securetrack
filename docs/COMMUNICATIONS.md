@@ -1,6 +1,6 @@
 # Enterprise Communication & Notification Platform
 
-Central hub for branded multi-channel messaging, PDF document delivery, event-driven automation, and full audit across Hope SecureTrack ERP.
+Central hub for branded multi-channel messaging, PDF document delivery, event-driven automation, and full audit across SecureTrack ERP.
 
 ## Migration
 

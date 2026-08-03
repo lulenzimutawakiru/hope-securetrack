@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hope SecureTrack receives clock punches from biometric terminals and records them as attendance events.
+SecureTrack ERP receives clock punches from biometric terminals and records them as attendance events.
 
 | Vendor | Protocols | Endpoint |
 |--------|-----------|----------|

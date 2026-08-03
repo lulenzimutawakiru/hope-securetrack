@@ -92,7 +92,7 @@ export default function HireOrchestrationPage() {
     <div>
       <PageHeader
         title="Hire & Auto-Provision"
-        description="HR creates employee once → ERP user, email, HopeChat, payroll, ID card, MFA, portal"
+        description="HR creates employee once → ERP user, email, SecureChat, payroll, ID card, MFA, portal"
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

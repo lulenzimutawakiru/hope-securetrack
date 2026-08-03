@@ -2,7 +2,7 @@
   "name": "hope-securetrack-print-agent",
   "version": "1.0.0",
   "private": true,
-  "description": "Windows print agent for Niimbot label printers — Hope SecureTrack",
+  "description": "Windows print agent for Niimbot label printers — SecureTrack ERP",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

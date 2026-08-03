@@ -1,4 +1,4 @@
-/** AI Customer Intelligence Engine for Hope CRM */
+/** AI Customer Intelligence Engine for SecureTrack CRM */
 
 export interface HealthFactors {
   daysSinceLastOrder?: number;

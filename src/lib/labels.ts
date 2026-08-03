@@ -1,4 +1,4 @@
-/** Label layout helpers for Hope SecureTrack product authentication labels */
+/** Label layout helpers for SecureTrack ERP product authentication labels */
 
 export const LABEL_SIZES = {
   ream: { widthMm: 50, heightMm: 30, name: "Ream 50×30mm" },

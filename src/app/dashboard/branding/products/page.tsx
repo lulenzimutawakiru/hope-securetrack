@@ -28,7 +28,7 @@ export default function BrandProductsPage() {
   const [form, setForm] = useState({
     product_name: "",
     product_code: "",
-    brand_label: "Hope Paper",
+    brand_label: "SecureTrack Paper",
     packaging_notes: "",
     qr_enabled: true,
     security_print: false,

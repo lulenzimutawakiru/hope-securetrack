@@ -1,6 +1,6 @@
 # Advanced Notification System
 
-Hope SecureTrack multi-channel notifications: in-app inbox, Resend email, rules engine, preferences, and delivery audit.
+SecureTrack ERP multi-channel notifications: in-app inbox, Resend email, rules engine, preferences, and delivery audit.
 
 ## Features
 

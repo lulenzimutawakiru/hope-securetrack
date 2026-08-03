@@ -1,4 +1,4 @@
-# Enterprise Human Resource / Human Capital Management — Hope Design Group Ltd
+# Enterprise Human Resource / Human Capital Management — SecureTrack ERP
 
 **Employee lifecycle · payroll · compliance · ESS**  
 Integrates with Workforce Management, Finance, and Identity.

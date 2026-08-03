@@ -66,7 +66,7 @@ export function buildDispatchNoteHtml(input: {
     th,td{border:1px solid #ddd;padding:6px}
     .qr{font-family:monospace;font-size:11px;margin-top:16px}
   </style></head><body>
-  <h1>Dispatch Note — Hope Design Group</h1>
+  <h1>Dispatch Note — SecureTrack ERP</h1>
   <p><strong>${input.docNumber}</strong></p>
   <p>Customer: ${input.customerName || "—"}<br/>Address: ${input.address || "—"}<br/>
   Vehicle: ${input.vehicle || "—"} · Driver: ${input.driver || "—"}</p>

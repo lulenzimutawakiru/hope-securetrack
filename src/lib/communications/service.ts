@@ -171,7 +171,7 @@ export async function composeMessage(input: ComposeInput) {
     brand_colors = { primary: "#0B1F3A", secondary: "#C9A227" };
     if (body_html && !body_html.includes("<html")) {
       body_html = wrapBrandedEmail({
-        companyName: String(company?.name || "Hope Design Group"),
+        companyName: String(company?.name || "SecureTrack ERP"),
         logoUrl: brand_logo_url,
         address: String(company?.address || ""),
         phone: String(company?.phone || ""),
@@ -415,7 +415,7 @@ export async function publishCommEvent(input: PublishEventInput) {
     }
 
     const vars = {
-      company_name: "Hope Design Group",
+      company_name: "SecureTrack ERP",
       ...(input.vars || {}),
     };
 
@@ -680,7 +680,7 @@ export async function aiDraftEmail(input: {
       : "Please let us know if you need any further information.",
     "",
     "Kind regards,",
-    "Hope SecureTrack ERP",
+    "SecureTrack ERP",
   ]
     .filter(Boolean)
     .join("\n");

@@ -71,7 +71,7 @@ export const COMM_MENU = [
   { title: "WhatsApp", href: "/dashboard/communications/whatsapp", group: "Channels" },
   { title: "Push Notifications", href: "/dashboard/communications/push", group: "Channels" },
   { title: "In-App Messages", href: "/dashboard/communications/in-app", group: "Channels" },
-  { title: "HopeChat Delivery", href: "/dashboard/communications/hopechat", group: "Channels" },
+  { title: "SecureChat Delivery", href: "/dashboard/communications/hopechat", group: "Channels" },
   { title: "Document Delivery", href: "/dashboard/communications/documents", group: "Documents" },
   { title: "PDF Jobs", href: "/dashboard/communications/pdf-jobs", group: "Documents" },
   { title: "Approval Requests", href: "/dashboard/communications/approvals", group: "Workflow" },

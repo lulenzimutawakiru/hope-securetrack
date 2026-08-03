@@ -33,12 +33,12 @@ export function formatForSiem(
       return {
         TimeGenerated: event.created_at,
         ...base,
-        ProductName: "Hope SecureTrack",
-        VendorName: "Hope Design Group",
+        ProductName: "SecureTrack ERP",
+        VendorName: "SecureTrack ERP",
       };
     case "qradar":
       return {
-        LEEF: `LEEF:2.0|Hope|SecureTrack|1.0|${event.event_id}|sev=${event.severity}\tsrc=${event.ip_address}\tusrName=${event.user_email}`,
+        LEEF: `LEEF:2.0|SecureTrack|SecureTrack|1.0|${event.event_id}|sev=${event.severity}\tsrc=${event.ip_address}\tusrName=${event.user_email}`,
         raw: base,
       };
     case "elastic":

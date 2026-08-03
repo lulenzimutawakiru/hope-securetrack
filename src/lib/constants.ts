@@ -4,7 +4,7 @@ export const APP_SHORT_NAME = "SecureTrack";
 export const APP_TAGLINE = "Secure • Intelligent • Connected";
 export const APP_SUBTITLE = "Enterprise Resource Planning Platform";
 /** Default demo / seed tenant legal name (not product brand) */
-export const COMPANY_NAME = "Hope Design Group Ltd";
+export const COMPANY_NAME = "SecureTrack ERP";
 export const PRODUCT_VENDOR = "SecureTrack";
 
 /** Core platform module codes (catalog) */
@@ -429,7 +429,7 @@ export const NAV_ITEMS = [
   { title: "HR", href: "/dashboard/hr", icon: "Contact", permission: PERMISSIONS.HR_VIEW, group: "people" },
   { title: "Payroll", href: "/dashboard/payroll", icon: "Wallet", permission: PERMISSIONS.PAYROLL_VIEW, group: "people" },
   { title: "Profiles", href: "/dashboard/profiles", icon: "UserCircle", permission: PERMISSIONS.PROFILE_VIEW, group: "people" },
-  { title: "HopeChat", href: "/dashboard/chat", icon: "MessageSquare", permission: PERMISSIONS.HC_VIEW, group: "people" },
+  { title: "SecureChat", href: "/dashboard/chat", icon: "MessageSquare", permission: PERMISSIONS.HC_VIEW, group: "people" },
   { title: "Service Desk", href: "/dashboard/service-desk", icon: "Headphones", permission: PERMISSIONS.SD_VIEW, group: "people" },
   { title: "ID Credentials", href: "/dashboard/credentials", icon: "IdCard", permission: PERMISSIONS.WID_VIEW, group: "people" },
   { title: "Verification", href: "/dashboard/verification", icon: "ShieldCheck", permission: PERMISSIONS.VERIFICATION_VIEW, group: "people" },

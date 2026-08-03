@@ -1,4 +1,4 @@
-# Hope SecureTrack — Niimbot Print Agent
+# SecureTrack ERP — Niimbot Print Agent
 
 Enterprise Windows agent that:
 
@@ -45,9 +45,9 @@ npm start
 Run as a Windows Service (Task Scheduler or `node-windows` / NSSM):
 
 ```
-nssm install HopeSecureTrackPrintAgent "C:\Program Files\nodejs\node.exe" "C:\path\to\print-agent\dist\index.js"
-nssm set HopeSecureTrackPrintAgent AppDirectory C:\path\to\print-agent
-nssm start HopeSecureTrackPrintAgent
+nssm install SecureTrackERPPrintAgent "C:\Program Files\nodejs\node.exe" "C:\path\to\print-agent\dist\index.js"
+nssm set SecureTrackERPPrintAgent AppDirectory C:\path\to\print-agent
+nssm start SecureTrackERPPrintAgent
 ```
 
 ## Niimbot hardware

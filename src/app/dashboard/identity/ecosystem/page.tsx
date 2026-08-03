@@ -39,7 +39,7 @@ const PRINCIPLES = [
   },
   {
     title: "Module entitlements",
-    body: "Visibility in Production, Finance, Dispatch, HopeChat, etc. is controlled by entitlements on the person, derived from roles and explicit grants.",
+    body: "Visibility in Production, Finance, Dispatch, SecureChat, etc. is controlled by entitlements on the person, derived from roles and explicit grants.",
   },
   {
     title: "Lifecycle consistency",
@@ -123,7 +123,7 @@ export default function IdentityEcosystemPage() {
           <p>                    └─────────────┬───────────────┘</p>
           <p>           ┌──────────┬──────────┼──────────┬──────────┐</p>
           <p>           ▼          ▼          ▼          ▼          ▼</p>
-          <p>        Login/IDM   Employee   ID Badge   CRM/SRM   HopeChat</p>
+          <p>        Login/IDM   Employee   ID Badge   CRM/SRM   SecureChat</p>
           <p>        (auth)      (HR 360°)  (access)   (parties) (presence)</p>
           <p>           │          │          │          │          │</p>
           <p>           └──────────┴──────────┴──────────┴──────────┘</p>
@@ -209,7 +209,7 @@ export default function IdentityEcosystemPage() {
           { title: "Employee profiles", href: "/dashboard/profiles", desc: "HR 360° digital profile" },
           { title: "ID credentials", href: "/dashboard/credentials", desc: "Badges · access · QR" },
           { title: "Provisioning", href: "/dashboard/identity/provision", desc: "Hire → account → badge" },
-          { title: "HopeChat", href: "/dashboard/chat", desc: "Same person presence" },
+          { title: "SecureChat", href: "/dashboard/chat", desc: "Same person presence" },
           { title: "Payroll", href: "/dashboard/payroll", desc: "Same person payslips" },
           { title: "Service Desk", href: "/dashboard/service-desk", desc: "Same person tickets" },
         ].map((m) => (

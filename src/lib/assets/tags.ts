@@ -44,7 +44,7 @@ export function buildTagLabelHtml(input: {
   qrDataUrl?: string;
   barcodeValue?: string;
 }): string {
-  const company = input.companyName || "Hope Design Group";
+  const company = input.companyName || "SecureTrack ERP";
   // Simple CSS barcode bars
   const bits = Array.from(input.barcodeValue || input.assetTag).flatMap((c) => {
     const n = c.charCodeAt(0);

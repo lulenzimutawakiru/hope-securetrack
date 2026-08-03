@@ -1,4 +1,4 @@
-# Hope SecureTrack — Enterprise Production Guide
+# SecureTrack ERP — Enterprise Production Guide
 
 ## Architecture
 
@@ -78,8 +78,8 @@ Returns `healthy` | `degraded` with Supabase latency. Point uptime monitors here
 
 ### 7. Support contacts
 
-- App: Hope SecureTrack  
-- Company: Hope Design Group Ltd  
+- App: SecureTrack ERP  
+- Company: SecureTrack ERP  
 - Public verify: `/verify`  
 
 ## Incident response

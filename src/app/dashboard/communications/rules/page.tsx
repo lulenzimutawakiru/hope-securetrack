@@ -59,7 +59,7 @@ export default function EventRulesPage() {
           currency: "UGX",
           title: "Test event notification",
           message: `Triggered ${testEvent} from Communication Center.`,
-          company_name: "Hope Design Group",
+          company_name: "SecureTrack ERP",
           hire_date: new Date().toISOString().slice(0, 10),
           start_date: new Date().toISOString().slice(0, 10),
           end_date: new Date().toISOString().slice(0, 10),

@@ -89,7 +89,7 @@ export default function CareersPortalPage() {
           <Link href="/" className="flex items-center gap-2">
             <Shield className="h-6 w-6 text-[#C9A227]" />
             <div>
-              <div className="font-semibold">Hope Design Group</div>
+              <div className="font-semibold">SecureTrack ERP</div>
               <div className="text-[11px] text-white/45">Careers</div>
             </div>
           </Link>
@@ -110,7 +110,7 @@ export default function CareersPortalPage() {
             Build with purpose
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Careers at Hope Design Group
+            Careers at SecureTrack ERP
           </h1>
           <p className="mt-4 text-lg text-white/60 leading-relaxed">
             Join a security printing, manufacturing, engineering and commercial enterprise
@@ -229,7 +229,7 @@ export default function CareersPortalPage() {
           <Sparkles className="mx-auto h-8 w-8 text-[#C9A227]" />
           <h2 className="mt-3 text-xl font-semibold">Already an employee?</h2>
           <p className="mt-2 text-sm text-white/55">
-            Internal mobility and requisitions live inside Hope SecureTrack Talent Acquisition.
+            Internal mobility and requisitions live inside SecureTrack ERP Talent Acquisition.
           </p>
           <Button className="mt-4 bg-[#C9A227] text-[#0B1F3A] hover:bg-[#d4ad35]" asChild>
             <Link href="/login">Staff sign in</Link>
@@ -238,7 +238,7 @@ export default function CareersPortalPage() {
       </main>
 
       <footer className="border-t border-white/10 py-8 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} Hope Design Group Ltd · Careers portal
+        © {new Date().getFullYear()} SecureTrack ERP · Careers portal
       </footer>
     </div>
   );

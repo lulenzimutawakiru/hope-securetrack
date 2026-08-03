@@ -1,6 +1,6 @@
 # Enterprise Branding & Corporate Identity (DAM)
 
-Hope SecureTrack — centralized multi-company brand identity, digital asset management, document templates, product/packaging branding, approvals, and compliance.
+SecureTrack ERP — centralized multi-company brand identity, digital asset management, document templates, product/packaging branding, approvals, and compliance.
 
 ## Scope
 
@@ -27,7 +27,7 @@ Apply:
 supabase/migrations/20260101000033_enterprise_branding_dam.sql
 ```
 
-Seeds Hope Design Group primary brand, palette, fonts, guidelines, assets, and sample templates.
+Seeds SecureTrack ERP primary brand, palette, fonts, guidelines, assets, and sample templates.
 
 ## Routes
 

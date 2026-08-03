@@ -1,6 +1,6 @@
 # Enterprise Reporting, BI & Decision Intelligence
 
-**Company:** Hope Design Group Ltd  
+**Company:** SecureTrack ERP  
 **Module version:** 1.0 — Enterprise Platform  
 **Entry:** `/dashboard/reports`
 

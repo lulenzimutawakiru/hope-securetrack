@@ -657,7 +657,7 @@ export async function publishPayslips(input: {
     const payslip_number = String(l.payslip_number || `PSL-${l.id}`.slice(0, 20));
     const verification_code = `QR-PAY-${String(l.id).slice(0, 8).toUpperCase()}`;
     const html = buildPayslipHtml({
-      companyName: input.company_name || "Hope Design Group Ltd",
+      companyName: input.company_name || "SecureTrack ERP",
       employeeName: emp
         ? `${emp.first_name || ""} ${emp.last_name || ""}`.trim()
         : "Employee",

@@ -1,6 +1,6 @@
 # Enterprise Payroll Management Platform
 
-Hope SecureTrack — full payroll lifecycle: master data, attendance/OT hooks, leave impact, earnings, statutory tax, benefits, loans, multi-level approval, bank files, digital payslips, GL mappings, ESS, and AI.
+SecureTrack ERP — full payroll lifecycle: master data, attendance/OT hooks, leave impact, earnings, statutory tax, benefits, loans, multi-level approval, bank files, digital payslips, GL mappings, ESS, and AI.
 
 ## Scope
 

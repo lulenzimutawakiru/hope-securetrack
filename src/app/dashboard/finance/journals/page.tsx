@@ -354,7 +354,7 @@ export default function JournalsPage() {
                             subtotal: Number(r.total_debit),
                             total: Number(r.total_debit),
                             footerNote:
-                              "Double-entry journal · Hope Design Group Ltd Finance",
+                              "Double-entry journal · SecureTrack ERP Finance",
                           };
                         }}
                       />

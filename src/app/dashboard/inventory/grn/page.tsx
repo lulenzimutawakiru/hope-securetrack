@@ -411,7 +411,7 @@ export default function GrnPage() {
                               })),
                               notes: r.notes ? String(r.notes) : undefined,
                               footerNote:
-                                "Goods received subject to quality inspection. Hope Design Group Ltd.",
+                                "Goods received subject to quality inspection. SecureTrack ERP.",
                             };
                           }}
                         />

@@ -288,7 +288,7 @@ export default function SecureClockPage() {
               <Input
                 value={wifiSsid}
                 onChange={(e) => setWifiSsid(e.target.value)}
-                placeholder="HOPE-CORP"
+                placeholder="SECURETRACK-CORP"
               />
             </div>
             <div>

@@ -135,7 +135,7 @@ function ApplyForm() {
         <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-4">
           <Link href="/careers" className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-[#C9A227]" />
-            <span className="font-semibold">Hope Careers</span>
+            <span className="font-semibold">SecureTrack ERP</span>
           </Link>
           <Link href="/careers" className="text-sm text-white/60 hover:text-white">
             Back to jobs

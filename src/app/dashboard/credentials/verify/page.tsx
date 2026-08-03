@@ -133,7 +133,7 @@ function VerifyInner() {
               ) : (
                 <XCircle className="h-6 w-6 text-red-500" />
               )}
-              <CardTitle>HOPE DESIGN GROUP LTD</CardTitle>
+              <CardTitle>SECURETRACK GROUP LTD</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">

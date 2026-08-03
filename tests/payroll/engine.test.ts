@@ -141,7 +141,7 @@ describe("payroll engine — payslip HTML", () => {
       employeeName: "Jane Doe",
       employeeNumber: "E001",
       periodLabel: "July 2026",
-      companyName: "Hope Design",
+      companyName: "SecureTrack ERP",
       payslipNumber: "PS-001",
       verificationCode: "VERIFY-001",
       calc: calculateEmployeePay({

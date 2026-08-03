@@ -28,7 +28,7 @@ export default function PrintSecurityPage() {
   const [form, setForm] = useState({
     profile_code: "",
     name: "",
-    watermark_text: "AUTHENTIC · HOPE DESIGN GROUP",
+    watermark_text: "AUTHENTIC · SECURETRACK GROUP",
     microtext: "HOPE-SECURE-TRACK-MICRO",
     serial_prefix: "SEC",
   });

@@ -112,7 +112,7 @@ export async function sendMessage(input: {
       .insert({
         company_id: input.company_id,
         channel_id: input.channel_id,
-        sender_name: bot.botDomain === "general" ? "HopeAI" : `${bot.botDomain?.toUpperCase()} Bot`,
+        sender_name: bot.botDomain === "general" ? "SecureTrackAI" : `${bot.botDomain?.toUpperCase()} Bot`,
         message_type: "bot",
         body: bot.reply,
         reply_to_id: msg.id,
@@ -536,8 +536,8 @@ export async function convertMessageToTicket(input: {
       company_id: input.company_id,
       created_by: input.created_by,
       ticket: {
-        subject: `Chat: ${(msg.body as string)?.slice(0, 80) || "HopeChat report"}`,
-        description: `From HopeChat #${ch?.slug || ch?.name || "channel"}\n\n${msg.body}\n\n— ${msg.sender_name}`,
+        subject: `Chat: ${(msg.body as string)?.slice(0, 80) || "SecureChat report"}`,
+        description: `From SecureChat #${ch?.slug || ch?.name || "channel"}\n\n${msg.body}\n\n— ${msg.sender_name}`,
         category: ch?.slug === "production" ? "production" : "general",
         service_type: ch?.slug === "it-support" ? "it" : ch?.slug === "hr" ? "hr" : "it",
         channel: "chat",

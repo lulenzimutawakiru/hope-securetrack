@@ -1,4 +1,4 @@
-/** Hope SecureTrack MES / Advanced Production types */
+/** SecureTrack ERP MES / Advanced Production types */
 
 export const PRODUCT_ITEM_TYPES = [
   { value: "finished_good", label: "Finished Goods" },

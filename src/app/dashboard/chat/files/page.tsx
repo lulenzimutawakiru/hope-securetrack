@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { registerFile } from "@/lib/hopechat";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 
-export default function HopeChatFilesPage() {
+export default function SecureChatFilesPage() {
   const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);

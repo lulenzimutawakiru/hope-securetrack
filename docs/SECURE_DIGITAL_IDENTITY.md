@@ -1,4 +1,4 @@
-# Hope Digital Identity — Enterprise Single Source of Truth
+# SecureTrack Digital Identity — Enterprise Single Source of Truth
 
 **One master identity (UPID) for employees, users, contractors, interns, consultants, portal customers/suppliers, and administrators.**
 
@@ -12,7 +12,7 @@ Designed to rival Microsoft Entra ID, Workday HCM, SAP SuccessFactors, Oracle HC
      ┌──────────┬──────────┬───────┼───────┬──────────┬──────────┐
      ▼          ▼          ▼       ▼       ▼          ▼          ▼
   HR Emp    ERP User   Payroll  Workforce Attendance Leave   ID Card
-  HopeChat  Service    Assets   Projects  Biometrics Docs    Audit
+  SecureChat  Service    Assets   Projects  Biometrics Docs    Audit
             Desk
 ```
 
@@ -21,7 +21,7 @@ Designed to rival Microsoft Entra ID, Workday HCM, SAP SuccessFactors, Oracle HC
 1. **Exactly one master identity** per human — no duplicate employee records.
 2. **HR is authoritative** for workforce data; modules consume and link.
 3. **Change once, propagate** via sync rules and lifecycle events.
-4. **Provision everything on hire** — ERP, credentials, email profile, HopeChat, SD, portal, payroll, attendance, leave, performance, assets, company ID, QR, MFA flag.
+4. **Provision everything on hire** — ERP, credentials, email profile, SecureChat, SD, portal, payroll, attendance, leave, performance, assets, company ID, QR, MFA flag.
 5. **Revoke everything on exit** — auth, cards, biometrics, open assets.
 
 ## Database
@@ -102,7 +102,7 @@ When HR creates an employee via **Hire & Provision**:
 3. ERP User (IDM provision request)
 4. Login credentials (username)
 5. Company email profile
-6. HopeChat entitlement
+6. SecureChat entitlement
 7. Service Desk entitlement
 8. Employee portal
 9. Payroll profile link

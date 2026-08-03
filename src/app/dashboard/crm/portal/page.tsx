@@ -57,7 +57,7 @@ export default function CrmPortalPage() {
     <div>
       <PageHeader
         title="Customer Self-Service Portal"
-        description="Quotes · orders · production · dispatch · invoices · tickets · QR verify · HopeChat"
+        description="Quotes · orders · production · dispatch · invoices · tickets · QR verify · SecureChat"
         actions={
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">

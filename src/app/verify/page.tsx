@@ -240,7 +240,7 @@ function VerifyPortalInner() {
       <main className="container mx-auto px-4 sm:px-6 py-8 max-w-2xl pb-20">
         <div className="text-center mb-8">
           <Badge className="mb-3 bg-hope-gold/20 text-hope-gold border-hope-gold/30 hover:bg-hope-gold/20">
-            Official Hope Design Group Portal
+            Official SecureTrack ERP Portal
           </Badge>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
             Verify Your Product
@@ -395,7 +395,7 @@ function VerifyPortalInner() {
                     </Badge>
                   )}
                   <Badge variant="outline" className="text-hope-teal border-hope-teal">
-                    Hope Design Group Ltd
+                    SecureTrack ERP
                   </Badge>
                 </div>
               </CardContent>

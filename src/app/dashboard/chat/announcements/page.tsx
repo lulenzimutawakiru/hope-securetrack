@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { publishAnnouncement, ackAnnouncement } from "@/lib/hopechat";
 import { formatDateTime } from "@/lib/utils";
 
-export default function HopeChatAnnouncementsPage() {
+export default function SecureChatAnnouncementsPage() {
   const { auth } = useUser();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);

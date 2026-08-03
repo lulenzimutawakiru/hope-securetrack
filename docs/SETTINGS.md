@@ -1,6 +1,6 @@
 # Settings & System Administration Module
 
-**Company:** Hope Design Group Ltd  
+**Company:** SecureTrack ERP  
 **Version:** 4.0 — Enterprise Configuration Center  
 **Stack:** Next.js · Supabase PostgreSQL · RLS · soft-delete
 

@@ -52,7 +52,7 @@ export default function BrandEmailPage() {
       fullName: form.fullName || "John Doe",
       jobTitle: form.jobTitle || "Production Manager",
       phone: form.phone,
-      brandName: "Hope Design Group Ltd",
+      brandName: "SecureTrack ERP",
       website: "https://hopedesign.ug",
       primaryColor: "#0D7377",
     });

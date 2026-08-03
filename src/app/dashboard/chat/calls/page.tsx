@@ -29,10 +29,10 @@ type MeetingRow = {
 };
 
 /**
- * Voice/video call hub backed by HopeChat meetings.
+ * Voice/video call hub backed by SecureChat meetings.
  * Media mesh is launched from Meetings; this page lists live/history records.
  */
-export default function HopeChatCallsPage() {
+export default function SecureChatCallsPage() {
   const { auth } = useUser();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<MeetingRow[]>([]);
@@ -78,7 +78,7 @@ export default function HopeChatCallsPage() {
     <div>
       <PageHeader
         title="Voice & Video Calls"
-        description="Call history and live rooms from HopeChat meetings · start media from Meetings"
+        description="Call history and live rooms from SecureChat meetings · start media from Meetings"
         actions={
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => { setLoading(true); void load(); }}>
@@ -135,7 +135,7 @@ export default function HopeChatCallsPage() {
       {live.length === 0 ? (
         <EmptyState
           title="No live calls"
-          description="Start a meeting from HopeChat Meetings when you need voice or video."
+          description="Start a meeting from SecureChat Meetings when you need voice or video."
         />
       ) : (
         <div className="rounded-md border mb-6 overflow-x-auto">

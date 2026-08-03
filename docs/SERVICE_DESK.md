@@ -1,6 +1,6 @@
 # Enterprise Ticketing, Case Management & ITSM
 
-Hope SecureTrack — enterprise service desk / case management platform targeting ServiceNow, Jira SM, Zendesk, Freshservice, BMC Helix class capabilities.
+SecureTrack ERP — enterprise service desk / case management platform targeting ServiceNow, Jira SM, Zendesk, Freshservice, BMC Helix class capabilities.
 
 ## Migrations
 

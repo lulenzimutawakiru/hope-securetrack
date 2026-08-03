@@ -1,6 +1,6 @@
 # Enterprise Audit Logging & Compliance Platform
 
-Hope SecureTrack — immutable enterprise audit trail, security monitoring, digital forensics, GRC, and AI fraud analytics.
+SecureTrack ERP — immutable enterprise audit trail, security monitoring, digital forensics, GRC, and AI fraud analytics.
 
 ## Why not a simple activity log
 

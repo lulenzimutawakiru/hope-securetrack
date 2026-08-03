@@ -4,7 +4,7 @@
 
 **SecureTrack ERP** — multi-tenant enterprise resource planning platform.
 
-Demo seed tenant remains *Hope Design Group Ltd* (a customer org, not the product brand).
+Demo seed tenant remains *SecureTrack ERP* (a customer org, not the product brand).
 
 ## Hierarchy
 

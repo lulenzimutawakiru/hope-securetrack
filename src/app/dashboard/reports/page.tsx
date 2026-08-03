@@ -223,7 +223,7 @@ export default function ReportsBiHubPage() {
     <div>
       <PageHeader
         title="Enterprise Reporting & BI"
-        description="Hope Design Group Ltd — Reports · Dashboards · KPIs · AI Decision Intelligence · Regulatory · Documents"
+        description="SecureTrack ERP — Reports · Dashboards · KPIs · AI Decision Intelligence · Regulatory · Documents"
         actions={
           <div className="flex gap-2">
             <Link href="/dashboard/reports/library">
@@ -263,7 +263,7 @@ export default function ReportsBiHubPage() {
         </p>
         <p className="text-white/50 text-xs mt-2">
           Beyond PDF/Excel: interactive drill-down, pixel layouts, matrix/pivot, scheduled
-          packs, URA regulatory packages, and AI forecasting for Hope Design ERP.
+          packs, URA regulatory packages, and AI forecasting for SecureTrack ERP.
         </p>
       </div>
 

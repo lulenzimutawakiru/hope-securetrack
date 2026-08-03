@@ -229,7 +229,7 @@ export default function SettingsHubPage() {
     <div>
       <PageHeader
         title="Settings & System Administration"
-        description="Hope Design Group Ltd — No-code enterprise configuration · multi-company · multi-branch · auditable"
+        description="SecureTrack ERP — No-code enterprise configuration · multi-company · multi-branch · auditable"
         actions={
           <div className="flex gap-2">
             <Link href="/dashboard/settings/company">

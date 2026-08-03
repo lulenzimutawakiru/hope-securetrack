@@ -1,6 +1,6 @@
 # Advanced Labels Platform
 
-Enterprise label lifecycle for Hope SecureTrack ERP — product authentication, cartons, pallets, shipping, shelf/bin, GS1 and security labels.
+Enterprise label lifecycle for SecureTrack ERP — product authentication, cartons, pallets, shipping, shelf/bin, GS1 and security labels.
 
 ## Hub
 

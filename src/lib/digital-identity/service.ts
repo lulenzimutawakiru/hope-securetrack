@@ -625,7 +625,7 @@ export async function runProvisionJob(jobId: string, hire?: HireOrchestrationInp
       .eq("id", personId!);
     await markStep(jobId, "company_email", "done", { entity_code: email });
 
-    // 6. HopeChat entitlement
+    // 6. SecureChat entitlement
     await sb().from("uw_module_entitlements").upsert(
       {
         company_id: companyId,

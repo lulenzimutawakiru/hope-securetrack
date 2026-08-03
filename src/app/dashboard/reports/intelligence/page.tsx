@@ -103,7 +103,7 @@ export default function DocumentIntelligencePage() {
         barcode_value: code,
         document_hash: hash,
         hash_algorithm: "SHA-256",
-        watermark_text: `Hope Design Group Ltd — ${form.classification.toUpperCase()}`,
+        watermark_text: `SecureTrack ERP — ${form.classification.toUpperCase()}`,
         digital_certificate_ref: "CERT-HDG-CORP-01",
         tamper_status: "verified",
         approval_chain: [{ role: "Author", status: "pending" }],
@@ -168,7 +168,7 @@ export default function DocumentIntelligencePage() {
         ],
         notes:
           "Digitally sealed document. Hash and QR enable tamper detection. Classification watermark applies to exports.",
-        footerNote: "Hope Design Group Ltd · Document Intelligence · SecureTrack",
+        footerNote: "SecureTrack ERP · Document Intelligence · SecureTrack",
       }, auth?.profile?.company_id);
       toast.success("Print dialog opened");
     } catch (err) {

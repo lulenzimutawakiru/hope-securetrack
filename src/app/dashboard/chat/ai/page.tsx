@@ -13,9 +13,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { hopeAiAssist, generateChatInsights } from "@/lib/hopechat";
 
-export default function HopeChatAiPage() {
+export default function SecureChatAiPage() {
   const { auth } = useUser();
-  const [prompt, setPrompt] = useState("@HopeAI help");
+  const [prompt, setPrompt] = useState("@SecureTrackAI help");
   const [reply, setReply] = useState("");
   const [tasks, setTasks] = useState<string[]>([]);
   const [insights, setInsights] = useState<Array<{ title: string; detail: string; severity: string }>>([]);
@@ -63,12 +63,12 @@ export default function HopeChatAiPage() {
     }
   };
 
-  if (loading) return <LoadingState message="Loading HopeAI…" />;
+  if (loading) return <LoadingState message="Loading SecureTrackAI…" />;
 
   return (
     <div>
       <PageHeader
-        title="HopeAI Assistant"
+        title="SecureTrackAI Assistant"
         description="Summarize · draft · translate · minutes · tasks · ERP answers · SOPs"
         actions={
           <Button asChild size="sm" variant="outline"><Link href="/dashboard/chat">Open chat</Link></Button>
@@ -79,7 +79,7 @@ export default function HopeChatAiPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" /> Ask HopeAI
+              <Sparkles className="h-4 w-4 text-primary" /> Ask SecureTrackAI
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -88,14 +88,14 @@ export default function HopeChatAiPage() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && ask()}
-                placeholder="@HopeAI summarize · /hr · /finance · /prod · /it"
+                placeholder="@SecureTrackAI summarize · /hr · /finance · /prod · /it"
               />
               <Button onClick={ask} disabled={busy}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>
             <div className="rounded-md border p-3 text-sm min-h-[120px] whitespace-pre-wrap bg-muted/30">
-              {reply || "HopeAI will respond here. Try bot commands or ask for a draft reply."}
+              {reply || "SecureTrackAI will respond here. Try bot commands or ask for a draft reply."}
             </div>
             {tasks.length > 0 && (
               <div className="flex flex-wrap gap-1">
@@ -105,7 +105,7 @@ export default function HopeChatAiPage() {
               </div>
             )}
             <div className="flex flex-wrap gap-2 text-xs">
-              {["@HopeAI help", "/hr leave balance", "/finance invoice", "/prod machine down", "/it password", "summarize"].map((s) => (
+              {["@SecureTrackAI help", "/hr leave balance", "/finance invoice", "/prod machine down", "/it password", "summarize"].map((s) => (
                 <Button key={s} size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPrompt(s)}>
                   {s}
                 </Button>

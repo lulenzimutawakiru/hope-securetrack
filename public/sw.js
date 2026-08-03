@@ -1,4 +1,4 @@
-/* Hope SecureTrack — production service worker (cache shell + offline fallback) */
+/* SecureTrack ERP — production service worker (cache shell + offline fallback) */
 const CACHE = "hope-st-shell-v1";
 const PRECACHE = ["/", "/manifest.json", "/dashboard"];
 

@@ -93,7 +93,7 @@ export default function InvoiceDesignerPage() {
         show_tax_breakdown: true,
         show_bank_details: true,
         default_terms: "Payment due as stated.",
-        default_bank_details: "Bank: Stanbic · Hope Design Group Ltd",
+        default_bank_details: "Bank: Stanbic · SecureTrack ERP",
         design_json: { header: { title: "TAX INVOICE" }, footer: { showBank: true } },
         created_by: auth.profile.id,
       });

@@ -166,7 +166,7 @@ export default function ProductionPage() {
                   <DialogHeader>
                     <DialogTitle>Create Production Batch</DialogTitle>
                     <DialogDescription>
-                      Start a new manufacturing batch for Hope Design products
+                      Start a new manufacturing batch for SecureTrack ERP products
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">

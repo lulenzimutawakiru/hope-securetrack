@@ -36,7 +36,7 @@ export default function AssetMobilePage() {
 
       <Card className="mb-6 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardContent className="pt-4 text-sm">
-          <strong>Progressive Web App:</strong> install Hope SecureTrack on mobile devices for
+          <strong>Progressive Web App:</strong> install SecureTrack ERP on mobile devices for
           home-screen access, camera scanning, and offline audit queues that sync when connectivity returns.
           Uses the platform <code className="text-xs bg-muted px-1 rounded">use-offline-queue</code> and
           service worker patterns already deployed for inventory and packing floors.

@@ -4,6 +4,7 @@ import { getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { UserProvider } from "@/components/providers/user-provider";
+import { BrandProvider } from "@/components/providers/brand-provider";
 import { SentryClientInit } from "@/components/providers/sentry-client-init";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
@@ -48,8 +49,10 @@ export default async function RootLayout({
           <QueryProvider>
             <NextIntlClientProvider messages={messages}>
               <UserProvider>
-                {children}
-                <Toaster />
+                <BrandProvider>
+                  {children}
+                  <Toaster />
+                </BrandProvider>
               </UserProvider>
             </NextIntlClientProvider>
           </QueryProvider>

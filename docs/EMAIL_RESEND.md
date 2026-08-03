@@ -1,6 +1,6 @@
 # Resend Email Integration
 
-Hope SecureTrack uses [Resend](https://resend.com) for transactional email and notification delivery.
+SecureTrack ERP uses [Resend](https://resend.com) for transactional email and notification delivery.
 
 ## Environment variables
 
@@ -18,7 +18,7 @@ Add these in **Vercel → Project → Settings → Environment Variables** (Prod
 1. Create a Resend account and API key.  
 2. Add and verify your sending domain (DNS: SPF, DKIM).  
 3. Set `RESEND_FROM_EMAIL` to an address on that domain, e.g.  
-   `Hope SecureTrack <noreply@mail.yourdomain.com>`  
+   `SecureTrack ERP <noreply@mail.yourdomain.com>`  
 4. Without a domain, Resend allows limited testing with their onboarding sender (see Resend docs).
 
 ## API routes

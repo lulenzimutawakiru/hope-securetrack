@@ -83,11 +83,11 @@ export default function CrmCommunicationsPage() {
     <div>
       <PageHeader
         title="Customer Communication Hub"
-        description="Email · SMS · WhatsApp Business · HopeChat · voice logs · portal messages"
+        description="Email · SMS · WhatsApp Business · SecureChat · voice logs · portal messages"
         actions={
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/chat">HopeChat</Link>
+              <Link href="/dashboard/chat">SecureChat</Link>
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>

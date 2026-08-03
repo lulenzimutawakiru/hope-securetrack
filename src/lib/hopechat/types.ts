@@ -1,4 +1,4 @@
-/** HopeChat enterprise collaboration types */
+/** SecureChat enterprise collaboration types */
 
 export const CHANNEL_TYPES = [
   { value: "dm", label: "Direct Message" },
@@ -29,7 +29,7 @@ export const BOT_DOMAINS = [
   { value: "finance", label: "Finance Bot", trigger: "/finance" },
   { value: "production", label: "Production Bot", trigger: "/prod" },
   { value: "it", label: "IT Bot", trigger: "/it" },
-  { value: "general", label: "HopeAI", trigger: "@HopeAI" },
+  { value: "general", label: "SecureTrackAI", trigger: "@SecureTrackAI" },
 ] as const;
 
 export const NAV_SECTIONS = [
@@ -40,7 +40,7 @@ export const NAV_SECTIONS = [
   { title: "Calls", href: "/dashboard/chat/calls", icon: "Phone" },
   { title: "Announcements", href: "/dashboard/chat/announcements", icon: "Megaphone" },
   { title: "Files", href: "/dashboard/chat/files", icon: "Paperclip" },
-  { title: "HopeAI", href: "/dashboard/chat/ai", icon: "Sparkles" },
+  { title: "SecureTrackAI", href: "/dashboard/chat/ai", icon: "Sparkles" },
   { title: "Knowledge", href: "/dashboard/chat/knowledge", icon: "BookOpen" },
   { title: "Analytics", href: "/dashboard/chat/analytics", icon: "BarChart3" },
   { title: "Settings", href: "/dashboard/chat/settings", icon: "Settings" },

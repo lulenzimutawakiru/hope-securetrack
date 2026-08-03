@@ -1,6 +1,6 @@
 # Enterprise Company Management Platform
 
-**Master organizational foundation for Hope SecureTrack ERP** — multi-company, multi-branch, multi-factory, governance, risk, branding, and AI.
+**Master organizational foundation for SecureTrack ERP** — multi-company, multi-branch, multi-factory, governance, risk, branding, and AI.
 
 Designed to rival SAP S/4HANA Enterprise Management, Oracle Fusion Enterprise Structures, Dynamics 365 F&O, Workday EM, NetSuite OneWorld, and Infor CloudSuite.
 
@@ -85,5 +85,5 @@ src/lib/enterprise-company/
 ## Related
 
 - Settings company form: `/dashboard/settings/company`
-- Digital Identity: `docs/HOPE_DIGITAL_IDENTITY.md`
+- Digital Identity: `docs/SECURE_DIGITAL_IDENTITY.md`
 - Branding DAM: `/dashboard/branding`

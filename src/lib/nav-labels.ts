@@ -75,7 +75,7 @@ const SEGMENT_OVERRIDES: Record<string, string> = {
   lbl: "Labels",
   sd: "Service Desk",
   wid: "ID Credentials",
-  hc: "HopeChat",
+  hc: "SecureChat",
   hr: "HR",
   wfm: "Workforce",
   scm: "Supply Chain",

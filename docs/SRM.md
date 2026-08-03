@@ -1,12 +1,12 @@
-# Hope SecureTrack — Enterprise Supplier Relationship Management (SRM)
+# SecureTrack ERP — Enterprise Supplier Relationship Management (SRM)
 
-World-class vendor lifecycle, procurement collaboration, performance, and AI intelligence integrated into Hope SecureTrack ERP.
+World-class vendor lifecycle, procurement collaboration, performance, and AI intelligence integrated into SecureTrack ERP.
 
 ## Overview
 
 **Registration → Qualification → Due Diligence → Approval → Contract → RFQ → PO → Delivery → QC → Invoice Match → Payment → Performance → Renew/Offboard**
 
-Built to exceed SAP Ariba, Oracle Procurement Cloud, Coupa, Ivalua, Jaggaer, Dynamics 365 Procurement, and Odoo Purchase for Hope Design Group manufacturing and secure-print operations.
+Built to exceed SAP Ariba, Oracle Procurement Cloud, Coupa, Ivalua, Jaggaer, Dynamics 365 Procurement, and Odoo Purchase for SecureTrack ERP manufacturing and secure-print operations.
 
 ## Routes
 
@@ -83,7 +83,7 @@ src/lib/srm/
 
 ## ERP integrations
 
-Procurement · Inventory/GRN · Finance AP · Contracts · Logistics · Fleet · HopeChat · Service Desk · Documents · BI · Notifications · QR/barcode receiving
+Procurement · Inventory/GRN · Finance AP · Contracts · Logistics · Fleet · SecureChat · Service Desk · Documents · BI · Notifications · QR/barcode receiving
 
 ## CRUD+
 
@@ -102,7 +102,7 @@ supabase db push
 # supabase/migrations/20260101000046_enterprise_srm_advanced.sql
 ```
 
-## Hope Design Group specifics
+## SecureTrack ERP specifics
 
 - **Approved registry** for pulp, packaging, security inks, plates, chemicals, machinery, ICT, office
 - **Material traceability** from supplier lot → production batch → finished product → QC → complaints/recalls

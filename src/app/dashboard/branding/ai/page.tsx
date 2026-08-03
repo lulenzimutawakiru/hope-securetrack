@@ -27,7 +27,7 @@ export default function BrandAiPage() {
   const [productName, setProductName] = useState("Premium A4 Copy Paper");
   const [tone, setTone] = useState<"professional" | "bold" | "friendly">("professional");
   const [copy, setCopy] = useState<{ headline: string; body: string; cta: string } | null>(null);
-  const [brandName, setBrandName] = useState("Hope Design Group");
+  const [brandName, setBrandName] = useState("SecureTrack ERP");
 
   useEffect(() => {
     async function load() {
@@ -47,7 +47,7 @@ export default function BrandAiPage() {
         sb.from("brand_templates").select("*", { count: "exact", head: true }).eq("status", "published"),
         sb.from("brand_colors").select("hex_value,color_role").eq("color_role", "primary").limit(1),
       ]);
-      const name = brand?.brand_name || "Hope Design Group";
+      const name = brand?.brand_name || "SecureTrack ERP";
       setBrandName(name);
       setInsights(
         generateBrandInsights({

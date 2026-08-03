@@ -44,7 +44,7 @@ export default function DispatchRequestsPage() {
     delivery_date: "",
     weight_kg: "0",
     volume_m3: "0",
-    product_name: "Hope A4 Reams",
+    product_name: "SecureTrack A4 Reams",
     quantity: "1",
   });
 

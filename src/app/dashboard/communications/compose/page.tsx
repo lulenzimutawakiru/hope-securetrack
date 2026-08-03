@@ -58,7 +58,7 @@ export default function ComposeMessagePage() {
         source_event: "manual.compose",
         actor_id: auth.user.id,
         vars: {
-          company_name: "Hope Design Group",
+          company_name: "SecureTrack ERP",
           message: form.body,
           title: form.subject,
         },

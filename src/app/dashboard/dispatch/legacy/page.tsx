@@ -396,7 +396,7 @@ export default function DispatchPage() {
                           ],
                           notes: "Please sign and retain for proof of delivery.",
                           footerNote:
-                            "Proof of delivery · Hope Design Group Ltd logistics",
+                            "Proof of delivery · SecureTrack ERP logistics",
                         })}
                       />
                       <Select

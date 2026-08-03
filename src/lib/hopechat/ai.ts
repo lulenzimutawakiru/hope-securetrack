@@ -1,6 +1,6 @@
-/** HopeAI chat assistant */
+/** SecureTrackAI chat assistant */
 
-export interface HopeChatAiResult {
+export interface SecureChatAiResult {
   reply: string;
   suggestedTasks: string[];
   summary?: string;
@@ -22,7 +22,7 @@ export function summarizeConversation(
   return [
     `Summary of last ${sample.length} message(s) involving ${speakers.size} participant(s).`,
     topics.length ? `Key points: ${topics.join(" · ")}` : "",
-    "HopeAI recommendation: capture action items as tasks and escalate blockers to Service Desk.",
+    "SecureTrackAI recommendation: capture action items as tasks and escalate blockers to Service Desk.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -34,7 +34,7 @@ export function draftReply(context: string): string {
     return "You're welcome — happy to help. Let me know if anything else comes up.";
   }
   if (lower.includes("meeting") || lower.includes("call")) {
-    return "Happy to join. Please share the agenda and preferred time, or I can schedule a HopeChat meeting room.";
+    return "Happy to join. Please share the agenda and preferred time, or I can schedule a SecureChat meeting room.";
   }
   if (lower.includes("urgent") || lower.includes("asap") || lower.includes("down")) {
     return "Understood — treating this as high priority. I'll follow up immediately and create a Service Desk ticket if needed.";
@@ -44,14 +44,14 @@ export function draftReply(context: string): string {
 
 export function handleBotCommand(
   text: string
-): HopeChatAiResult | null {
+): SecureChatAiResult | null {
   const t = text.trim();
   const lower = t.toLowerCase();
 
   if (lower.startsWith("/hr") || lower.includes("leave balance") || lower.includes("payslip")) {
     return {
       reply:
-        "HR Bot: Use HR → Self-service for leave balances and payslips. Policies are in HopeChat Knowledge under HR. Type `/ticket hr` to open an HR request.",
+        "HR Bot: Use HR → Self-service for leave balances and payslips. Policies are in SecureChat Knowledge under HR. Type `/ticket hr` to open an HR request.",
       suggestedTasks: ["Check leave balance", "Download latest payslip"],
       botDomain: "hr",
     };
@@ -71,7 +71,7 @@ export function handleBotCommand(
       suggestedTasks: ["Check machine status", "Create maintenance ticket"],
       botDomain: "production",
       createTicket: lower.includes("fault") || lower.includes("down") || lower.includes("breakdown"),
-      ticketSubject: "Production issue reported via HopeChat",
+      ticketSubject: "Production issue reported via SecureChat",
     };
   }
   if (lower.startsWith("/it") || lower.includes("password reset") || lower.includes("printer")) {
@@ -81,13 +81,13 @@ export function handleBotCommand(
       suggestedTasks: ["Password reset", "Create IT ticket"],
       botDomain: "it",
       createTicket: true,
-      ticketSubject: "IT support request via HopeChat",
+      ticketSubject: "IT support request via SecureChat",
     };
   }
-  if (lower.includes("@hopeai") || lower.startsWith("/ai") || lower.startsWith("/help")) {
+  if (lower.includes("@securetrackai") || lower.startsWith("/ai") || lower.startsWith("/help")) {
     return {
       reply:
-        "HopeAI online. I can summarize chats, draft replies, create tasks/tickets, explain ERP modules, and search knowledge. Try: `/hr`, `/finance`, `/prod`, `/it`, or ask a question.",
+        "SecureTrackAI online. I can summarize chats, draft replies, create tasks/tickets, explain ERP modules, and search knowledge. Try: `/hr`, `/finance`, `/prod`, `/it`, or ask a question.",
       suggestedTasks: ["Summarize channel", "Draft reply", "Create task"],
       botDomain: "general",
     };
@@ -95,7 +95,7 @@ export function handleBotCommand(
   return null;
 }
 
-export function chatAssist(text: string, recentMessages: Array<{ sender_name?: string | null; body?: string | null }> = []): HopeChatAiResult {
+export function chatAssist(text: string, recentMessages: Array<{ sender_name?: string | null; body?: string | null }> = []): SecureChatAiResult {
   const bot = handleBotCommand(text);
   if (bot) return bot;
 
@@ -119,7 +119,7 @@ export function chatAssist(text: string, recentMessages: Array<{ sender_name?: s
 
   return {
     reply:
-      "HopeAI: I can help with summaries, drafts, tickets, and ERP navigation. Mention @HopeAI or use `/help`.",
+      "SecureTrackAI: I can help with summaries, drafts, tickets, and ERP navigation. Mention @SecureTrackAI or use `/help`.",
     suggestedTasks: [],
     botDomain: "general",
   };

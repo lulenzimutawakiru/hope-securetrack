@@ -93,7 +93,7 @@ function renderElement(
     case "watermark":
       return `<div style="${style};display:flex;align-items:center;justify-content:center;font-size:${el.fontSize || 18}px;color:${el.color || "#cbd5e1"};opacity:0.25;font-weight:800;transform:rotate(-25deg);pointer-events:none;">${esc(el.text || "SECURE")}</div>`;
     case "microtext":
-      return `<div style="${style};font-size:5px;letter-spacing:0.5px;color:${el.color || "#64748b"};line-height:1.1;word-break:break-all;">${esc((el.text || "HOPE DESIGN GROUP OFFICIAL CREDENTIAL ").repeat(8))}</div>`;
+      return `<div style="${style};font-size:5px;letter-spacing:0.5px;color:${el.color || "#64748b"};line-height:1.1;word-break:break-all;">${esc((el.text || "SECURETRACK GROUP OFFICIAL CREDENTIAL ").repeat(8))}</div>`;
     case "text":
     case "field":
     default: {
@@ -151,7 +151,7 @@ export function buildCardPrintHtml(opts: CardRenderOptions): string {
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>${esc(opts.title || "ID Card")} — Hope SecureTrack</title>
+  <title>${esc(opts.title || "ID Card")} — SecureTrack ERP</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px; font-family: system-ui, sans-serif; background: #e2e8f0; color: #0f172a; }
@@ -173,7 +173,7 @@ export function buildCardPrintHtml(opts: CardRenderOptions): string {
   </style>
 </head>
 <body>
-  <h1 class="no-print">${esc(opts.companyName || "Hope Design Group Ltd")} — ID Card Print</h1>
+  <h1 class="no-print">${esc(opts.companyName || "SecureTrack ERP")} — ID Card Print</h1>
   <div class="wrap">
     <div class="panel">
       <div class="label no-print">Front</div>
@@ -243,7 +243,7 @@ export function printCardHtml(html: string): void {
 export function contextFromIdentity(
   identity: Record<string, unknown>,
   credential?: Record<string, unknown> | null,
-  companyName = "Hope Design Group Ltd"
+  companyName = "SecureTrack ERP"
 ): FieldContext {
   return {
     full_name: String(identity.full_name || ""),

@@ -130,7 +130,7 @@ export default function PipelinePage() {
     <div>
       <PageHeader
         title="Sales Pipeline"
-        description="Lead → Opportunity conversion for Hope Design B2B, government & export channels"
+        description="Lead → Opportunity conversion for SecureTrack ERP B2B, government & export channels"
         actions={
           <div className="flex gap-2">
             <Dialog open={leadOpen} onOpenChange={setLeadOpen}>

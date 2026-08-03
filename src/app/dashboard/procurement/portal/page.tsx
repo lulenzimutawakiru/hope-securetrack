@@ -57,7 +57,7 @@ export default function SrmPortalPage() {
     <div>
       <PageHeader
         title="Supplier Self-Service Portal"
-        description="Profiles · RFQs · POs · deliveries · invoices · payments · contracts · HopeChat"
+        description="Profiles · RFQs · POs · deliveries · invoices · payments · contracts · SecureChat"
         actions={
           <Button asChild size="sm" variant="outline">
             <Link href="/dashboard/procurement">Hub</Link>

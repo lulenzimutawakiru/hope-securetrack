@@ -319,7 +319,7 @@ export default function PayrollPage() {
                             ],
                             total: Number(l.net_pay),
                             footerNote:
-                              "Confidential payslip · Hope Design Group Ltd · Uganda PAYE/NSSF",
+                              "Confidential payslip · SecureTrack ERP · Uganda PAYE/NSSF",
                           })}
                         />
                       </TableCell>

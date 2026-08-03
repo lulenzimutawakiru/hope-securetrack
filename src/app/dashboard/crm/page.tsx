@@ -117,7 +117,7 @@ export default function CrmHubPage() {
     <div>
       <PageHeader
         title="Enterprise CRM"
-        description="Customer 360° · Sales · Marketing · Loyalty · Portal · AI — full lifecycle inside Hope SecureTrack"
+        description="Customer 360° · Sales · Marketing · Loyalty · Portal · AI — full lifecycle inside SecureTrack ERP"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm">
@@ -208,7 +208,7 @@ export default function CrmHubPage() {
             <p>Sales · Quotations · Orders · Invoicing</p>
             <p>Production · Packaging · Dispatch</p>
             <p>Finance · Credit · Commissions</p>
-            <p>Service Desk · HopeChat · QR Auth</p>
+            <p>Service Desk · SecureChat · QR Auth</p>
             <p>Inventory · Documents · BI · Portal</p>
             <p className="text-xs pt-2 border-t">
               Multi-company RLS · Uganda DPA / GDPR consent · Full audit trail

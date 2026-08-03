@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { useBrand } from "@/components/providers/brand-provider";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "@/components/layout/sidebar";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
@@ -57,6 +58,7 @@ const TenantSwitcher = dynamic(
 export function Header({ title }: { title?: string }) {
   const { theme, setTheme } = useTheme();
   const { auth, hasPermission } = useUser();
+  const { brand } = useBrand();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const t = useTranslations();
@@ -113,8 +115,8 @@ export function Header({ title }: { title?: string }) {
           </h1>
         ) : (
           <div className="hidden sm:block min-w-0">
-            <p className="text-overline leading-none">{APP_NAME}</p>
-            <p className="text-sm font-semibold truncate">{APP_TAGLINE}</p>
+            <p className="text-overline leading-none">{brand.name || APP_NAME}</p>
+            <p className="text-sm font-semibold truncate">{brand.tradingName || APP_TAGLINE}</p>
           </div>
         )}
       </div>

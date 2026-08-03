@@ -1,6 +1,6 @@
 # Enterprise Talent Acquisition & Recruitment
 
-Hope SecureTrack ERP module for end-to-end hiring: workforce planning → ATS → offer → onboarding.
+SecureTrack ERP module for end-to-end hiring: workforce planning → ATS → offer → onboarding.
 
 ## Entry points
 

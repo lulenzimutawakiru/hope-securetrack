@@ -119,7 +119,7 @@ export default function ShiftsPage() {
     <div>
       <PageHeader
         title="Shift Management"
-        description="Fixed, rotating, night, weekend, flexible and emergency shifts for Hope Design operations"
+        description="Fixed, rotating, night, weekend, flexible and emergency shifts for SecureTrack ERP operations"
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

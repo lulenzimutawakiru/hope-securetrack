@@ -1,6 +1,6 @@
 # Enterprise Project Portfolio Management (PPM)
 
-Hope SecureTrack ERP module covering full project lifecycle:
+SecureTrack ERP module covering full project lifecycle:
 
 **Request → Business Case → Plan → Execute → Monitor → Bill → Close**
 

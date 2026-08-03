@@ -40,7 +40,7 @@ const PREVIEW_CTX = {
   expiry_date: "2027-12-31",
   security_clearance: "standard",
   operational_role: "Shift A",
-  company: "Hope Design Group Ltd",
+  company: "SecureTrack ERP",
 };
 
 function newEl(type: CardElementType, partial?: Partial<CardElement>): CardElement {

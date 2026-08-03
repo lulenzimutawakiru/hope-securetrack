@@ -83,7 +83,7 @@ export default function NotificationsSettingsPage() {
             start: "2026-08-01",
             end: "2026-08-05",
             link: typeof window !== "undefined" ? window.location.origin : "",
-            message: "Test security alert from Hope SecureTrack",
+            message: "Test security alert from SecureTrack ERP",
           },
         }),
       });

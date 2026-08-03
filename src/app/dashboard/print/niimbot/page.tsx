@@ -91,7 +91,7 @@ export default function NiimbotHubPage() {
         copies: 1,
         payload_json: {
           serial: `TEST-${Date.now().toString(36).toUpperCase()}`,
-          product_name: "Hope Paper A4",
+          product_name: "SecureTrack Paper A4",
           batch: "TEST",
         },
         submitted_by: auth?.user?.id,

@@ -44,7 +44,7 @@ export default function DirectoryPage() {
     <div>
       <PageHeader
         title="Company Directory"
-        description="Employees · branches · departments · board · integrated with HopeChat & Service Desk"
+        description="Employees · branches · departments · board · integrated with SecureChat & Service Desk"
       />
       <Input
         className="max-w-md mb-6"

@@ -109,7 +109,7 @@ export function buildInvoiceHtml(doc: InvoicePrintModel): string {
 
   const qrContent = encodeURIComponent(
     doc.qr_public_id
-      ? `Hope Design Invoice ${doc.invoice_number} · ${doc.qr_public_id}`
+      ? `SecureTrack ERP Invoice ${doc.invoice_number} · ${doc.qr_public_id}`
       : doc.invoice_number
   );
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrContent}`;
@@ -151,7 +151,7 @@ export function buildInvoiceHtml(doc: InvoicePrintModel): string {
 <body>
   <div class="header">
     <div class="brand">
-      <h1>${esc(doc.company_name || "Hope Design Group Ltd")}</h1>
+      <h1>${esc(doc.company_name || "SecureTrack ERP")}</h1>
       <p>${esc(doc.company_sub || "Security Printing · Paper Manufacturing · Engineering")}</p>
       <p>${esc(doc.company_address || "Kampala, Uganda")}</p>
       ${doc.company_tax ? `<p>TIN / Tax: ${esc(doc.company_tax)}</p>` : ""}
@@ -226,7 +226,7 @@ export function buildInvoiceHtml(doc: InvoicePrintModel): string {
       <div style="font-size:9px;margin-top:4px">${esc(doc.qr_public_id || doc.invoice_number)}</div>
     </div>
   </div>
-  <p style="margin-top:20px;font-size:10px;color:#94a3b8">Computer-generated document · Hope SecureTrack ERP · ${esc(new Date().toLocaleString())}</p>
+  <p style="margin-top:20px;font-size:10px;color:#94a3b8">Computer-generated document · SecureTrack ERP · ${esc(new Date().toLocaleString())}</p>
   <script>
     if (location.search.includes('autoprint=1')) {
       window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };

@@ -129,7 +129,7 @@ export default function HrSyncPage() {
               <RefreshCw className="h-4 w-4 mr-1" /> Sync now
             </Button>
             <p className="text-[11px] text-muted-foreground">
-              Updates user profile, payroll cost centre targets, directory, HopeChat, attendance structure, and approval chains.
+              Updates user profile, payroll cost centre targets, directory, SecureChat, attendance structure, and approval chains.
             </p>
           </CardContent>
         </Card>

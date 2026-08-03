@@ -1,5 +1,5 @@
 /**
- * Tax computation for Hope Design billing (VAT, WHT, zero-rated, exempt).
+ * Tax computation for SecureTrack ERP billing (VAT, WHT, zero-rated, exempt).
  */
 
 import type { BillLineInput, ComputedTotals, TaxBreakdownRow } from "./types";

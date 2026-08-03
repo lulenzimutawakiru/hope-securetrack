@@ -11,7 +11,7 @@ export function buildPackingListHtml(input: {
   grossWeightKg?: number;
   netWeightKg?: number;
 }): string {
-  const company = input.companyName || "Hope Design Group Ltd";
+  const company = input.companyName || "SecureTrack ERP";
   const cartonRows = input.cartons
     .map(
       (c, i) =>

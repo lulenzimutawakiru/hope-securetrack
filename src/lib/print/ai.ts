@@ -129,7 +129,7 @@ export function generatePrintInsights(params: {
     type: "security",
     severity: "info",
     title: "Security paper tip",
-    detail: "Use anti-copy backgrounds + microtext + SIG hash for Hope security certificates and product auth labels.",
+    detail: "Use anti-copy backgrounds + microtext + SIG hash for SecureTrack security certificates and product auth labels.",
     actions: ["Secure PDF", "Security profiles"],
   });
 

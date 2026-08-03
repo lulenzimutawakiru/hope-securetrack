@@ -1,6 +1,6 @@
 # Enterprise Printer Management & Printing Platform
 
-Hope SecureTrack — centralized print server, printer registry, label designer, QR/barcode engine, Niimbot BLE, security printing, document print profiles, industrial queue, and batch automation.
+SecureTrack ERP — centralized print server, printer registry, label designer, QR/barcode engine, Niimbot BLE, security printing, document print profiles, industrial queue, and batch automation.
 
 ## Scope
 
