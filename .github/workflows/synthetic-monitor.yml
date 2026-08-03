@@ -21,3 +21,27 @@ jobs:
             echo "Health check failed with status $status"
             exit 1
           fi
+
+  flush-email-worker:
+    runs-on: ubuntu-latest
+    # Flush queued email/notification jobs hourly. Safe no-op when the secret
+    # is not configured: the endpoint returns 401 and the step exits 0.
+    steps:
+      - name: Invoke job worker
+        env:
+          PROD_URL: ${{ secrets.PROD_URL || 'https://hope-securetrack.vercel.app' }}
+          JOB_WORKER_SECRET: ${{ secrets.JOB_WORKER_SECRET }}
+        run: |
+          if [ -z "$JOB_WORKER_SECRET" ]; then
+            echo "JOB_WORKER_SECRET not set; skipping email worker flush"
+            exit 0
+          fi
+          code=$(curl -s -o /tmp/worker.json -w "%{http_code}" \
+            -X POST "$PROD_URL/api/jobs/worker" \
+            -H "x-job-secret: $JOB_WORKER_SECRET")
+          echo "Worker status: $code"
+          cat /tmp/worker.json || true
+          if [ "$code" -ne 200 ]; then
+            echo "Worker flush failed with status $code"
+            exit 1
+          fi

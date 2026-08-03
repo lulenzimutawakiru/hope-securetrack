@@ -29,6 +29,59 @@ function authorizeWorker(req: NextRequest): boolean {
 }
 
 /**
+ * Re-enqueue queued outbox emails so they send once RESEND_API_KEY is present.
+ * Idempotent: skips outboxes that already have a pending/running job.
+ */
+async function resweepOutboxEmails(admin: ReturnType<typeof createAdminClient>) {
+  const { data: queued } = await admin
+    .from("email_outbox")
+    .select("id, company_id")
+    .eq("status", "queued")
+    .limit(50);
+  if (!queued?.length) return 0;
+
+  // Resolve tenant_id from companies (email_outbox has no tenant_id column).
+  // Business jobs must stay tenant-scoped, so tenant_id is required before enqueue.
+  const companyIds = [...new Set(queued.map((r) => r.company_id).filter(Boolean))] as string[];
+  const tenantByCompany = new Map<string, string>();
+  if (companyIds.length) {
+    const { data: companies } = await admin
+      .from("companies")
+      .select("id, tenant_id")
+      .in("id", companyIds);
+    for (const c of companies || []) {
+      if (c.tenant_id) tenantByCompany.set(c.id, c.tenant_id as string);
+    }
+  }
+
+  let enqueued = 0;
+  for (const row of queued) {
+    const companyId = (row.company_id as string | null) || null;
+    const tenantId = companyId ? tenantByCompany.get(companyId) : null;
+    // Skip rows with no resolvable tenant (should not happen; fail closed).
+    if (!tenantId) continue;
+    const { data: existing } = await admin
+      .from("job_queue")
+      .select("id")
+      .eq("job_type", "email.send")
+      .in("status", ["pending", "running"])
+      .eq("idempotency_key", `outbox:${row.id}`)
+      .maybeSingle();
+    if (existing?.id) continue;
+    const job = await enqueueJob(admin, {
+      jobType: "email.send",
+      companyId,
+      tenantId,
+      payload: { outbox_id: row.id },
+      idempotencyKey: `outbox:${row.id}`,
+      priority: 50,
+    });
+    if (job) enqueued += 1;
+  }
+  return enqueued;
+}
+
+/**
  * Process durable job queue (cron / platform worker).
  * Auth: JOB_WORKER_SECRET or CRON_SECRET header.
  */
@@ -66,12 +119,16 @@ export async function POST(req: NextRequest) {
     }
   };
 
+  // Sweep queued emails first so they are picked up once the provider key is set
+  const swept = await resweepOutboxEmails(admin);
+
   const jobs = await claimJobs(admin, { limit, workerId });
   const stats = await processClaimedJobs(admin, jobs, handlers);
 
   return apiOk({
     worker_id: workerId,
     claimed: jobs.length,
+    swept_emails: swept,
     ...stats,
   });
 }

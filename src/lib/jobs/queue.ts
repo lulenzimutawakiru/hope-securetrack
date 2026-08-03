@@ -309,9 +309,31 @@ export function defaultJobHandlers(deps: {
       try {
         const companyId = String(job.company_id || job.payload?.company_id || "");
         const outboxId = job.payload?.outbox_id as string | undefined;
-        const to = job.payload?.to as string | undefined;
-        const subject = String(job.payload?.subject || "SecureTrack");
-        const body = String(job.payload?.body || job.payload?.html || "");
+        let to = job.payload?.to as string | undefined;
+        let subject = String(job.payload?.subject || "SecureTrack");
+        let body = String(job.payload?.body || job.payload?.html || "");
+
+        // Resolve recipient + content from the outbox row when available
+        // (jobs re-enqueued by the worker sweeper carry only the outbox id).
+        if (outboxId) {
+          const { data: outbox } = await deps.admin
+            .from("email_outbox")
+            .select("*")
+            .eq("id", outboxId)
+            .maybeSingle();
+          if (outbox) {
+            const addrs = (outbox.to_addresses as string[] | null) || [];
+            if (addrs.length) to = addrs[0];
+            if (outbox.subject) subject = String(outbox.subject);
+            const op = (outbox.payload || {}) as {
+              snippet?: string;
+              body?: string;
+              html?: string;
+              notification_type?: string;
+            };
+            body = op.html || op.body || op.snippet || body;
+          }
+        }
 
         if (to && body) {
           const [
