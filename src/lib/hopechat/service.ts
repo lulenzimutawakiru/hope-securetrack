@@ -91,19 +91,8 @@ export async function sendMessage(input: {
     .single();
   if (error) throw error;
 
-  const { data: ch } = await sb()
-    .from("hc_channels")
-    .select("message_count")
-    .eq("id", input.channel_id)
-    .single();
-  await sb()
-    .from("hc_channels")
-    .update({
-      last_message_at: new Date().toISOString(),
-      message_count: Number(ch?.message_count || 0) + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.channel_id);
+  // Channel metadata (last_message_at / message_count) is maintained by the
+  // server-side trigger tr_hc_notify_recipients (secure + realtime-safe).
 
   // Auto bot reply
   if (bot) {
@@ -268,7 +257,7 @@ export async function startDm(input: {
     if (other) return ch;
   }
 
-  const name = [input.self_name, input.other_name].filter(Boolean).join(" · ");
+  const name = [input.self_name, input.other_name].filter(Boolean).join("  ·  ");
   return createChannel({
     company_id: input.company_id,
     name: name || "Direct message",
@@ -559,4 +548,103 @@ export async function convertMessageToTicket(input: {
   } catch (e) {
     throw e;
   }
+}
+
+export async function listCompanyUsers(companyId: string) {
+  const { data, error } = await sb()
+    .from("user_profiles")
+    .select("id, first_name, last_name, email, avatar_url, job_title, department_code")
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .order("first_name", { ascending: true });
+  if (error) throw error;
+  return (data || []).map((u) => ({
+    ...u,
+    name: `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email || "User",
+  }));
+}
+
+function safeFileName(name: string): string {
+  const base = name.replace(/[^\w.\- ]+/g, "").trim().replace(/\s+/g, "-");
+  return base || `file-${Date.now()}`;
+}
+
+/** Upload a chat attachment to the private attachments bucket (company-scoped) */
+export async function uploadChatFile(input: {
+  company_id: string;
+  channel_id: string;
+  uploader_id?: string | null;
+  file: File;
+}) {
+  const clean = safeFileName(input.file.name);
+  const path = `${input.company_id}/chat/${input.channel_id}/${crypto.randomUUID()}-${clean}`;
+  const { error: upErr } = await sb()
+    .storage
+    .from("attachments")
+    .upload(path, input.file, {
+      contentType: input.file.type || "application/octet-stream",
+      cacheControl: "3600",
+      upsert: false,
+    });
+  if (upErr) throw upErr;
+
+  const record = await registerFile({
+    company_id: input.company_id,
+    channel_id: input.channel_id,
+    uploader_id: input.uploader_id,
+    file_name: input.file.name,
+    file_type: input.file.type || "application/octet-stream",
+    file_size_bytes: input.file.size,
+    storage_url: path,
+  });
+  return { record, path };
+}
+
+/** Get a time-limited signed URL for a private attachment */
+export async function getSignedFileUrl(storagePath: string): Promise<string> {
+  const { data, error } = await sb()
+    .storage
+    .from("attachments")
+    .createSignedUrl(storagePath, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+/** Send a message carrying a real uploaded file */
+export async function sendFileMessage(input: {
+  company_id: string;
+  channel_id: string;
+  sender_id?: string | null;
+  sender_name?: string;
+  file: File;
+}) {
+  const { record, path } = await uploadChatFile({
+    company_id: input.company_id,
+    channel_id: input.channel_id,
+    uploader_id: input.sender_id,
+    file: input.file,
+  });
+
+  const { data: msg, error } = await sb()
+    .from("hc_messages")
+    .insert({
+      company_id: input.company_id,
+      channel_id: input.channel_id,
+      sender_id: input.sender_id,
+      sender_name: input.sender_name || "User",
+      message_type: "file",
+      body: input.file.name,
+      metadata: {
+        file_id: record.id,
+        file_name: input.file.name,
+        file_type: input.file.type || "application/octet-stream",
+        file_size_bytes: input.file.size,
+        storage_url: path,
+      },
+      delivered_at: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return { message: msg, file: record };
 }
