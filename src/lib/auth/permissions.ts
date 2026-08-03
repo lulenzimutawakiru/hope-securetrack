@@ -322,13 +322,41 @@ export const SUPER_ADMIN_EXTRAS = [
   "distributors.view",
 ];
 
+/** Control-plane entitlements granted only to SecureTrack staff. */
+const PLATFORM_STAFF_EXTRAS = [
+  "platform.view",
+  "platform.admin",
+  "platform.provision",
+  "platform.events",
+  "platform.flags",
+  "platform.elevate",
+  "platform.ops_portal",
+  "tenant.view",
+  "tenant.manage",
+  "tenant.admin",
+  "tenant.switch",
+];
+
 export function enrichPermissions(
   base: string[],
-  roleSlug: string | undefined | null
+  roleSlug: string | undefined | null,
+  isStaffPlatformAdmin = false
 ): string[] {
   let permissions = [...base];
   if (roleSlug === "super_administrator") {
-    permissions = Array.from(new Set([...permissions, ...SUPER_ADMIN_EXTRAS]));
+    // Tenant super admins keep full tenant business access but NOT the
+    // platform control plane, which is SecureTrack-staff only.
+    permissions = Array.from(
+      new Set([
+        ...permissions,
+        ...SUPER_ADMIN_EXTRAS.filter((p) => !PLATFORM_STAFF_EXTRAS.includes(p)),
+      ])
+    );
+  }
+  if (isStaffPlatformAdmin) {
+    permissions = Array.from(
+      new Set([...permissions, ...SUPER_ADMIN_EXTRAS, ...PLATFORM_STAFF_EXTRAS])
+    );
   }
   if (!permissions.includes("dashboard.view")) {
     permissions = [...permissions, "dashboard.view"];

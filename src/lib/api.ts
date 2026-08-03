@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  getClientIpFromHeaders,
+  memoryRateLimit,
+  rateLimitRequest,
+} from "@/lib/security/rate-limit";
 
 export type ApiErrorCode =
   | "UNAUTHORIZED"
@@ -41,35 +46,6 @@ export function parseJson<T extends z.ZodTypeAny>(
     };
   }
   return { success: true, data: result.data };
-}
-
-/** In-memory fallback (per instance). Prefer Upstash when configured. */
-const buckets = new Map<string, { count: number; reset: number }>();
-
-function memoryRateLimit(
-  key: string,
-  limit: number,
-  windowMs: number
-): { allowed: boolean; remaining: number; retryAfterSec: number } {
-  const now = Date.now();
-  const bucket = buckets.get(key);
-  if (!bucket || now > bucket.reset) {
-    buckets.set(key, { count: 1, reset: now + windowMs });
-    return { allowed: true, remaining: limit - 1, retryAfterSec: 0 };
-  }
-  if (bucket.count >= limit) {
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterSec: Math.ceil((bucket.reset - now) / 1000),
-    };
-  }
-  bucket.count += 1;
-  return {
-    allowed: true,
-    remaining: limit - bucket.count,
-    retryAfterSec: 0,
-  };
 }
 
 /**
@@ -121,62 +97,13 @@ export async function rateLimitStrict(
   limit: number,
   windowMs: number
 ): Promise<{ allowed: boolean; remaining: number; retryAfterSec: number }> {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   const failClosed =
     process.env.RATE_LIMIT_FAIL_CLOSED === "true" ||
     (process.env.NODE_ENV === "production" &&
       process.env.RATE_LIMIT_REQUIRE_REDIS === "true");
-
-  if (!url || !token) {
-    if (failClosed && process.env.RATE_LIMIT_REQUIRE_REDIS === "true") {
-      return { allowed: false, remaining: 0, retryAfterSec: 60 };
-    }
-    return memoryRateLimit(key, limit, windowMs);
-  }
-
-  const redisKey = `rl:${key}`;
-  const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/pipeline`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify([
-        ["INCR", redisKey],
-        ["EXPIRE", redisKey, windowSec],
-      ]),
-    });
-    if (!res.ok) {
-      if (failClosed) {
-        return { allowed: false, remaining: 0, retryAfterSec: windowSec };
-      }
-      return memoryRateLimit(key, limit, windowMs);
-    }
-    const data = (await res.json()) as Array<{ result?: number }>;
-    const count = Number(data?.[0]?.result ?? 0);
-    if (count > limit) {
-      return { allowed: false, remaining: 0, retryAfterSec: windowSec };
-    }
-    return {
-      allowed: true,
-      remaining: Math.max(0, limit - count),
-      retryAfterSec: 0,
-    };
-  } catch {
-    if (failClosed) {
-      return { allowed: false, remaining: 0, retryAfterSec: 60 };
-    }
-    return memoryRateLimit(key, limit, windowMs);
-  }
+  return rateLimitRequest(key, limit, windowMs, { failClosed });
 }
 
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return getClientIpFromHeaders(request.headers);
 }

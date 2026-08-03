@@ -102,7 +102,11 @@ export async function requireApiAuth(opts?: {
   const roleObj = profile.roles as { slug?: string } | null;
   const roleSlug = roleObj?.slug || null;
   const isSuperAdmin = roleSlug === "super_administrator";
-  const isPlatformAdmin = Boolean(profile.is_platform_admin) || isSuperAdmin;
+  // Platform admin is SecureTrack-staff only: the profile must be explicitly
+  // flagged AND carry no tenant. Tenant super admins are NOT platform admins.
+  const isStaffPlatformAdmin =
+    Boolean(profile.is_platform_admin) && !profile.tenant_id;
+  const isPlatformAdmin = isStaffPlatformAdmin;
   const isPrivilegedRole =
     isPlatformAdmin ||
     (roleSlug ? PRIVILEGED_ROLE_SLUGS.has(roleSlug) : false) ||
@@ -122,6 +126,15 @@ export async function requireApiAuth(opts?: {
           return p?.slug;
         })
         .filter((s): s is string => Boolean(s)) ?? [];
+  }
+
+  // Control-plane (platform./tenant.) permissions are honored only for
+  // SecureTrack staff. Strip them from tenant users even if a role row grants
+  // them, so tenant super admins can never hold platform entitlements.
+  if (!isStaffPlatformAdmin) {
+    permissions = permissions.filter(
+      (p) => !p.startsWith("platform.") && !p.startsWith("tenant.")
+    );
   }
 
   const companyId = String(

@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import {
+  getClientIpFromHeaders,
+  hasSupabaseSessionCookie,
+  isApiRateLimitExempt,
+  rateLimitRequest,
+} from "@/lib/security/rate-limit";
+
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -9,24 +16,28 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "off",
 };
 
-// In-memory rate limiter (replace with Upstash/Redis for production)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const MAX_REQUESTS = parseInt(
-  process.env.RATE_LIMIT_API ?? process.env.RATE_LIMIT_MAX ?? "30",
-  10
-);
 const WINDOW_MS = 60_000;
 
-function getClientIp(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
+/**
+ * Per-IP ceilings per minute. Authenticated sessions get a higher ceiling than
+ * anonymous traffic; attendance device polling (token-authenticated, frequent)
+ * gets its own dedicated bucket so real devices are never throttled.
+ */
+function apiRateLimitMax(req: NextRequest): number {
+  let raw: string | undefined;
+  if (req.nextUrl.pathname.startsWith("/api/attendance/devices")) {
+    raw = process.env.RATE_LIMIT_DEVICE_API ?? "300";
+  } else if (hasSupabaseSessionCookie(req)) {
+    raw =
+      process.env.RATE_LIMIT_AUTH_API ??
+      process.env.RATE_LIMIT_API ??
+      process.env.RATE_LIMIT_MAX ??
+      "600";
+  } else {
+    raw = process.env.RATE_LIMIT_API ?? process.env.RATE_LIMIT_MAX ?? "30";
   }
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp.trim();
-  }
-  return "127.0.0.1";
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 30;
 }
 
 // Build a stricter CSP in production (no 'unsafe-inline'); allow relaxed CSP in non-production to avoid dev breakage
@@ -107,38 +118,32 @@ export async function middleware(request: NextRequest) {
     return withCorrelation(applySecurityHeaders(res), request);
   }
 
-  // Rate limit API routes (per IP, in-memory)
-  if (pathname.startsWith("/api/")) {
-    const ip = getClientIp(request);
-    const now = Date.now();
-
-    let entry = rateLimitMap.get(ip);
-    if (!entry || entry.resetTime <= now) {
-      entry = { count: 1, resetTime: now + WINDOW_MS };
-    } else {
-      entry.count += 1;
-    }
-
-    if (entry.count > MAX_REQUESTS) {
+  // Rate limit API routes (per IP; Upstash-backed when configured)
+  if (pathname.startsWith("/api/") && !isApiRateLimitExempt(pathname)) {
+    const ip = getClientIpFromHeaders(request.headers);
+    const result = await rateLimitRequest(
+      `mw:${ip}`,
+      apiRateLimitMax(request),
+      WINDOW_MS,
+      {
+        failClosed:
+          process.env.RATE_LIMIT_FAIL_CLOSED === "true" ||
+          (process.env.NODE_ENV === "production" &&
+            process.env.RATE_LIMIT_REQUIRE_REDIS === "true"),
+      }
+    );
+    if (!result.allowed) {
       const rateLimitResponse = NextResponse.json(
         { error: "Too many requests" },
         { status: 429 }
       );
+      rateLimitResponse.headers.set(
+        "Retry-After",
+        String(Math.max(1, result.retryAfterSec))
+      );
       return withCorrelation(applySecurityHeaders(rateLimitResponse), request);
     }
-
-    rateLimitMap.set(ip, entry);
-
-    // Periodic cleanup (probabilistic)
-    if (Math.random() < 0.01) {
-      for (const [key, val] of rateLimitMap.entries()) {
-        if (val.resetTime <= now) {
-          rateLimitMap.delete(key);
-        }
-      }
-    }
   }
-
   try {
     const { supabaseResponse, user } = await updateSession(request);
 

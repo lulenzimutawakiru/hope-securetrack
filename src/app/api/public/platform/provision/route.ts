@@ -66,12 +66,13 @@ export async function POST(req: Request) {
       if (user) {
         const { data: profile } = await supabase
           .from("user_profiles")
-          .select("is_platform_admin, roles!user_profiles_role_id_fkey(slug)")
+          .select("is_platform_admin, tenant_id")
           .eq("id", user.id)
           .maybeSingle();
-        const slug = (profile?.roles as { slug?: string } | null)?.slug;
+        // SecureTrack staff only: flagged platform admin with no tenant.
+        // Tenant super admins must not be able to self-provision tenants.
         isPlatformAdmin =
-          Boolean(profile?.is_platform_admin) || slug === "super_administrator";
+          Boolean(profile?.is_platform_admin) && !profile?.tenant_id;
       }
     } catch {
       /* no session */

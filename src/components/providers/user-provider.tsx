@@ -18,6 +18,8 @@ export interface AuthUser {
   profile: UserProfile;
   permissions: string[];
   tenantId: string | null;
+  /** SecureTrack staff platform admin (is_platform_admin with no tenant). */
+  isPlatformAdmin: boolean;
 }
 
 export interface UserContextValue {
@@ -27,6 +29,8 @@ export interface UserContextValue {
   hasAnyPermission: (perms: string[]) => boolean;
   reload: () => void;
   companyId: string | null;
+  /** SecureTrack staff platform admin flag (mirrors server isPlatformAdmin). */
+  isPlatformAdmin: boolean;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -96,7 +100,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               .filter((s): s is string => Boolean(s)) ?? [];
         }
 
-        const permissions = enrichPermissions(basePermissions, roleSlug);
+        // Staff platform admin = flagged AND tenant-less (mirrors requireApiAuth).
+        const isStaffPlatformAdmin =
+          Boolean((profile as { is_platform_admin?: boolean }).is_platform_admin) &&
+          !(profile as { tenant_id?: string | null }).tenant_id;
+
+        const permissions = enrichPermissions(
+          basePermissions,
+          roleSlug,
+          isStaffPlatformAdmin
+        );
 
         const activeCompanyId =
           (profile.active_company_id as string | undefined) ||
@@ -118,6 +131,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             profile: normalizedProfile,
             permissions,
             tenantId,
+            isPlatformAdmin: isStaffPlatformAdmin,
           });
         }
       } catch {
@@ -157,6 +171,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           ?.active_company_id ||
         auth?.profile?.company_id ||
         null,
+      isPlatformAdmin: auth?.isPlatformAdmin ?? false,
     }),
     [auth, loading, reload]
   );
