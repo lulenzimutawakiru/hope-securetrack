@@ -18,6 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -346,12 +347,12 @@ export function PpmEntityPage({ config }: { config: PpmEntityConfig }) {
                 <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
                   <Label className="text-xs">{f.label}{f.required ? " *" : ""}</Label>
                   {f.type === "select" && f.options ? (
-                    <Select value={form[f.key] || ""} onValueChange={(v) => setForm({ ...form, [f.key]: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {f.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={form[f.key] || ""}
+                      onValueChange={(v) => setForm({ ...form, [f.key]: v })}
+                      placeholder="Select"
+                      options={f.options}
+                    />
                   ) : f.type === "textarea" ? (
                     <Textarea value={form[f.key] || ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                   ) : (

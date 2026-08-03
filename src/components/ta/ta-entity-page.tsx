@@ -22,6 +22,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -275,16 +276,10 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
     if (!body) return toast.error("Write a comment first");
     setDetailBusy(true);
     try {
-      const name = auth.profile?.first_name
-        ? `${auth.profile.first_name} ${auth.profile.last_name ?? ""}`.trim()
-        : undefined;
       await taAddComment({
-        companyId,
         refTable: config.table,
         refId: detailRow.id as string,
         body,
-        authorId: auth.user.id,
-        authorName: name,
       });
       setCommentBody("");
       await refreshDetail(detailRow.id as string);
@@ -316,11 +311,9 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
     setUploading(true);
     try {
       await taUploadAttachment({
-        companyId,
         refTable: config.table,
         refId: detailRow.id as string,
         file,
-        uploaderId: auth?.user.id,
       });
       toast.success("Uploaded");
       await refreshDetail(detailRow.id as string);
@@ -344,7 +337,7 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
   const deleteAttachment = async (a: Record<string, unknown>) => {
     if (!confirm(`Delete ${String(a.file_name)}?`)) return;
     try {
-      await taDeleteAttachment(a.id as string, String(a.storage_path));
+      await taDeleteAttachment(a.id as string);
       if (detailRow) await refreshDetail(detailRow.id as string);
       await load();
     } catch (e) {
@@ -506,12 +499,12 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
                 <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
                   <Label className="text-xs">{f.label}{f.required ? " *" : ""}</Label>
                   {f.type === "select" && f.options ? (
-                    <Select value={form[f.key] || ""} onValueChange={(v) => setForm({ ...form, [f.key]: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {f.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={form[f.key] || ""}
+                      onValueChange={(v) => setForm({ ...form, [f.key]: v })}
+                      placeholder="Select"
+                      options={f.options}
+                    />
                   ) : f.type === "textarea" ? (
                     <Textarea value={form[f.key] || ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                   ) : (
