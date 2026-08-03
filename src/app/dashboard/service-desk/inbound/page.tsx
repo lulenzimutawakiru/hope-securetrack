@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { apiGet } from "@/lib/api-client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { crudUpdate } from "@/lib/api/crud-client";
@@ -26,12 +26,10 @@ export default function InboundTicketsPage() {
   const userId = auth?.profile?.id as string | undefined;
 
   const load = async () => {
-    const { data } = await createClient()
-      .from("sd_inbound_items")
-      .select("*")
-      .order("received_at", { ascending: false })
-      .limit(100);
-    setRows((data as Array<Record<string, unknown>>) || []);
+    const res = await apiGet<{ items: Array<Record<string, unknown>> }>(
+      "/api/v2/servicedesk/inbound"
+    );
+    if (res.ok) setRows(res.data.items || []);
     setLoading(false);
   };
 
