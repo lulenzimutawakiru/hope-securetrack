@@ -25,6 +25,17 @@ SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 
 | Known limitation: `qr_codes` RLS update policy is restricted to QR/production roles, so warehouse-manager moves do not mirror QR status (matches legacy behavior; logged via warn) - flagged for a follow-up RLS/registry permission alignment | Tracked |
 | Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
 
+## Phase 18 (2026-08-03) - frontend roadmap (ui/ux navigation & wayfinding)
+
+| Deliverable | Status |
+|------------|--------|
+| `NAV_ITEMS` grouped into 9 ordered `NAV_GROUPS` (overview, manufacturing, supply-chain, commercial, finance, projects, people, security, platform) with per-item `group` assignments | Live |
+| Grouped sidebar - group headers with expand/collapse persisted per browser session, permitted items bucketed by group order, filter/collapsed-rail flat modes preserved | Live |
+| Breadcrumb trail - `breadcrumbForPath` resolves dashboard paths through `NAV_ITEMS` + the nine `*MENU` catalogs (longest-prefix match, ERP abbreviation map, record segments -> Edit/New/Details, humanized fallback); rendered in the dashboard shell with `aria-current` | Live |
+| Branded root 404 page (`src/app/not-found.tsx`) with a safe link back to `/dashboard` | Live |
+| Command palette record search - debounced `/api/v2/crud` search across 7 entities (warehouses, products, customers, invoices, employees, suppliers, purchase_orders) with per-entity view-permission gating and graceful failures; results link to module hubs; trigger visible on mobile (icon-only) | Live |
+| Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
+
 ## Phase 17 (2026-08-03) - frontend roadmap (inventory module CRUD read migration)
 
 | Deliverable | Status |

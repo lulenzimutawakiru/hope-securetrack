@@ -7,6 +7,7 @@ import { WorkspaceTabs } from "@/components/enterprise/workspace-tabs";
 import { OfflineBanner } from "@/components/enterprise/offline-banner";
 import { ServiceWorkerRegister } from "@/components/enterprise/service-worker-register";
 import { MfaEnforcementBanner } from "@/components/security/mfa-enforcement-banner";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -32,7 +33,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className="enterprise-main has-mobile-nav md:!pb-6 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8 outline-none"
         >
-          <div className="mx-auto w-full max-w-content">{children}</div>
+          <div className="mx-auto w-full max-w-content">
+            <Breadcrumbs className="mb-3" />
+            {children}
+          </div>
         </main>
       </div>
 

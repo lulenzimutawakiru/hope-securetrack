@@ -48,13 +48,14 @@ import {
   Clock,
   Server,
   Search,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_GROUPS, NAV_ITEMS } from "@/lib/constants";
 import { useUser } from "@/hooks/use-user";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -138,6 +139,81 @@ export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
     );
   }, [hasPermission, loading, navQuery]);
 
+  // Grouped navigation (collapsed-state persisted per browser session).
+  const GROUP_KEY = "hope:sidebar-groups";
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(
+    () => {
+      if (typeof window === "undefined") return {};
+      try {
+        const raw = window.localStorage.getItem(GROUP_KEY);
+        return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+      } catch {
+        return {};
+      }
+    }
+  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(GROUP_KEY, JSON.stringify(collapsedGroups));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [collapsedGroups]);
+
+  const toggleGroup = (id: string) =>
+    setCollapsedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const groups = useMemo(() => {
+    const byGroup = new Map<string, (typeof NAV_ITEMS)[number][]>();
+    for (const item of items) {
+      const list = byGroup.get(item.group) ?? [];
+      list.push(item);
+      byGroup.set(item.group, list);
+    }
+    return NAV_GROUPS.map((group) => ({
+      id: group.id,
+      label: group.label,
+      items: byGroup.get(group.id) ?? [],
+    })).filter((group) => group.items.length > 0);
+  }, [items]);
+
+  const renderNavItem = (item: (typeof NAV_ITEMS)[number]) => {
+    const Icon = iconMap[item.icon] ?? LayoutDashboard;
+    const active =
+      pathname === item.href ||
+      (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+    const link = (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => {
+          pushRecentNav(item.href, item.title);
+          onNavigate?.();
+        }}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          active
+            ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        )}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        {!isCollapsed && <span className="truncate">{item.title}</span>}
+      </Link>
+    );
+
+    if (isCollapsed) {
+      return (
+        <Tooltip key={item.href}>
+          <TooltipTrigger asChild>{link}</TooltipTrigger>
+          <TooltipContent side="right">{item.title}</TooltipContent>
+        </Tooltip>
+      );
+    }
+    return link;
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
@@ -185,42 +261,36 @@ export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
               No modules match “{navQuery.trim()}”.
             </p>
           )}
-          {items.map((item) => {
-            const Icon = iconMap[item.icon] ?? LayoutDashboard;
-            const active =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-
-            const link = (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => {
-                  pushRecentNav(item.href, item.title);
-                  onNavigate?.();
-                }}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {!isCollapsed && <span className="truncate">{item.title}</span>}
-              </Link>
-            );
-
-            if (isCollapsed) {
-              return (
-                <Tooltip key={item.href}>
-                  <TooltipTrigger asChild>{link}</TooltipTrigger>
-                  <TooltipContent side="right">{item.title}</TooltipContent>
-                </Tooltip>
-              );
-            }
-            return link;
-          })}
+          {navQuery.trim() || isCollapsed
+            ? items.map((item) => renderNavItem(item))
+            : groups.map((group) => (
+                <div key={group.id} className="group">
+                  <div className="flex items-center justify-between px-2 pb-1 pt-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                      {group.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.id)}
+                      className="rounded p-0.5 text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-expanded={!collapsedGroups[group.id]}
+                      aria-label={`${collapsedGroups[group.id] ? "Expand" : "Collapse"} ${group.label}`}
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-3 w-3 transition-transform",
+                          collapsedGroups[group.id] && "-rotate-90"
+                        )}
+                      />
+                    </button>
+                  </div>
+                  {!collapsedGroups[group.id] && (
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => renderNavItem(item))}
+                    </div>
+                  )}
+                </div>
+              ))}
         </nav>
 
         {!forceExpanded && (

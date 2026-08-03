@@ -1,4 +1,21 @@
 # Changelog
+## 2026-08-03 - Phase 18: frontend roadmap (ui/ux navigation & wayfinding)
+
+### Grouped sidebar, breadcrumbs, branded 404 and record search in the command palette
+
+- `src/lib/constants.ts` - `NAV_ITEMS` grouped into 9 ordered `NAV_GROUPS` (overview, manufacturing, supply-chain, commercial, finance, projects, people, security, platform) with per-item `group` assignments; new `NavGroupId` type
+- `src/components/layout/sidebar.tsx` - grouped sidebar navigation: group headers with expand/collapse persisted per browser session (`localStorage`), permitted items bucketed by group order; filter mode and the collapsed rail keep the flat item list; permission filtering and recent-nav push preserved
+- `src/lib/nav-labels.ts` - new breadcrumb resolver: `breadcrumbForPath(pathname)` maps dashboard paths through `NAV_ITEMS` roots plus the nine per-module `*MENU` catalogs (finance, payroll, fleet, attendance, sales, ppm, mes, ta, lbl) using longest-prefix matching, an ERP abbreviation map (coa/ap/ar/gl/grn/po/pr/...), record-segment handling (`edit`/`new`/UUID/numeric -> Edit/New/Details) and a humanized-slug fallback
+- `src/components/layout/breadcrumbs.tsx` - new breadcrumb trail rendered in the dashboard shell (`aria-label="Breadcrumb"`, `aria-current="page"` on the last crumb, truncation + chevron separators)
+- `src/components/layout/dashboard-shell.tsx` - breadcrumbs wired above page content
+- `src/app/not-found.tsx` - new branded root 404 page (Shield mark, safe link back to `/dashboard`)
+- `src/components/enterprise/command-palette.tsx` - debounced server-side record search across 7 registered entities (warehouses, products, customers, invoices, employees, suppliers, purchase_orders) through `/api/v2/crud` with per-entity view-permission gating and graceful 403/network failure handling; results link to module hubs; palette trigger now visible on mobile as an icon-only button (text + kbd hidden below md/lg)
+- R-22 closed: flat navigation, missing breadcrumbs and missing record search addressed by grouped sidebar, breadcrumb trail and palette record search
+
+### Validation
+
+- Typecheck, vitest (171), security suite (101), eslint (0 errors on changed files), production build, bundle audit - all green
+
 ## 2026-08-03 - Phase 17: frontend roadmap (inventory module CRUD read migration)
 
 ### Final inventory list reads on the hardened data layer (R-21 closed)
