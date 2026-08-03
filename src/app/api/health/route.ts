@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertServerEnv } from "@/lib/env";
+import { assertServerEnv, env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -44,8 +44,8 @@ export async function GET() {
   const workerSecretConfigured = Boolean(
     process.env.JOB_WORKER_SECRET || process.env.CRON_SECRET
   );
-  const mfaEnforce = process.env.MFA_ENFORCE_PRIVILEGED === "true";
-  const dualControl = process.env.DUAL_CONTROL_REQUIRED === "true";
+  const mfaEnforce = env.security.mfaEnforcePrivileged;
+  const dualControl = env.security.dualControlRequired;
   const paymentSandbox = process.env.PAYMENT_SANDBOX === "true";
 
   const healthy = envCheck.ok && supabaseOk;
@@ -81,7 +81,7 @@ export async function GET() {
         paymentSandbox,
         productionSafe:
           process.env.NODE_ENV === "production"
-            ? !paymentSandbox && mfaEnforce && dualControl
+            ? !paymentSandbox && mfaEnforce && dualControl && redisConfigured
             : null,
       },
     },

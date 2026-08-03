@@ -670,3 +670,16 @@ export const PAY_ENTITIES: Record<string, PayEntityConfig> = {
     defaults: {},
   }),
 };
+
+export const PAY_ENTITY_ALIASES: Record<string, string> = {};
+
+export function resolvePayEntityConfig(
+  slug: string
+): PayEntityConfig | null {
+  const key = PAY_ENTITY_ALIASES[slug] || slug;
+  return PAY_ENTITIES[key] ?? null;
+}
+
+export function listPayEntityTables(): string[] {
+  return [...new Set(Object.values(PAY_ENTITIES).map((c) => c.table))];
+}

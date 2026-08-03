@@ -60,10 +60,25 @@ export async function resolveFeatureFlags(
 
   // Env hard overrides (ops kill-switches)
   if (process.env.SECURETRACK_AI_DISABLED === "true") flags["ai.copilot"] = false;
-  if (process.env.DUAL_CONTROL_REQUIRED === "true") {
+  // Production defaults ON; explicit false disables; true forces on in any env
+  const dualRaw = process.env.DUAL_CONTROL_REQUIRED;
+  if (dualRaw === "false" || dualRaw === "0") {
+    flags["security.dual_control"] = false;
+  } else if (
+    dualRaw === "true" ||
+    dualRaw === "1" ||
+    process.env.NODE_ENV === "production"
+  ) {
     flags["security.dual_control"] = true;
   }
-  if (process.env.MFA_ENFORCE_PRIVILEGED === "true") {
+  const mfaRaw = process.env.MFA_ENFORCE_PRIVILEGED;
+  if (mfaRaw === "false" || mfaRaw === "0") {
+    flags["security.mfa_privileged"] = false;
+  } else if (
+    mfaRaw === "true" ||
+    mfaRaw === "1" ||
+    process.env.NODE_ENV === "production"
+  ) {
     flags["security.mfa_privileged"] = true;
   }
 

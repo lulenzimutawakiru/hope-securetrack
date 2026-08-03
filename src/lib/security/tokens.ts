@@ -5,6 +5,13 @@
 
 import { timingSafeEqualString } from "./shared";
 
+/** Mirror of public-ingress.storePlaintextSecrets (kept local to avoid client graph cycles). */
+function storePlaintextSecrets(): boolean {
+  if (process.env.ALLOW_PLAINTEXT_TOKENS === "true") return true;
+  if (process.env.NODE_ENV === "production") return false;
+  return true;
+}
+
 /** SHA-256 hex digest (browser + Node Web Crypto) */
 export async function hashToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token);
@@ -36,12 +43,17 @@ export function generateSecureToken(bytes = 32): string {
 /**
  * Resolve a portal user by hashed token first, then plaintext fallback
  * during migration window. Prefer writing access_token_hash on create.
+ *
+ * On plaintext match: store hash and clear plaintext in production so secrets
+ * are not retained at rest after first use.
  */
 export async function resolvePortalUserByToken(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sb: { from: (t: string) => any },
   token: string
 ): Promise<Record<string, unknown> | null> {
+  if (!token || token.length < 16 || token.length > 256) return null;
+
   const tokenHash = await hashToken(token);
 
   const { data: byHash } = await sb
@@ -55,7 +67,11 @@ export async function resolvePortalUserByToken(
 
   if (byHash) return byHash as Record<string, unknown>;
 
-  // Legacy plaintext fallback (migration window)
+  // Legacy plaintext fallback (migration window only when allowed)
+  if (!storePlaintextSecrets() && process.env.ALLOW_TOKEN_PLAINTEXT_LOOKUP !== "true") {
+    return null;
+  }
+
   const { data: byPlain } = await sb
     .from("bill_portal_users")
     .select(
@@ -67,14 +83,15 @@ export async function resolvePortalUserByToken(
 
   if (!byPlain) return null;
 
-  // Opportunistic re-hash so subsequent lookups use hash only
+  // Opportunistic re-hash + clear plaintext at rest when possible
   try {
-    await sb
-      .from("bill_portal_users")
-      .update({ access_token_hash: tokenHash })
-      .eq("id", byPlain.id);
+    const patch: Record<string, unknown> = { access_token_hash: tokenHash };
+    if (!storePlaintextSecrets()) {
+      patch.access_token = null;
+    }
+    await sb.from("bill_portal_users").update(patch).eq("id", byPlain.id);
   } catch {
-    /* non-blocking */
+    /* non-blocking — column may not allow null */
   }
 
   return byPlain as Record<string, unknown>;

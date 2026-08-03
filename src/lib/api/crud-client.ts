@@ -56,3 +56,34 @@ export function crudArchive<T = Record<string, unknown>>(
 ): Promise<CrudWriteResult<T>> {
   return apiDelete<T>(crudPath(entity), { id, archive: 1 });
 }
+
+/**
+ * List helper for EntityPages (prefer useEntityList in React).
+ * Server derives tenant/company from the session.
+ */
+export async function crudList<T = Record<string, unknown>>(
+  entity: string,
+  params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sort?: string;
+    order?: "asc" | "desc";
+    filters?: Record<string, unknown>;
+    includeDeleted?: boolean;
+  } = {}
+): Promise<
+  CrudWriteResult<{ data: T[]; total: number; page: number; pageSize: number }>
+> {
+  const { apiGet } = await import("@/lib/api-client");
+  const q = new URLSearchParams();
+  if (params.page) q.set("page", String(params.page));
+  if (params.pageSize) q.set("pageSize", String(params.pageSize));
+  if (params.search) q.set("search", params.search);
+  if (params.sort) q.set("sort", params.sort);
+  if (params.order) q.set("order", params.order);
+  if (params.includeDeleted) q.set("includeDeleted", "1");
+  if (params.filters) q.set("filters", JSON.stringify(params.filters));
+  const qs = q.toString();
+  return apiGet(`${crudPath(entity)}${qs ? `?${qs}` : ""}`);
+}

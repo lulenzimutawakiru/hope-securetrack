@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -19,94 +19,87 @@ const schema = z.object({
   muted_events: z.array(z.string()).optional(),
 });
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const GET = createApiHandler(
+  {
+    auth: true,
+    module: "notifications",
+  },
+  async ({ ctx }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const supabase = await createClient();
+
+    const { data } = await supabase
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", ctx.user.id)
+      .maybeSingle();
+
+    return apiOk({
+      preferences: data || {
+        email_enabled: true,
+        in_app_enabled: true,
+        sms_enabled: false,
+        push_enabled: false,
+        whatsapp_enabled: false,
+        digest_mode: "instant",
+        digest_hour: 8,
+        category_settings: {},
+        muted_events: [],
+        company_id: ctx.companyId,
+        user_id: ctx.user.id,
+      },
+    });
   }
+);
 
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .single();
+export const PUT = createApiHandler(
+  {
+    auth: true,
+    bodySchema: schema,
+    rateLimit: { limit: 30, windowMs: 60_000 },
+    module: "notifications",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    if (!ctx.companyId) {
+      return apiError("VALIDATION", "No company");
+    }
+    const data = body as z.infer<typeof schema>;
+    const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("notification_preferences")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
+    const payload = {
+      company_id: ctx.companyId,
+      user_id: ctx.user.id,
+      ...data,
+      updated_at: new Date().toISOString(),
+    };
 
-  return NextResponse.json({
-    preferences: data || {
-      email_enabled: true,
-      in_app_enabled: true,
-      sms_enabled: false,
-      push_enabled: false,
-      whatsapp_enabled: false,
-      digest_mode: "instant",
-      digest_hour: 8,
-      category_settings: {},
-      muted_events: [],
-      company_id: profile?.company_id,
-      user_id: user.id,
-    },
-  });
-}
+    const { data: existing } = await supabase
+      .from("notification_preferences")
+      .select("id")
+      .eq("user_id", ctx.user.id)
+      .maybeSingle();
 
-export async function PUT(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let row;
+    if (existing?.id) {
+      const { data: updated, error } = await supabase
+        .from("notification_preferences")
+        .update(payload)
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+      if (error) return apiError("INTERNAL", error.message, 500);
+      row = updated;
+    } else {
+      const { data: created, error } = await supabase
+        .from("notification_preferences")
+        .insert(payload)
+        .select("*")
+        .single();
+      if (error) return apiError("INTERNAL", error.message, 500);
+      row = created;
+    }
+
+    return apiOk({ preferences: row });
   }
-
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.company_id) {
-    return NextResponse.json({ error: "No company" }, { status: 400 });
-  }
-
-  let json: unknown;
-  try {
-    json = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const parsed = schema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.flatten() },
-      { status: 400 }
-    );
-  }
-
-  const payload = {
-    company_id: profile.company_id,
-    user_id: user.id,
-    ...parsed.data,
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data, error } = await supabase
-    .from("notification_preferences")
-    .upsert(payload, { onConflict: "company_id,user_id" })
-    .select("*")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true, preferences: data });
-}
+);

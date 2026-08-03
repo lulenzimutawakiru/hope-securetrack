@@ -1215,3 +1215,16 @@ export const SALES_ENTITIES: Record<string, SalesEntityConfig> = {
     defaults: { severity: "medium", status: "open", score: 50 },
   }),
 };
+
+export const SALES_ENTITY_ALIASES: Record<string, string> = {};
+
+export function resolveSalesEntityConfig(
+  slug: string
+): SalesEntityConfig | null {
+  const key = SALES_ENTITY_ALIASES[slug] || slug;
+  return SALES_ENTITIES[key] ?? null;
+}
+
+export function listSalesEntityTables(): string[] {
+  return [...new Set(Object.values(SALES_ENTITIES).map((c) => c.table))];
+}

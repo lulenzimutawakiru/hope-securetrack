@@ -1332,3 +1332,14 @@ export const PPM_ENTITY_ALIASES: Record<string, string> = {
   "customer-portal": "list",
   "supplier-portal": "purchase-requests",
 };
+
+export function resolvePpmEntityConfig(
+  slug: string
+): (typeof PPM_ENTITIES)[string] | null {
+  const key = PPM_ENTITY_ALIASES[slug] || slug;
+  return PPM_ENTITIES[key] ?? null;
+}
+
+export function listPpmEntityTables(): string[] {
+  return [...new Set(Object.values(PPM_ENTITIES).map((c) => c.table))];
+}

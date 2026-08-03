@@ -1,13 +1,5 @@
-import { NextRequest } from "next/server";
 import { z } from "zod";
-import { requireApiAuth } from "@/lib/security/api-auth";
-import {
-  apiError,
-  apiOk,
-  clientIp,
-  parseJson,
-  rateLimitStrict,
-} from "@/lib/api";
+import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
 import { performThreeWayMatch } from "@/lib/procurement/match-service";
 import { evaluateThreeWayMatch } from "@/lib/procurement/three-way-match";
@@ -30,62 +22,54 @@ const schema = z.object({
 });
 
 /** Three-way match evaluation (+ optional persist) */
-export async function POST(req: NextRequest) {
-  // Authenticated company users may evaluate match (RLS scopes writes).
-  const auth = await requireApiAuth({ allowPlatformAdmin: true });
-  if ("response" in auth) return auth.response;
+export const POST = createApiHandler(
+  {
+    auth: true,
+    permissions: ["procurement.view", "procurement.manage", "finance.view"],
+    allowPlatformAdmin: true,
+    bodySchema: schema,
+    rateLimit: { limit: 40, windowMs: 60_000 },
+    module: "procurement",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
 
-  const ip = clientIp(req);
-  const rl = await rateLimitStrict(
-    `proc-match:${auth.ctx.user.id}:${ip}`,
-    40,
-    60_000
-  );
-  if (!rl.allowed) return apiError("RATE_LIMIT", "Rate limit exceeded", 429);
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return apiError("VALIDATION", "Invalid JSON");
-  }
-  const parsed = parseJson(schema, body);
-  if (!parsed.success) return apiError("VALIDATION", parsed.error);
-
-  const result = evaluateThreeWayMatch({
-    poAmount: parsed.data.po_amount,
-    grnAmount: parsed.data.grn_amount,
-    invoiceAmount: parsed.data.invoice_amount,
-    absoluteTolerance: parsed.data.absolute_tolerance,
-    relativeTolerance: parsed.data.relative_tolerance,
-  });
-
-  if (parsed.data.dry_run) {
-    return apiOk({ result, persisted: false });
-  }
-
-  try {
-    const sb = await createClient();
-    const { log } = await performThreeWayMatch(sb, {
-      companyId: auth.ctx.companyId,
-      actorId: auth.ctx.user.id,
-      supplierId: parsed.data.supplier_id,
-      purchaseOrderId: parsed.data.purchase_order_id,
-      grnId: parsed.data.grn_id,
-      apInvoiceId: parsed.data.ap_invoice_id,
-      poAmount: parsed.data.po_amount,
-      grnAmount: parsed.data.grn_amount,
-      invoiceAmount: parsed.data.invoice_amount,
-      absoluteTolerance: parsed.data.absolute_tolerance,
-      relativeTolerance: parsed.data.relative_tolerance,
-      notes: parsed.data.notes,
+    const result = evaluateThreeWayMatch({
+      poAmount: data.po_amount,
+      grnAmount: data.grn_amount,
+      invoiceAmount: data.invoice_amount,
+      absoluteTolerance: data.absolute_tolerance,
+      relativeTolerance: data.relative_tolerance,
     });
-    return apiOk({ result, log, persisted: true });
-  } catch (e) {
-    return apiError(
-      "INTERNAL",
-      e instanceof Error ? e.message : "Match failed",
-      500
-    );
+
+    if (data.dry_run) {
+      return apiOk({ result, persisted: false });
+    }
+
+    try {
+      const sb = await createClient();
+      const { log } = await performThreeWayMatch(sb, {
+        companyId: ctx.companyId,
+        actorId: ctx.user.id,
+        supplierId: data.supplier_id,
+        purchaseOrderId: data.purchase_order_id,
+        grnId: data.grn_id,
+        apInvoiceId: data.ap_invoice_id,
+        poAmount: data.po_amount,
+        grnAmount: data.grn_amount,
+        invoiceAmount: data.invoice_amount,
+        absoluteTolerance: data.absolute_tolerance,
+        relativeTolerance: data.relative_tolerance,
+        notes: data.notes,
+      });
+      return apiOk({ result, log, persisted: true });
+    } catch (e) {
+      return apiError(
+        "INTERNAL",
+        e instanceof Error ? e.message : "Match failed",
+        500
+      );
+    }
   }
-}
+);

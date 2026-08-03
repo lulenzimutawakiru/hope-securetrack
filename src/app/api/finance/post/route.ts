@@ -1,14 +1,6 @@
-import { NextRequest } from "next/server";
 import { z } from "zod";
-import { requireApiAuth } from "@/lib/security/api-auth";
+import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
 import { assertDualControl } from "@/lib/security/dual-control";
-import {
-  apiError,
-  apiOk,
-  clientIp,
-  parseJson,
-  rateLimitStrict,
-} from "@/lib/api";
 import {
   postAccountingEvent,
   type AccountingEventType,
@@ -30,8 +22,9 @@ const schema = z.object({
 });
 
 /** Server-side GL posting via accounting engine — dual-control when enabled */
-export async function POST(req: NextRequest) {
-  const auth = await requireApiAuth({
+export const POST = createApiHandler(
+  {
+    auth: true,
     permissions: [
       "finance.post",
       "finance.manage",
@@ -40,56 +33,46 @@ export async function POST(req: NextRequest) {
     ],
     allowPlatformAdmin: true,
     requireMfa: "privileged",
-  });
-  if ("response" in auth) return auth.response;
+    bodySchema: schema,
+    idempotent: true,
+    rateLimit: { limit: 30, windowMs: 60_000 },
+    module: "finance",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
 
-  const ip = clientIp(req);
-  const rl = await rateLimitStrict(
-    `finance-post:${auth.ctx.user.id}:${ip}`,
-    30,
-    60_000
-  );
-  if (!rl.allowed) return apiError("RATE_LIMIT", "Rate limit exceeded", 429);
+    const dc = await assertDualControl({
+      company_id: ctx.companyId,
+      action: "finance.gl_post",
+      actor_id: ctx.user.id,
+      request_id: data.dual_control_id,
+    });
+    if (!dc.ok) return apiError("FORBIDDEN", dc.error, 403);
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return apiError("VALIDATION", "Invalid JSON");
+    try {
+      const sb = await createClient();
+      const row = await postAccountingEvent(
+        {
+          companyId: ctx.companyId,
+          eventType: data.event_type as AccountingEventType,
+          sourceModule: data.source_module,
+          sourceRef: data.source_ref,
+          amount: data.amount,
+          currency: data.currency,
+          description: data.description,
+          actorId: ctx.user.id,
+          metadata: data.metadata,
+        },
+        sb
+      );
+      return apiOk({ journal: row });
+    } catch (e) {
+      return apiError(
+        "INTERNAL",
+        e instanceof Error ? e.message : "GL post failed",
+        500
+      );
+    }
   }
-  const parsed = parseJson(schema, body);
-  if (!parsed.success) return apiError("VALIDATION", parsed.error);
-
-  const dc = await assertDualControl({
-    company_id: auth.ctx.companyId,
-    action: "finance.gl_post",
-    actor_id: auth.ctx.user.id,
-    request_id: parsed.data.dual_control_id,
-  });
-  if (!dc.ok) return apiError("FORBIDDEN", dc.error, 403);
-
-  try {
-    const sb = await createClient();
-    const row = await postAccountingEvent(
-      {
-        companyId: auth.ctx.companyId,
-        eventType: parsed.data.event_type as AccountingEventType,
-        sourceModule: parsed.data.source_module,
-        sourceRef: parsed.data.source_ref,
-        amount: parsed.data.amount,
-        currency: parsed.data.currency,
-        description: parsed.data.description,
-        actorId: auth.ctx.user.id,
-        metadata: parsed.data.metadata,
-      },
-      sb
-    );
-    return apiOk({ journal: row });
-  } catch (e) {
-    return apiError(
-      "INTERNAL",
-      e instanceof Error ? e.message : "GL post failed",
-      500
-    );
-  }
-}
+);

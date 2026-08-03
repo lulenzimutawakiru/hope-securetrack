@@ -1,15 +1,28 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { normalizeScanInput } from "@/lib/verification";
-import { clientIp, rateLimit } from "@/lib/api";
+import { ingressRateLimit } from "@/lib/security/public-ingress";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const bodySchema = z.object({
+  qr: z.string().max(2000).optional(),
+  code: z.string().max(2000).optional(),
+  uuid: z.string().max(200).optional(),
+  serial: z.string().max(200).optional(),
+  source: z.string().max(40).optional(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+});
 
 /**
  * Public product verification proxy (enterprise rate-limited).
  */
 export async function POST(request: Request) {
   try {
-    const ip = clientIp(request);
-    const rl = rateLimit(`verify:${ip}`, 60, 60_000);
-    if (!rl.allowed) {
+    const rl = await ingressRateLimit("verify", 60, 60_000, request);
+    if (!rl.ok) {
       return NextResponse.json(
         {
           result: "invalid",
@@ -18,12 +31,29 @@ export async function POST(request: Request) {
         },
         {
           status: 429,
-          headers: { "Retry-After": String(rl.retryAfterSec || 60) },
+          headers: rl.response.headers,
         }
       );
     }
 
-    const body = await request.json();
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return NextResponse.json(
+        { result: "invalid", message: "Invalid JSON" },
+        { status: 400 }
+      );
+    }
+
+    const parsed = bodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { result: "invalid", message: "Invalid request body" },
+        { status: 400 }
+      );
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -37,6 +67,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const body = parsed.data;
     const raw = body.qr ?? body.code ?? body.uuid ?? body.serial ?? "";
     const normalized =
       typeof raw === "string" ? normalizeScanInput(raw) : raw;
@@ -58,9 +89,13 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         qr: normalized,
         source: body.source || "web",
-        latitude: body.latitude,
-        longitude: body.longitude,
+        latitude: body.latitude ?? undefined,
+        longitude: body.longitude ?? undefined,
       }),
+      signal:
+        typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(12_000)
+          : undefined,
     });
 
     let data: Record<string, unknown>;
@@ -85,6 +120,7 @@ export async function POST(request: Request) {
       status: 200,
       headers: {
         "X-RateLimit-Remaining": String(rl.remaining),
+        "Cache-Control": "no-store",
       },
     });
   } catch (e) {

@@ -13,18 +13,27 @@ PLATFORM_PROVISIONING_PUBLIC=false
 PLATFORM_PROVISIONING_SECRET=...  # invite-only if needed
 QR_ENCRYPTION_KEY=...          # 64 hex chars
 
-# Enable after MFA enrollment
-MFA_ENFORCE_PRIVILEGED=true
-
-# Enable after dual-control process live
-DUAL_CONTROL_REQUIRED=true
+# Production defaults (ON when NODE_ENV=production unless set to false)
+# Set to false only during controlled pilot / MFA enrollment windows:
+# MFA_ENFORCE_PRIVILEGED=false
+# DUAL_CONTROL_REQUIRED=false
+# Explicit true forces on in any environment:
+# MFA_ENFORCE_PRIVILEGED=true
+# DUAL_CONTROL_REQUIRED=true
 
 # Never enable unless explicit emergency
 ALLOW_PRODUCTION_SANDBOX=false
 
-# Optional — multi-instance rate limits (public portal / AI)
+# Strongly recommended — multi-instance rate limits (public portal / AI)
+# /api/health reports productionSafe=false when Redis is missing in production
 UPSTASH_REDIS_REST_URL=...
 UPSTASH_REDIS_REST_TOKEN=...
+
+# Token storage (portal + device push tokens)
+# Production defaults to hash-only at rest. Temporary migration flags:
+# ALLOW_PLAINTEXT_TOKENS=true          # store plaintext + hash (dev only recommended)
+# ALLOW_TOKEN_PLAINTEXT_LOOKUP=true    # allow hash-miss plaintext lookup during cutover
+# After all tokens re-hashed, leave both unset in production.
 
 # Optional — SecureTrack AI copilot (OpenAI-compatible)
 SECURETRACK_AI_API_KEY=...
@@ -60,7 +69,19 @@ curl -X POST "$APP_URL/api/jobs/worker" \
 | Bank file | `POST /api/payroll/bank-file` (+ `dual_control_id`) | Payroll → Runs |
 | Release / pay | `POST /api/payroll/release` (+ `dual_control_id`) | Payroll → Runs |
 | GL auto-post | `POST /api/finance/post` (+ `dual_control_id`) | Finance → Engine |
+| Sales order create | `POST /api/sales/orders` | Sales |
+| Invoice issue | `POST /api/invoices/issue` | Sales / Billing |
 | Three-way match | `POST /api/procurement/match` | Procurement → Matching |
+
+## Entity master data (EntityPages)
+
+Module grids (Finance / Payroll / Fleet / Sales / Attendance / TA / PPM / Labels / MES)
+use **SecureEntityPage** → `GET/POST/PUT/DELETE /api/v2/crud/{table}`.
+
+- Tenant/company from session only
+- Permissions from entity registry
+- Soft delete + audit via CRUD engine
+- Do **not** write finance/payroll masters via browser Supabase client
 
 ## Notifications
 

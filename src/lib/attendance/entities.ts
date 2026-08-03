@@ -748,3 +748,14 @@ export const ATT_ENTITY_ALIASES: Record<string, string> = {
   payroll: "history",
   compliance: "violations",
 };
+
+export function resolveAttEntityConfig(
+  slug: string
+): AttEntityConfig | null {
+  const key = ATT_ENTITY_ALIASES[slug] || slug;
+  return ATT_ENTITIES[key] ?? null;
+}
+
+export function listAttEntityTables(): string[] {
+  return [...new Set(Object.values(ATT_ENTITIES).map((c) => c.table))];
+}

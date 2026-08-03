@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { clientIp, rateLimitStrict } from "@/lib/api";
 import { resolvePortalUserByToken } from "@/lib/security/tokens";
+import {
+  ingressRateLimit,
+  isPlausibleSecretToken,
+} from "@/lib/security/public-ingress";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -13,14 +16,16 @@ export const runtime = "nodejs";
  */
 export async function GET(req: NextRequest) {
   try {
-    const ip = clientIp(req);
-    const rl = await rateLimitStrict(`portal-get:${ip}`, 60, 60_000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    const rl = await ingressRateLimit("portal-get", 60, 60_000, req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: rl.response.headers }
+      );
     }
 
     const token = (req.nextUrl.searchParams.get("token") || "").trim();
-    if (!token || token.length < 16 || token.length > 200) {
+    if (!isPlausibleSecretToken(token)) {
       return NextResponse.json({ error: "Invalid token" }, { status: 400 });
     }
 
@@ -117,10 +122,12 @@ const disputeSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
-    const ip = clientIp(req);
-    const rl = await rateLimitStrict(`portal-post:${ip}`, 30, 60_000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    const rl = await ingressRateLimit("portal-post", 30, 60_000, req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: rl.response.headers }
+      );
     }
 
     const body = await req.json();

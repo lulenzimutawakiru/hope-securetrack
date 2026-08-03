@@ -3,6 +3,11 @@ import {
   ingestZktecoJson,
   resolveCompanyByToken,
 } from "@/lib/attendance/integrations";
+import {
+  extractDeviceToken,
+  ingressRateLimit,
+  isPlausibleSecretToken,
+} from "@/lib/security/public-ingress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,17 +15,19 @@ export const runtime = "nodejs";
 /**
  * ZKTeco / BioTime JSON push endpoint
  * Auth: ?token= or header X-Device-Token / Authorization: Bearer
- * Optional: ?device_code=
  */
 export async function POST(req: NextRequest) {
   try {
-    const token =
-      req.nextUrl.searchParams.get("token") ||
-      req.headers.get("x-device-token") ||
-      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-      "";
+    const rl = await ingressRateLimit("device-zkteco-push", 180, 60_000, req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Rate limit exceeded" },
+        { status: 429, headers: rl.response.headers }
+      );
+    }
 
-    if (!token) {
+    const token = extractDeviceToken(req);
+    if (!isPlausibleSecretToken(token)) {
       return NextResponse.json({ ok: false, error: "Missing token" }, { status: 401 });
     }
 
@@ -46,6 +53,6 @@ export async function GET() {
   return NextResponse.json({
     service: "zkteco-push",
     status: "ready",
-    usage: "POST JSON punches with ?token=PUSH_TOKEN",
+    usage: "POST JSON punches with X-Device-Token or ?token=PUSH_TOKEN",
   });
 }

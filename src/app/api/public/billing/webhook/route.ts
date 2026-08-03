@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { completePaymentIntent } from "@/lib/billing/gateway";
-import { clientIp, rateLimit } from "@/lib/api";
 import { timingSafeEqualString } from "@/lib/security/shared";
+import { ingressRateLimit } from "@/lib/security/public-ingress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const bodySchema = z.object({
+  external_ref: z.string().min(1).max(200).optional(),
+  reference: z.string().min(1).max(200).optional(),
+  status: z.string().max(40).optional(),
+});
 
 /**
  * Gateway webhook settlement endpoint.
@@ -14,10 +21,12 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
-    const ip = clientIp(req);
-    const rl = rateLimit(`billing-webhook:${ip}`, 120, 60_000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Rate limit" }, { status: 429 });
+    const rl = await ingressRateLimit("billing-webhook", 120, 60_000, req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Rate limit" },
+        { status: 429, headers: rl.response.headers }
+      );
     }
 
     const secret = process.env.BILLING_WEBHOOK_SECRET?.trim();
@@ -28,23 +37,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Header-only secret — never accept query-string secrets for webhooks.
     const provided =
       req.headers.get("x-webhook-secret") ||
       req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
       "";
 
-    if (!timingSafeEqualString(provided, secret)) {
+    if (!provided || !timingSafeEqualString(provided, secret)) {
       return NextResponse.json({ error: "Invalid webhook secret" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const externalRef = String(body.external_ref || body.reference || "").trim();
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    const parsed = bodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    }
+
+    const externalRef = String(
+      parsed.data.external_ref || parsed.data.reference || ""
+    ).trim();
     if (!externalRef) {
       return NextResponse.json({ error: "external_ref required" }, { status: 400 });
     }
 
     const sb = createAdminClient();
-    const status = String(body.status || "succeeded").toLowerCase();
+    const status = String(parsed.data.status || "succeeded").toLowerCase();
 
     if (status === "failed") {
       await completePaymentIntent(sb, externalRef, {

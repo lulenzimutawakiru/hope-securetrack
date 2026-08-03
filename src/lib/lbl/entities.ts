@@ -902,3 +902,16 @@ export const LBL_ENTITIES: Record<string, LblEntityConfig> = {
     defaults: { severity: "medium", status: "open", score: 50 },
   }),
 };
+
+export const LBL_ENTITY_ALIASES: Record<string, string> = {};
+
+export function resolveLblEntityConfig(
+  slug: string
+): (typeof LBL_ENTITIES)[string] | null {
+  const key = LBL_ENTITY_ALIASES[slug] || slug;
+  return LBL_ENTITIES[key] ?? null;
+}
+
+export function listLblEntityTables(): string[] {
+  return [...new Set(Object.values(LBL_ENTITIES).map((c) => c.table))];
+}

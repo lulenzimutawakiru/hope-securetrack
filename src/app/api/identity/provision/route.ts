@@ -1,54 +1,77 @@
-import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { apiError, createApiHandler } from "@/lib/api/handler";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { generateTempPassword, passwordExpiresAt, simpleHashHint } from "@/lib/idm/password";
-import { requireApiAuth, authError } from "@/lib/security/api-auth";
-import { clientIp, rateLimit } from "@/lib/api";
+import {
+  generateTempPassword,
+  passwordExpiresAt,
+  simpleHashHint,
+} from "@/lib/idm/password";
+import { assertDualControl } from "@/lib/security/dual-control";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const schema = z.object({
+  request_id: z.string().uuid(),
+  return_password: z.boolean().optional(),
+  dual_control_id: z.string().uuid().optional().nullable(),
+});
+
+function mapUserKind(userType: string): string {
+  switch (userType) {
+    case "customer":
+      return "external_customer";
+    case "supplier":
+      return "external_supplier";
+    case "contractor":
+      return "external_contractor";
+    case "partner":
+      return "external_partner";
+    case "auditor":
+      return "external_auditor";
+    case "guest":
+      return "external_partner";
+    default:
+      return "internal";
+  }
+}
 
 /**
  * Activate an approved IAM provision request.
- * Requires iam.manage. Company-scoped unless platform admin.
  * Temp password returned only when return_password=true (break-glass).
  */
-export async function POST(req: NextRequest) {
-  try {
-    const ip = clientIp(req);
-    const rl = rateLimit(`idm-provision:${ip}`, 15, 60_000);
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "Too many provision attempts" },
-        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec || 60) } }
-      );
-    }
+export const POST = createApiHandler(
+  {
+    auth: true,
+    permissions: ["iam.manage", "iam.provision", "users.manage"],
+    allowPlatformAdmin: true,
+    requireMfa: "privileged",
+    bodySchema: schema,
+    rateLimit: { limit: 15, windowMs: 60_000 },
+    module: "identity",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
 
-    const auth = await requireApiAuth({
-      permissions: ["iam.manage", "iam.provision", "users.manage"],
-      allowPlatformAdmin: true,
-      requireMfa: "privileged",
-    });
-    if ("response" in auth) return auth.response;
-    const { ctx } = auth;
-
-    const body = await req.json().catch(() => ({}));
-    const requestId = String((body as { request_id?: string }).request_id || "").trim();
-    const returnPassword = Boolean((body as { return_password?: boolean }).return_password);
-    const dualControlId = (body as { dual_control_id?: string }).dual_control_id;
-
-    const { assertDualControl } = await import("@/lib/security/dual-control");
     const dc = await assertDualControl({
       company_id: ctx.companyId,
       action: "identity.provision",
       actor_id: ctx.user.id,
-      request_id: dualControlId,
+      request_id: data.dual_control_id,
     });
     if (!dc.ok) {
-      return NextResponse.json({ error: dc.error, code: "DUAL_CONTROL_REQUIRED" }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: dc.error, code: "DUAL_CONTROL_REQUIRED" },
+        { status: 403 }
+      );
     }
 
-    if (!requestId) {
-      return NextResponse.json({ error: "request_id required" }, { status: 400 });
-    }
-
+    const requestId = data.request_id;
+    const returnPassword = Boolean(data.return_password);
     const admin = createAdminClient();
+
     const { data: reqRow, error: fetchErr } = await admin
       .from("idm_provision_requests")
       .select("*")
@@ -56,61 +79,61 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (fetchErr || !reqRow) {
-      return NextResponse.json({ error: "Provision request not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Provision request not found", 404);
     }
 
-    if (
-      !ctx.isPlatformAdmin &&
-      String(reqRow.company_id) !== ctx.companyId
-    ) {
-      return authError("Provision request is outside your company", 403);
+    if (!ctx.isPlatformAdmin && String(reqRow.company_id) !== ctx.companyId) {
+      return apiError(
+        "FORBIDDEN",
+        "Provision request is outside your company",
+        403
+      );
     }
 
     if (reqRow.status === "activated") {
-      return NextResponse.json({ error: "Already activated" }, { status: 400 });
+      return apiError("VALIDATION", "Already activated");
     }
     if (reqRow.status === "rejected" || reqRow.status === "cancelled") {
-      return NextResponse.json({ error: `Cannot activate status ${reqRow.status}` }, { status: 400 });
+      return apiError(
+        "VALIDATION",
+        `Cannot activate status ${reqRow.status}`
+      );
     }
 
-    // Require approved states for non-platform-admins
-    const approved = ["admin_approved", "security_review", "manager_approved", "pending"];
+    const approved = [
+      "admin_approved",
+      "security_review",
+      "manager_approved",
+      "pending",
+    ];
     if (!ctx.isPlatformAdmin && !approved.includes(String(reqRow.status))) {
-      return NextResponse.json(
-        { error: `Request status ${reqRow.status} cannot be activated` },
-        { status: 400 }
+      return apiError(
+        "VALIDATION",
+        `Request status ${reqRow.status} cannot be activated`
       );
     }
 
     const email = String(reqRow.email).toLowerCase().trim();
     const tempPassword = generateTempPassword();
 
-    // Prefer getUserByEmail when available; fallback to createUser conflict handling
     let userId: string | undefined;
-    try {
-      const { data: byEmail } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
-      // Avoid full 1000-user dump — try create and catch duplicate
-      void byEmail;
-    } catch {
-      /* ignore */
-    }
 
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        first_name: reqRow.first_name,
-        last_name: reqRow.last_name,
-        provisioned: true,
-      },
-    });
+    const { data: created, error: createErr } = await admin.auth.admin.createUser(
+      {
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          first_name: reqRow.first_name,
+          last_name: reqRow.last_name,
+          provisioned: true,
+        },
+      }
+    );
 
     if (createErr) {
-      // Existing user — update password instead of listing all users
       const msg = createErr.message || "";
       if (/already|exists|registered/i.test(msg)) {
-        // Lookup via profiles first
         const { data: existingProfile } = await admin
           .from("user_profiles")
           .select("id")
@@ -124,15 +147,17 @@ export async function POST(req: NextRequest) {
             email_confirm: true,
           });
         } else {
-          return NextResponse.json(
-            { error: "User exists in Auth but has no profile; resolve manually" },
-            { status: 409 }
+          return apiError(
+            "VALIDATION",
+            "User exists in Auth but has no profile; resolve manually",
+            409
           );
         }
       } else {
-        return NextResponse.json(
-          { error: createErr.message || "Auth user creation failed" },
-          { status: 500 }
+        return apiError(
+          "INTERNAL",
+          createErr.message || "Auth user creation failed",
+          500
         );
       }
     } else {
@@ -140,7 +165,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!userId) {
-      return NextResponse.json({ error: "Failed to resolve user id" }, { status: 500 });
+      return apiError("INTERNAL", "Failed to resolve user id", 500);
     }
 
     let roleId = reqRow.role_id as string | null;
@@ -151,7 +176,11 @@ export async function POST(req: NextRequest) {
         .eq("slug", "employee")
         .maybeSingle();
       if (!defaultRole) {
-        const { data: anyRole } = await admin.from("roles").select("id").limit(1).maybeSingle();
+        const { data: anyRole } = await admin
+          .from("roles")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
         roleId = anyRole?.id || null;
       } else {
         roleId = defaultRole.id;
@@ -159,7 +188,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!roleId) {
-      return NextResponse.json({ error: "No role available for assignment" }, { status: 500 });
+      return apiError("INTERNAL", "No role available for assignment", 500);
     }
 
     const payload = (reqRow.payload || {}) as Record<string, unknown>;
@@ -219,11 +248,11 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: profileErr } = await admin.from("user_profiles").upsert(profilePayload, {
-      onConflict: "id",
-    });
+    const { error: profileErr } = await admin
+      .from("user_profiles")
+      .upsert(profilePayload, { onConflict: "id" });
     if (profileErr) {
-      return NextResponse.json({ error: profileErr.message }, { status: 500 });
+      return apiError("INTERNAL", profileErr.message, 500);
     }
 
     const roleIds: string[] =
@@ -252,7 +281,11 @@ export async function POST(req: NextRequest) {
     if (reqRow.employee_record_id) {
       await admin
         .from("employees")
-        .update({ user_id: userId, email, updated_at: new Date().toISOString() })
+        .update({
+          user_id: userId,
+          email,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", reqRow.employee_record_id);
     }
 
@@ -289,29 +322,5 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(result);
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Provisioning failed" },
-      { status: 500 }
-    );
   }
-}
-
-function mapUserKind(userType: string): string {
-  switch (userType) {
-    case "customer":
-      return "external_customer";
-    case "supplier":
-      return "external_supplier";
-    case "contractor":
-      return "external_contractor";
-    case "partner":
-      return "external_partner";
-    case "auditor":
-      return "external_auditor";
-    case "guest":
-      return "external_partner";
-    default:
-      return "internal";
-  }
-}
+);

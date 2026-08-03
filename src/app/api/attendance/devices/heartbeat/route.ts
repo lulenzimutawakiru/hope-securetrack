@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveCompanyByToken } from "@/lib/attendance/integrations";
+import {
+  extractDeviceToken,
+  ingressRateLimit,
+  isPlausibleSecretToken,
+} from "@/lib/security/public-ingress";
 
 export const dynamic = "force-dynamic";
 
 /** Device heartbeat: ?token=&vendor=zkteco|hikvision&device_code= */
 export async function POST(req: NextRequest) {
   try {
-    const token =
-      req.nextUrl.searchParams.get("token") ||
-      req.headers.get("x-device-token") ||
-      "";
+    const rl = await ingressRateLimit("device-heartbeat", 120, 60_000, req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Rate limit exceeded" },
+        { status: 429, headers: rl.response.headers }
+      );
+    }
+
+    const token = extractDeviceToken(req);
     const vendor = (req.nextUrl.searchParams.get("vendor") || "zkteco").toLowerCase();
-    if (!token) {
+    if (!isPlausibleSecretToken(token)) {
       return NextResponse.json({ ok: false, error: "Missing token" }, { status: 401 });
     }
     const integ = await resolveCompanyByToken(vendor, token);

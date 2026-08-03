@@ -1,18 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
-import { requireApiAuth } from "@/lib/security/api-auth";
 import { sanitizePostgrestFilter } from "@/lib/security/shared";
-import { clientIp, rateLimit } from "@/lib/api";
+
+const postSchema = z.object({
+  full_name: z.string().max(200).optional(),
+  module: z.string().max(50).optional(),
+  event_type: z.string().max(80).optional(),
+  action: z.string().max(200).optional(),
+  crud_op: z.string().max(40).optional(),
+  severity: z.string().max(20).optional(),
+  title: z.string().max(300).optional(),
+  details: z.string().max(4000).optional(),
+  before_state: z.record(z.unknown()).nullable().optional(),
+  after_state: z.record(z.unknown()).nullable().optional(),
+  entity_type: z.string().max(80).optional(),
+  entity_id: z.string().max(80).optional(),
+  entity_reference: z.string().max(200).optional(),
+  correlation_id: z.string().max(100).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
 
 /** REST: list / query enterprise audit events */
-export async function GET(req: NextRequest) {
-  try {
-    const auth = await requireApiAuth({
-      permissions: ["eal.view", "audit.view", "eal.export", "eal.investigate"],
-      allowPlatformAdmin: true,
-    });
-    if ("response" in auth) return auth.response;
-
+export const GET = createApiHandler(
+  {
+    auth: true,
+    permissions: ["eal.view", "audit.view", "eal.export", "eal.investigate"],
+    allowPlatformAdmin: true,
+    module: "audit",
+  },
+  async ({ req, ctx }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
     const sp = req.nextUrl.searchParams;
     const moduleName = sp.get("module");
     const severity = sp.get("severity");
@@ -26,7 +45,7 @@ export async function GET(req: NextRequest) {
       .select(
         "id, audit_id, event_id, module, action, severity, risk_score, user_email, full_name, entity_reference, ip_address, created_at, integrity_hash, chain_index"
       )
-      .eq("company_id", auth.ctx.companyId)
+      .eq("company_id", ctx.companyId)
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -39,7 +58,6 @@ export async function GET(req: NextRequest) {
       if (safeSev) query = query.eq("severity", safeSev);
     }
     if (q) {
-      // Use separate ilike filters chained with or — values already sanitized
       query = query.or(
         `audit_id.ilike.%${q}%,action.ilike.%${q}%,user_email.ilike.%${q}%,entity_reference.ilike.%${q}%`
       );
@@ -47,67 +65,49 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await query;
     if (error) {
-      return NextResponse.json({ error: error.message, events: [] }, { status: 200 });
+      return apiOk({ events: [], count: 0, warning: error.message });
     }
-    return NextResponse.json({ events: data || [], count: data?.length || 0 });
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed" },
-      { status: 500 }
-    );
+    return apiOk({ events: data || [], count: data?.length || 0 });
   }
-}
+);
 
-/** REST: append audit event */
-export async function POST(req: NextRequest) {
-  try {
-    const ip = clientIp(req);
-    const rl = rateLimit(`audit-post:${ip}`, 60, 60_000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
-    }
-
-    const auth = await requireApiAuth({
-      permissions: ["eal.view", "audit.view", "eal.manage", "audit.manage"],
-      allowPlatformAdmin: true,
-    });
-    if ("response" in auth) return auth.response;
-    const { ctx } = auth;
-
-    const body = await req.json();
+/** REST: append audit event (session company only) */
+export const POST = createApiHandler(
+  {
+    auth: true,
+    permissions: ["eal.view", "audit.view", "eal.manage", "audit.manage"],
+    allowPlatformAdmin: true,
+    bodySchema: postSchema,
+    rateLimit: { limit: 60, windowMs: 60_000 },
+    module: "audit",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof postSchema>;
     const { logAuditEvent } = await import("@/lib/audit/service");
 
-    // Never trust body.company_id — session company only
-    const company_id = ctx.companyId;
-
     const event = await logAuditEvent({
-      company_id,
+      company_id: ctx.companyId,
       user_id: ctx.profile.id || ctx.user.id,
       user_email: ctx.profile.email || ctx.user.email,
-      full_name: body.full_name,
-      module: body.module || "api",
-      event_type: body.event_type || "api.event",
-      action: body.action || "API audit event",
-      crud_op: body.crud_op,
-      severity: body.severity || "info",
-      title: body.title,
-      details: body.details,
-      before_state: body.before_state,
-      after_state: body.after_state,
-      entity_type: body.entity_type,
-      entity_id: body.entity_id,
-      entity_reference: body.entity_reference,
-      correlation_id: body.correlation_id,
-      // Do not accept spoofed IP from client for integrity — use edge later
-      ip_address: body.ip_address ? undefined : undefined,
-      metadata: { source: "rest_api", ...((body.metadata as object) || {}) },
+      full_name: data.full_name,
+      module: data.module || "api",
+      event_type: data.event_type || "api.event",
+      action: data.action || "API audit event",
+      crud_op: data.crud_op,
+      severity: data.severity || "info",
+      title: data.title,
+      details: data.details,
+      before_state: data.before_state,
+      after_state: data.after_state,
+      entity_type: data.entity_type,
+      entity_id: data.entity_id,
+      entity_reference: data.entity_reference,
+      correlation_id: data.correlation_id,
+      ip_address: undefined,
+      metadata: { source: "rest_api", ...(data.metadata || {}) },
     });
 
     return NextResponse.json({ ok: true, event }, { status: 201 });
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed" },
-      { status: 500 }
-    );
   }
-}
+);

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -10,50 +10,41 @@ const schema = z.object({
   all: z.boolean().optional(),
 });
 
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = createApiHandler(
+  {
+    auth: true,
+    bodySchema: schema,
+    rateLimit: { limit: 60, windowMs: 60_000 },
+    module: "notifications",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
+    const supabase = await createClient();
+    const now = new Date().toISOString();
 
-  let json: unknown;
-  try {
-    json = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    if (data.all) {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true, read_at: now })
+        .eq("user_id", ctx.user.id)
+        .eq("is_read", false);
+      if (error) return apiError("INTERNAL", error.message, 500);
+      return apiOk({ all: true });
+    }
 
-  const parsed = schema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed" }, { status: 400 });
-  }
+    const ids = data.ids ?? [];
+    if (!ids.length) {
+      return apiError("VALIDATION", "ids or all required");
+    }
 
-  const now = new Date().toISOString();
-
-  if (parsed.data.all) {
     const { error } = await supabase
       .from("notifications")
       .update({ is_read: true, read_at: now })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, all: true });
+      .eq("user_id", ctx.user.id)
+      .in("id", ids);
+
+    if (error) return apiError("INTERNAL", error.message, 500);
+    return apiOk({ count: ids.length });
   }
-
-  const ids = parsed.data.ids ?? [];
-  if (!ids.length) {
-    return NextResponse.json({ error: "ids or all required" }, { status: 400 });
-  }
-
-  const { error } = await supabase
-    .from("notifications")
-    .update({ is_read: true, read_at: now })
-    .eq("user_id", user.id)
-    .in("id", ids);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, count: ids.length });
-}
+);

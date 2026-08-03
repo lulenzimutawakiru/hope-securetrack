@@ -264,6 +264,10 @@ export default function SecureChatPage() {
   const send = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!companyId || !activeId || !text.trim()) return;
+    if (!userId) {
+      toast.error("You must be signed in to send messages");
+      return;
+    }
     setSending(true);
     try {
       await sendMessage({

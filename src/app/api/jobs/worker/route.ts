@@ -17,15 +17,18 @@ export const runtime = "nodejs";
 function authorizeWorker(req: NextRequest): boolean {
   const secret = process.env.JOB_WORKER_SECRET || process.env.CRON_SECRET;
   if (!secret) {
-    // Dev-only open worker when not production
+    // Fail closed in production; open only in non-production for local dev.
     return process.env.NODE_ENV !== "production";
   }
   const header =
     req.headers.get("x-job-secret") ||
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-    req.nextUrl.searchParams.get("secret") ||
+    // Prefer header auth; query secret is accepted only outside production.
+    (process.env.NODE_ENV !== "production"
+      ? req.nextUrl.searchParams.get("secret")
+      : null) ||
     "";
-  return header === secret;
+  return Boolean(header) && header === secret;
 }
 
 /**

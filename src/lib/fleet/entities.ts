@@ -1512,3 +1512,14 @@ export const FLEET_ENTITY_ALIASES: Record<string, string> = {
   "driver-behavior": "telematics",
   "fuel-analytics": "fuel-issuance",
 };
+
+export function resolveFleetEntityConfig(
+  slug: string
+): FleetEntityConfig | null {
+  const key = FLEET_ENTITY_ALIASES[slug] || slug;
+  return FLEET_ENTITIES[key] ?? null;
+}
+
+export function listFleetEntityTables(): string[] {
+  return [...new Set(Object.values(FLEET_ENTITIES).map((c) => c.table))];
+}

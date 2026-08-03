@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
+import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { apiError, parseJson } from "@/lib/api";
 import { buildLabelQrValue } from "@/lib/verification";
 import { env } from "@/lib/env";
-import { requireApiAuth } from "@/lib/security/api-auth";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const schema = z.object({
   batchId: z.string().uuid(),
@@ -15,29 +16,31 @@ const schema = z.object({
   copies: z.number().int().min(1).max(10).default(1),
 });
 
-/**
- * Queue a Niimbot / agent print job with resolved label payloads.
- */
-export async function POST(request: Request) {
-  try {
-    const auth = await requireApiAuth({
-      permissions: ["print.operate", "print.manage", "printing.create", "printing.manage", "lbl.print"],
-      allowPlatformAdmin: true,
-    });
-    if ("response" in auth) return auth.response;
-    const { ctx } = auth;
-
-    const body = await request.json();
-    const parsed = parseJson(schema, body);
-    if (!parsed.success) return apiError("VALIDATION", parsed.error, 422);
-
-    const { batchId, printerId, labelType, qrCodeIds, copies } = parsed.data;
+/** Queue a Niimbot / agent print job with resolved label payloads. */
+export const POST = createApiHandler(
+  {
+    auth: true,
+    permissions: [
+      "print.operate",
+      "print.manage",
+      "printing.create",
+      "printing.manage",
+      "lbl.print",
+    ],
+    allowPlatformAdmin: true,
+    bodySchema: schema,
+    rateLimit: { limit: 30, windowMs: 60_000 },
+    module: "print",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
     const supabase = await createClient();
 
     const { data: codes, error: codesErr } = await supabase
       .from("qr_codes")
       .select("id, public_uuid, human_serial, code_type, payload, batch_id")
-      .in("id", qrCodeIds)
+      .in("id", data.qrCodeIds)
       .eq("company_id", ctx.companyId);
 
     if (codesErr || !codes?.length) {
@@ -57,16 +60,16 @@ export async function POST(request: Request) {
       .from("print_jobs")
       .insert({
         company_id: ctx.companyId,
-        batch_id: batchId,
-        printer_id: printerId || null,
+        batch_id: data.batchId,
+        printer_id: data.printerId || null,
         job_type: "niimbot_batch",
         status: "queued",
-        label_type: labelType,
-        total_labels: labels.length * copies,
+        label_type: data.labelType,
+        total_labels: labels.length * data.copies,
         printed_labels: 0,
         created_by: ctx.profile.id,
         metadata: {
-          copies,
+          copies: data.copies,
           labels,
           appUrl,
           protocol: "niimbot",
@@ -89,56 +92,47 @@ export async function POST(request: Request) {
         p_entity_id: job.id,
         p_entity_reference: job.id,
         p_after_state: {
-          total: labels.length * copies,
-          printerId,
-          batchId,
+          total: labels.length * data.copies,
+          printerId: data.printerId,
+          batchId: data.batchId,
         },
       });
     } catch {
       /* non-fatal */
     }
 
-    return NextResponse.json({
-      ok: true,
-      data: {
-        jobId: job.id,
-        status: job.status,
-        totalLabels: labels.length * copies,
-        labels: labels.length,
-      },
+    return apiOk({
+      jobId: job.id,
+      status: job.status,
+      totalLabels: labels.length * data.copies,
+      labels: labels.length,
     });
-  } catch (e) {
-    return apiError(
-      "INTERNAL",
-      e instanceof Error ? e.message : "Queue failed",
-      500
-    );
   }
-}
+);
 
-export async function GET() {
-  try {
-    const auth = await requireApiAuth({
-      permissions: ["print.view", "print.operate", "print.manage", "printing.create"],
-      allowPlatformAdmin: true,
-    });
-    if ("response" in auth) return auth.response;
-
+export const GET = createApiHandler(
+  {
+    auth: true,
+    permissions: [
+      "print.view",
+      "print.operate",
+      "print.manage",
+      "printing.create",
+    ],
+    allowPlatformAdmin: true,
+    module: "print",
+  },
+  async ({ ctx }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("print_jobs")
       .select("*, printers(name, model, status)")
-      .eq("company_id", auth.ctx.companyId)
+      .eq("company_id", ctx.companyId)
       .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) return apiError("INTERNAL", error.message, 500);
-    return NextResponse.json({ ok: true, data });
-  } catch (e) {
-    return apiError(
-      "INTERNAL",
-      e instanceof Error ? e.message : "Failed",
-      500
-    );
+    return apiOk(data);
   }
-}
+);

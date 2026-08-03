@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { provisionTenant } from "@/lib/platform/provision";
 import { z } from "zod";
-import { clientIp, rateLimit } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
 import { timingSafeEqualString } from "@/lib/security/shared";
+import { ingressRateLimit } from "@/lib/security/public-ingress";
+import { rateLimitStrict } from "@/lib/api";
 
 const bodySchema = z.object({
   organization_name: z.string().min(2).max(200),
@@ -31,12 +32,11 @@ const bodySchema = z.object({
  */
 export async function POST(req: Request) {
   try {
-    const ip = clientIp(req);
-    const rl = rateLimit(`provision:${ip}`, 5, 15 * 60_000);
-    if (!rl.allowed) {
+    const rl = await ingressRateLimit("provision", 5, 15 * 60_000, req);
+    if (!rl.ok) {
       return NextResponse.json(
         { ok: false, error: { code: "RATE_LIMIT", message: "Too many provisioning attempts" } },
-        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec || 900) } }
+        { status: 429, headers: rl.response.headers }
       );
     }
 
@@ -115,8 +115,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Soft rate by email domain
-    const emailRl = rateLimit(`provision-email:${parsed.data.admin_email.toLowerCase()}`, 3, 60 * 60_000);
+    // Soft rate by email (distributed when Redis configured)
+    const emailRl = await rateLimitStrict(
+      `provision-email:${parsed.data.admin_email.toLowerCase()}`,
+      3,
+      60 * 60_000
+    );
     if (!emailRl.allowed) {
       return NextResponse.json(
         { ok: false, error: { code: "RATE_LIMIT", message: "This email has too many attempts" } },

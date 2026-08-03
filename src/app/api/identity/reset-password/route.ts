@@ -1,57 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { apiError, createApiHandler } from "@/lib/api/handler";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateTempPassword, simpleHashHint } from "@/lib/idm/password";
-import { requireApiAuth, authError } from "@/lib/security/api-auth";
-import { clientIp, rateLimit } from "@/lib/api";
+import { assertDualControl } from "@/lib/security/dual-control";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const schema = z.object({
+  user_id: z.string().uuid(),
+  return_password: z.boolean().optional(),
+  dual_control_id: z.string().uuid().optional().nullable(),
+});
 
 /**
  * Forced password reset for IAM admins only.
  * Does NOT return the temporary password by default.
- * Set body.return_password=true only for break-glass (still requires iam.manage).
  */
-export async function POST(req: NextRequest) {
-  try {
-    const ip = clientIp(req);
-    const rl = rateLimit(`reset-pw:${ip}`, 10, 60_000);
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "Too many reset attempts" },
-        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec || 60) } }
-      );
-    }
+export const POST = createApiHandler(
+  {
+    auth: true,
+    permissions: ["iam.manage", "iam.security", "users.manage"],
+    allowPlatformAdmin: true,
+    requireMfa: "privileged",
+    bodySchema: schema,
+    rateLimit: { limit: 10, windowMs: 60_000 },
+    module: "identity",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
 
-    const auth = await requireApiAuth({
-      permissions: ["iam.manage", "iam.security", "users.manage"],
-      allowPlatformAdmin: true,
-      requireMfa: "privileged",
-    });
-    if ("response" in auth) return auth.response;
-    const { ctx } = auth;
-
-    const body = await req.json().catch(() => ({}));
-    const userId = String((body as { user_id?: string }).user_id || "").trim();
-    const returnPassword = Boolean((body as { return_password?: boolean }).return_password);
-    const dualControlId = (body as { dual_control_id?: string }).dual_control_id;
-
-    const { assertDualControl } = await import("@/lib/security/dual-control");
     const dc = await assertDualControl({
       company_id: ctx.companyId,
       action: "identity.reset_password",
       actor_id: ctx.user.id,
-      request_id: dualControlId,
+      request_id: data.dual_control_id,
     });
     if (!dc.ok) {
-      return NextResponse.json({ error: dc.error, code: "DUAL_CONTROL_REQUIRED" }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: dc.error, code: "DUAL_CONTROL_REQUIRED" },
+        { status: 403 }
+      );
     }
 
-    if (!userId) {
-      return NextResponse.json({ error: "user_id required" }, { status: 400 });
-    }
-
-    // Prevent self-lock without intentional path — still allow self reset for admins
     const admin = createAdminClient();
+    const userId = data.user_id;
 
-    // Scope: target must be same company unless platform admin
     const { data: target } = await admin
       .from("user_profiles")
       .select("id,company_id,email,is_platform_admin")
@@ -59,19 +55,15 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!target) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "User not found", 404);
     }
 
-    if (
-      !ctx.isPlatformAdmin &&
-      String(target.company_id) !== ctx.companyId
-    ) {
-      return authError("Cannot reset users outside your company", 403);
+    if (!ctx.isPlatformAdmin && String(target.company_id) !== ctx.companyId) {
+      return apiError("FORBIDDEN", "Cannot reset users outside your company", 403);
     }
 
-    // Never allow non-platform-admin to reset another platform admin
     if (target.is_platform_admin && !ctx.isPlatformAdmin) {
-      return authError("Cannot reset a platform administrator", 403);
+      return apiError("FORBIDDEN", "Cannot reset a platform administrator", 403);
     }
 
     const tempPassword = generateTempPassword();
@@ -80,7 +72,7 @@ export async function POST(req: NextRequest) {
       password: tempPassword,
     });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return apiError("INTERNAL", error.message, 500);
     }
 
     await admin
@@ -116,7 +108,7 @@ export async function POST(req: NextRequest) {
       details: "Forced password reset by IAM admin",
     });
 
-    // Prefer not returning secrets; optional break-glass for same-session admin UX
+    // Preserve legacy envelope for existing callers (ok + top-level fields)
     const payload: Record<string, unknown> = {
       ok: true,
       user_id: userId,
@@ -124,15 +116,13 @@ export async function POST(req: NextRequest) {
       message:
         "Password reset. Share the temporary password via a secure channel if return_password was requested.",
     };
-    if (returnPassword && (ctx.isPlatformAdmin || ctx.permissions.includes("iam.manage"))) {
+    if (
+      data.return_password &&
+      (ctx.isPlatformAdmin || ctx.permissions.includes("iam.manage"))
+    ) {
       payload.temp_password = tempPassword;
     }
 
     return NextResponse.json(payload);
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Reset failed" },
-      { status: 500 }
-    );
   }
-}
+);

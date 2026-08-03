@@ -1,21 +1,43 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+import { ingressRateLimit } from "@/lib/security/public-ingress";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const bodySchema = z.object({
+  description: z.string().min(10).max(4000),
+  publicUuid: z.string().max(100).optional().nullable(),
+  name: z.string().max(150).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable().or(z.literal("")),
+  phone: z.string().max(40).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+});
 
 export async function POST(request: Request) {
   try {
-    const { clientIp, rateLimit } = await import("@/lib/api");
-    const ip = clientIp(request);
-    const rl = rateLimit(`counterfeit:${ip}`, 15, 60 * 60_000);
-    if (!rl.allowed) {
+    const rl = await ingressRateLimit("counterfeit", 15, 60 * 60_000, request);
+    if (!rl.ok) {
       return NextResponse.json(
         { error: "Too many reports. Try again later." },
-        { status: 429 }
+        { status: 429, headers: rl.response.headers }
       );
     }
 
-    const body = await request.json();
-    const description = String(body.description || "").trim().slice(0, 4000);
-    if (!description || description.length < 10) {
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const parsed = bodySchema.safeParse({
+      ...(raw as object),
+      description: String((raw as { description?: string })?.description || "").trim(),
+      email: (raw as { email?: string })?.email || undefined,
+    });
+    if (!parsed.success) {
       return NextResponse.json(
         { error: "Description is required (min 10 characters)" },
         { status: 400 }
@@ -32,9 +54,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = createClient(url, serviceKey);
+    const body = parsed.data;
 
-    // Resolve company from product UUID when possible; never hardcode a single tenant in multi-tenant prod
-    let companyId = process.env.DEFAULT_COMPANY_ID || null;
+    // Resolve company from product UUID when possible — never pick a random tenant.
+    let companyId: string | null = null;
     const publicUuid = body.publicUuid ? String(body.publicUuid).slice(0, 100) : null;
     if (publicUuid) {
       const { data: qr } = await supabase
@@ -44,22 +67,21 @@ export async function POST(request: Request) {
         .maybeSingle();
       if (qr?.company_id) companyId = String(qr.company_id);
     }
-    if (!companyId) {
-      const { data: first } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("is_primary", true)
-        .limit(1)
-        .maybeSingle();
-      companyId = first?.id ? String(first.id) : null;
+    if (!companyId && process.env.DEFAULT_COMPANY_ID) {
+      companyId = process.env.DEFAULT_COMPANY_ID;
     }
+    // Fail closed: do not fall back to is_primary company (cross-tenant risk).
     if (!companyId) {
       return NextResponse.json(
-        { error: "Unable to resolve company for report" },
+        {
+          error:
+            "Unable to resolve company for report. Include a product QR public UUID.",
+        },
         { status: 400 }
       );
     }
 
+    const description = body.description;
     const { data, error } = await supabase
       .from("counterfeit_reports")
       .insert({
@@ -69,7 +91,9 @@ export async function POST(request: Request) {
         reporter_email: body.email ? String(body.email).slice(0, 255) : null,
         reporter_phone: body.phone ? String(body.phone).slice(0, 40) : null,
         description,
-        purchase_location: body.location ? String(body.location).slice(0, 255) : null,
+        purchase_location: body.location
+          ? String(body.location).slice(0, 255)
+          : null,
         status: "pending",
       })
       .select("id")
@@ -79,7 +103,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Optional fraud alert
     await supabase.from("fraud_alerts").insert({
       company_id: companyId,
       alert_type: "consumer_report",
@@ -89,7 +112,7 @@ export async function POST(request: Request) {
       description: description.slice(0, 500),
       evidence: {
         report_id: data.id,
-        public_uuid: body.publicUuid,
+        public_uuid: publicUuid,
         reporter: body.email || body.name,
       },
     });

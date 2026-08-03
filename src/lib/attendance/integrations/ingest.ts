@@ -447,10 +447,13 @@ export async function validatePushToken(
 
 /**
  * Resolve integration by SHA-256 push_token_hash first, then plaintext fallback.
- * Opportunistically stores hash on successful plaintext match.
+ * Opportunistically stores hash (and clears plaintext in production) on match.
  */
 export async function resolveCompanyByToken(vendor: string, token: string) {
+  if (!token || token.length < 16 || token.length > 256) return null;
+
   const { hashToken } = await import("@/lib/security/tokens");
+  const { storePlaintextSecrets } = await import("@/lib/security/public-ingress");
   const tokenHash = await hashToken(token);
   const sb = admin();
 
@@ -464,6 +467,14 @@ export async function resolveCompanyByToken(vendor: string, token: string) {
 
   if (byHash) return byHash;
 
+  // Plaintext lookup only when allowed (dev / explicit migration flag)
+  if (
+    !storePlaintextSecrets() &&
+    process.env.ALLOW_TOKEN_PLAINTEXT_LOOKUP !== "true"
+  ) {
+    return null;
+  }
+
   const { data: byPlain } = await sb
     .from("att_device_integrations")
     .select("company_id, push_token, push_token_hash, enabled, auto_process, id")
@@ -474,10 +485,14 @@ export async function resolveCompanyByToken(vendor: string, token: string) {
 
   if (byPlain?.id) {
     try {
-      await sb
-        .from("att_device_integrations")
-        .update({ push_token_hash: tokenHash })
-        .eq("id", byPlain.id);
+      const patch: Record<string, unknown> = {
+        push_token_hash: tokenHash,
+        updated_at: new Date().toISOString(),
+      };
+      if (!storePlaintextSecrets()) {
+        patch.push_token = null;
+      }
+      await sb.from("att_device_integrations").update(patch).eq("id", byPlain.id);
     } catch {
       /* migration may lag */
     }
@@ -497,24 +512,25 @@ export async function setDeviceAuthToken(
     .from("att_devices")
     .update({
       auth_token_hash: tokenHash,
-      // keep plaintext only if column used for legacy agents
       updated_at: new Date().toISOString(),
     })
     .eq("id", deviceId);
 }
 
-/** Hash and store integration push token. */
+/** Hash and store integration push token (hash-only at rest in production). */
 export async function setIntegrationPushToken(
   integrationId: string,
   plaintextToken: string
 ): Promise<{ token: string; hash: string }> {
   const { hashToken, generateSecureToken } = await import("@/lib/security/tokens");
+  const { storePlaintextSecrets } = await import("@/lib/security/public-ingress");
   const token = plaintextToken || generateSecureToken(24);
   const hash = await hashToken(token);
   await admin()
     .from("att_device_integrations")
     .update({
-      push_token: token,
+      // Return plaintext once to operator; store hash always.
+      push_token: storePlaintextSecrets() ? token : null,
       push_token_hash: hash,
       updated_at: new Date().toISOString(),
     })

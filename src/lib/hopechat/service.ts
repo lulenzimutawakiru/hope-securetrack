@@ -6,6 +6,26 @@ function sb() {
   return createClient();
 }
 
+/** Map PostgREST / Supabase errors to actionable chat messages */
+function chatWriteError(error: { message?: string; code?: string; details?: string } | null, action = "send"): Error {
+  const msg = String(error?.message || error?.details || "");
+  const code = String(error?.code || "");
+  if (
+    code === "42501" ||
+    /row-level security|permission denied|rls/i.test(msg)
+  ) {
+    return new Error(
+      `Cannot ${action}: missing channel access or chat permission (hc.view). Join the channel or ask an admin to grant HopeChat access.`
+    );
+  }
+  if (code === "PGRST116" || /0 rows|Cannot coerce/i.test(msg)) {
+    return new Error(
+      `Cannot ${action}: message was blocked by security policy (not a channel member). Re-open the channel and try again.`
+    );
+  }
+  return new Error(msg || `Failed to ${action} message`);
+}
+
 export async function logHcAudit(input: {
   company_id: string;
   actor_id?: string | null;
@@ -72,6 +92,15 @@ export async function sendMessage(input: {
   const body = input.message.body.trim();
   if (!body) throw new Error("Empty message");
 
+  // Ensure membership before insert so RLS SELECT (RETURNING) succeeds.
+  if (input.sender_id) {
+    await ensureChannelMembership({
+      company_id: input.company_id,
+      channel_id: input.channel_id,
+      user_id: input.sender_id,
+    });
+  }
+
   // Bot intercept
   const bot = handleBotCommand(body);
   const { data: msg, error } = await sb()
@@ -89,7 +118,7 @@ export async function sendMessage(input: {
     })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) throw chatWriteError(error, "send");
 
   // Channel metadata (last_message_at / message_count) is maintained by the
   // server-side trigger tr_hc_notify_recipients (secure + realtime-safe).
@@ -286,7 +315,7 @@ export async function ensureChannelMembership(input: {
   channel_id: string;
   user_id: string;
 }) {
-  await sb()
+  const { error } = await sb()
     .from("hc_channel_members")
     .upsert(
       {
@@ -296,8 +325,15 @@ export async function ensureChannelMembership(input: {
         role: "member",
         joined_at: new Date().toISOString(),
       },
-      { onConflict: "channel_id,user_id" }
+      { onConflict: "channel_id,user_id", ignoreDuplicates: true }
     );
+  if (error) {
+    // Membership is best-effort for public channels (RLS may still allow
+    // insert via the public-channel policy). Surface only hard auth failures.
+    if (/row-level security|permission denied|42501/i.test(error.message || "")) {
+      throw chatWriteError(error, "join channel");
+    }
+  }
 }
 export async function createMeeting(input: {
   company_id: string;
@@ -638,6 +674,14 @@ export async function sendFileMessage(input: {
   sender_name?: string;
   file: File;
 }) {
+  if (input.sender_id) {
+    await ensureChannelMembership({
+      company_id: input.company_id,
+      channel_id: input.channel_id,
+      user_id: input.sender_id,
+    });
+  }
+
   const { record, path } = await uploadChatFile({
     company_id: input.company_id,
     channel_id: input.channel_id,
@@ -665,6 +709,6 @@ export async function sendFileMessage(input: {
     })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) throw chatWriteError(error, "send file");
   return { message: msg, file: record };
 }

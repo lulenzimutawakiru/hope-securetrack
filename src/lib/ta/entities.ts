@@ -793,3 +793,16 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
     defaults: { severity: "medium", status: "open", score: 50 },
   }),
 };
+
+export const TA_ENTITY_ALIASES: Record<string, string> = {};
+
+export function resolveTaEntityConfig(
+  slug: string
+): (typeof TA_ENTITIES)[string] | null {
+  const key = TA_ENTITY_ALIASES[slug] || slug;
+  return TA_ENTITIES[key] ?? null;
+}
+
+export function listTaEntityTables(): string[] {
+  return [...new Set(Object.values(TA_ENTITIES).map((c) => c.table))];
+}

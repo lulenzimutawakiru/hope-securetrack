@@ -31,8 +31,22 @@ export const env = {
     qrEncryptionKey: process.env.QR_ENCRYPTION_KEY || "",
     qrSigningPrivateKey: process.env.QR_SIGNING_PRIVATE_KEY || "",
     qrSigningPublicKey: process.env.QR_SIGNING_PUBLIC_KEY || "",
-    mfaEnforcePrivileged: process.env.MFA_ENFORCE_PRIVILEGED === "true",
-    dualControlRequired: process.env.DUAL_CONTROL_REQUIRED === "true",
+    /** Production defaults ON; set MFA_ENFORCE_PRIVILEGED=false to disable */
+    mfaEnforcePrivileged:
+      process.env.MFA_ENFORCE_PRIVILEGED === "false" ||
+      process.env.MFA_ENFORCE_PRIVILEGED === "0"
+        ? false
+        : process.env.MFA_ENFORCE_PRIVILEGED === "true" ||
+          process.env.MFA_ENFORCE_PRIVILEGED === "1" ||
+          process.env.NODE_ENV === "production",
+    /** Production defaults ON; set DUAL_CONTROL_REQUIRED=false to disable */
+    dualControlRequired:
+      process.env.DUAL_CONTROL_REQUIRED === "false" ||
+      process.env.DUAL_CONTROL_REQUIRED === "0"
+        ? false
+        : process.env.DUAL_CONTROL_REQUIRED === "true" ||
+          process.env.DUAL_CONTROL_REQUIRED === "1" ||
+          process.env.NODE_ENV === "production",
   },
   /** Prefer resolving company from product/context; env only as last resort */
   companyId: process.env.DEFAULT_COMPANY_ID || "",

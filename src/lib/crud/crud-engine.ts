@@ -24,6 +24,8 @@ import {
   type CrudAction,
   type EntityDefinition,
 } from "@/lib/metadata/entity-registry";
+// Side-effect: register EntityPage module tables (fin_*, pay_*, fleet_*, …)
+import "@/lib/metadata/register-entity-page-tables";
 import { createClient } from "@/lib/supabase/server";
 import { assertTenantAndCompany } from "@/lib/tenant/context";
 import { enqueueJob } from "@/lib/jobs/queue";

@@ -1377,9 +1377,9 @@ export const FIN_ENTITY_ALIASES: Record<string, string> = {
   "year-end-close": "close-checklist",
   "depreciation": "asset-capitalization",
 
-  "journal-entries": "journals", // special existing page fallback via alias to trial or own
+  "journal-entries": "journal-templates",
   "closing-periods": "period-locks",
-  "ar-invoices": "receipts",
+  "ar-invoices": "customer-statements",
   "customer-aging": "customer-statements",
   "supplier-aging": "supplier-statements",
   "swift-eft": "electronic-payments",
@@ -1392,5 +1392,20 @@ export const FIN_ENTITY_ALIASES: Record<string, string> = {
   "forecast-cash": "forecasts",
   "forecast-ai": "forecasts",
   "my-finance": "notifications",
-  "cost-centres": "profit-centers", // special page exists; entity for generic
+  "cost-centres": "profit-centers",
 };
+
+/** Resolve a URL slug (or alias) to a FinEntityPage config. */
+export function resolveFinEntityConfig(
+  slug: string
+): FinEntityConfig | null {
+  const key = FIN_ENTITY_ALIASES[slug] || slug;
+  return FIN_ENTITIES[key] ?? null;
+}
+
+/** All distinct DB tables used by finance EntityPages (for registry registration). */
+export function listFinEntityTables(): string[] {
+  return [
+    ...new Set(Object.values(FIN_ENTITIES).map((c) => c.table)),
+  ];
+}

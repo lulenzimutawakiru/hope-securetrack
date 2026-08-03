@@ -74,6 +74,18 @@ const aliases = {
   "my-finance": "notifications",
 };
 
+/**
+ * Thin per-slug pages are obsolete. Finance entity grids are served by
+ * `src/app/dashboard/finance/[entity]/page.tsx` + FIN_ENTITIES / FIN_ENTITY_ALIASES.
+ * This script only documents the mapping and refuses to re-create wrappers.
+ */
+console.log(
+  "gen-finance-pages: no-op — use dynamic route finance/[entity] and FIN_ENTITY_ALIASES."
+);
+console.log("entities:", entities.length, "aliases:", Object.keys(aliases).length);
+process.exit(0);
+
+// Dead code kept for reference of historical generation:
 function pageContent(key) {
   return `"use client";
 

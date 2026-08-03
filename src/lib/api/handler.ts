@@ -36,6 +36,8 @@ export type ApiHandlerContext = {
   ip: string;
   ctx?: AuthedContext;
   body?: unknown;
+  /** Dynamic route segments from Next.js App Router (e.g. { id: "..." }) */
+  params: Record<string, string>;
 };
 
 export type ApiHandlerOptions<T extends z.ZodTypeAny | undefined = undefined> = {
@@ -54,23 +56,38 @@ export type ApiHandlerOptions<T extends z.ZodTypeAny | undefined = undefined> = 
   module?: string;
 };
 
+/** Next.js App Router route context (params may be a Promise in Next 15+). */
+export type NextRouteContext = {
+  params?: Promise<Record<string, string>> | Record<string, string>;
+};
+
 function withCorrelation(res: NextResponse, correlationId: string) {
   res.headers.set("x-correlation-id", correlationId);
   return res;
 }
 
+async function resolveParams(
+  routeCtx?: NextRouteContext
+): Promise<Record<string, string>> {
+  if (!routeCtx?.params) return {};
+  const raw = await Promise.resolve(routeCtx.params);
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v != null) out[k] = String(v);
+  }
+  return out;
+}
+
 /**
  * Wrap a route handler with enterprise API controls.
  *
- * @example
- * export const POST = createApiHandler({
- *   auth: true,
- *   permissions: ["payroll.manage"],
- *   bodySchema: z.object({ id: z.string().uuid() }),
- *   idempotent: true,
- * }, async ({ ctx, body, correlationId }) => {
- *   return apiOk({ done: true });
+ * Supports dynamic segments:
+ * ```ts
+ * export const POST = createApiHandler({...}, async ({ params, ctx, body }) => {
+ *   const id = params.id;
  * });
+ * ```
  */
 export function createApiHandler<T extends z.ZodTypeAny | undefined = undefined>(
   opts: ApiHandlerOptions<T>,
@@ -81,10 +98,14 @@ export function createApiHandler<T extends z.ZodTypeAny | undefined = undefined>
     }
   ) => Promise<NextResponse>
 ) {
-  return async (req: NextRequest): Promise<NextResponse> => {
+  return async (
+    req: NextRequest,
+    routeCtx?: NextRouteContext
+  ): Promise<NextResponse> => {
     const correlationId = correlationFromRequest(req) || newCorrelationId();
     const ip = clientIp(req);
     const started = Date.now();
+    const params = await resolveParams(routeCtx);
 
     try {
       if (opts.rateLimit) {
@@ -191,6 +212,7 @@ export function createApiHandler<T extends z.ZodTypeAny | undefined = undefined>
         correlationId,
         ip,
         ctx,
+        params,
         body: body as T extends z.ZodTypeAny ? z.infer<T> : unknown,
       });
 

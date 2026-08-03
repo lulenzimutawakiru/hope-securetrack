@@ -63,9 +63,16 @@ export function authError(
   );
 }
 
-/** Opt-in: set MFA_ENFORCE_PRIVILEGED=true after admins have enrolled MFA */
-function mfaEnforcementEnabled(): boolean {
-  return process.env.MFA_ENFORCE_PRIVILEGED === "true";
+/**
+ * MFA for privileged roles.
+ * - Production: ON by default (set MFA_ENFORCE_PRIVILEGED=false to disable)
+ * - Non-production: OFF unless MFA_ENFORCE_PRIVILEGED=true
+ */
+export function mfaEnforcementEnabled(): boolean {
+  const raw = process.env.MFA_ENFORCE_PRIVILEGED;
+  if (raw === "false" || raw === "0") return false;
+  if (raw === "true" || raw === "1") return true;
+  return process.env.NODE_ENV === "production";
 }
 
 /**

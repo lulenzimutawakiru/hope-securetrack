@@ -59,8 +59,16 @@ export default function DualControlPage() {
     try {
       const res = await fetch("/api/security/dual-control");
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error?.message || json?.error || "Load failed");
-      setRows((json.items as DcRow[]) || []);
+      if (!res.ok) {
+        throw new Error(
+          json?.error?.message || json?.error || "Load failed"
+        );
+      }
+      const items =
+        (json.data?.items as DcRow[] | undefined) ||
+        (json.items as DcRow[] | undefined) ||
+        [];
+      setRows(items);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load dual-control queue");
       setRows([]);
@@ -88,7 +96,11 @@ export default function DualControlPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Create failed");
+      if (!res.ok) {
+        throw new Error(
+          json?.error?.message || json?.error || "Create failed"
+        );
+      }
       toast.success("Dual-control request created");
       setOpen(false);
       await load();
@@ -108,7 +120,11 @@ export default function DualControlPage() {
         body: JSON.stringify({ op: "approve", request_id: id, approve }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Action failed");
+      if (!res.ok) {
+        throw new Error(
+          json?.error?.message || json?.error || "Action failed"
+        );
+      }
       toast.success(approve ? "Approved" : "Rejected");
       await load();
     } catch (e) {

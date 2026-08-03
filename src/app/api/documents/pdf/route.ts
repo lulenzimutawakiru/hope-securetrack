@@ -1,6 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { apiError, createApiHandler } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
-import { buildDocumentHtml, applyCompanyBrand, type BusinessDocument } from "@/lib/documents";
+import {
+  buildDocumentHtml,
+  applyCompanyBrand,
+  type BusinessDocument,
+} from "@/lib/documents";
 import { resolveCompanyBranding } from "@/lib/branding/resolve";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +14,16 @@ export const runtime = "nodejs";
 
 const MAX_LINES = 500;
 
+const schema = z.object({
+  doc: z.record(z.unknown()),
+});
+
 function sanitizeDoc(raw: unknown): BusinessDocument | null {
   if (!raw || typeof raw !== "object") return null;
   const doc = raw as Record<string, unknown>;
   const title = typeof doc.title === "string" ? doc.title.slice(0, 200) : "";
-  const docType = typeof doc.docType === "string" ? doc.docType.slice(0, 80) : "";
+  const docType =
+    typeof doc.docType === "string" ? doc.docType.slice(0, 80) : "";
   const number = typeof doc.number === "string" ? doc.number.slice(0, 80) : "";
   if (!docType && !number && !title) return null;
   const lines = Array.isArray(doc.lines) ? doc.lines.slice(0, MAX_LINES) : [];
@@ -26,82 +37,75 @@ function sanitizeDoc(raw: unknown): BusinessDocument | null {
 }
 
 /**
- * Render a branded ERP document (invoice, quotation, report, payslip, ...) to
- * a downloadable PDF. The company is resolved from the authenticated session,
- * never from the request body (AGENTS.md tenant rules).
+ * Render a branded ERP document to PDF.
+ * Company from session only (never request body).
  */
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const POST = createApiHandler(
+  {
+    auth: true,
+    bodySchema: schema,
+    rateLimit: { limit: 20, windowMs: 60_000 },
+    module: "documents",
+  },
+  async ({ ctx, body }) => {
+    if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
+    const data = body as z.infer<typeof schema>;
+    const doc = sanitizeDoc(data.doc);
+    if (!doc) {
+      return apiError("VALIDATION", "Document payload is invalid");
+    }
+
+    const supabase = await createClient();
+    const brand = await resolveCompanyBranding(supabase, ctx.companyId);
+    const branded = applyCompanyBrand(doc, brand);
+    const html = buildDocumentHtml(branded);
+
+    let chromium: typeof import("playwright").chromium;
+    try {
+      ({ chromium } = await import("playwright"));
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "PDF engine unavailable on this deployment" },
+        { status: 501 }
+      );
+    }
+
+    let browser;
+    try {
+      browser = await chromium.launch({
+        headless: true,
+        args: ["--no-sandbox"],
+      });
+      const page = await browser.newPage({
+        viewport: { width: 1024, height: 800 },
+      });
+      await page.setContent(html, { waitUntil: "networkidle" });
+      const pdf = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "12mm", bottom: "12mm", left: "10mm", right: "10mm" },
+      });
+      await browser.close();
+
+      return new NextResponse(Buffer.from(pdf), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${(doc.number || "document").replace(/[^a-zA-Z0-9._-]/g, "_")}.pdf"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    } catch (e) {
+      try {
+        await browser?.close();
+      } catch {
+        /* ignore */
+      }
+      return apiError(
+        "INTERNAL",
+        e instanceof Error ? e.message : "PDF generation failed",
+        500
+      );
+    }
   }
-
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  const companyId = (profile?.company_id as string) || null;
-
-  let body: { doc?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const doc = sanitizeDoc(body.doc);
-  if (!doc) {
-    return NextResponse.json({ error: "Document payload is invalid" }, { status: 400 });
-  }
-
-  // Brand server-side from the session company
-  const brand = await resolveCompanyBranding(supabase, companyId);
-  const branded = applyCompanyBrand(doc, brand);
-  const html = buildDocumentHtml(branded);
-
-  let chromium;
-  try {
-    ({ chromium } = await import("playwright"));
-  } catch {
-    return NextResponse.json(
-      { error: "PDF engine unavailable on this deployment" },
-      { status: 501 }
-    );
-  }
-
-  let browser;
-  try {
-    browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
-    const page = await browser.newPage({
-      viewport: { width: 1024, height: 800 },
-      deviceScaleFactor: 2,
-    });
-    await page.setContent(html, { waitUntil: "load", timeout: 20_000 });
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "12mm", bottom: "12mm", left: "10mm", right: "10mm" },
-    });
-    await browser.close();
-
-    const filename = `${(branded.docType || "document").replace(/\s+/g, "-").toLowerCase()}-${branded.number || Date.now()}.pdf`;
-    return new NextResponse(new Uint8Array(pdf), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch (e) {
-    if (browser) await browser.close().catch(() => {});
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "PDF generation failed" },
-      { status: 500 }
-    );
-  }
-}
+);

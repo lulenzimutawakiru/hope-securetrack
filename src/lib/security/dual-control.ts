@@ -29,6 +29,18 @@ export type DualControlRequest = {
 };
 
 /**
+ * Dual-control for money/identity actions.
+ * - Production: ON by default (set DUAL_CONTROL_REQUIRED=false to disable)
+ * - Non-production: OFF unless DUAL_CONTROL_REQUIRED=true
+ */
+export function dualControlEnforcementEnabled(): boolean {
+  const raw = process.env.DUAL_CONTROL_REQUIRED;
+  if (raw === "false" || raw === "0") return false;
+  if (raw === "true" || raw === "1") return true;
+  return process.env.NODE_ENV === "production";
+}
+
+/**
  * Ensure dual-control table exists usage via try/catch if migration lagging.
  * Request approval: maker creates; checker approves; execute only when approved.
  */
@@ -118,9 +130,13 @@ export async function assertDualControl(input: {
   /** When true (default for money/identity in prod), require approved request */
   required?: boolean;
 }): Promise<{ ok: true; request?: DualControlRequest } | { ok: false; error: string }> {
-  // Opt-in: set DUAL_CONTROL_REQUIRED=true for production money/identity gates
+  // Explicit required:false opts out (e.g. lower-risk payroll.process).
+  // Otherwise: input.required===true, or production default / env flag.
+  if (input.required === false) {
+    return { ok: true };
+  }
   const required =
-    input.required === true || process.env.DUAL_CONTROL_REQUIRED === "true";
+    input.required === true || dualControlEnforcementEnabled();
 
   if (!required) {
     return { ok: true };

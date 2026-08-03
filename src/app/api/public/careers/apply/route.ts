@@ -1,41 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { scoreCandidateMatch } from "@/lib/ta/service";
+import { ingressRateLimit } from "@/lib/security/public-ingress";
+import { rateLimitStrict } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const bodySchema = z.object({
+  vacancy_code: z.string().min(1).max(80),
+  first_name: z.string().min(1).max(100),
+  last_name: z.string().min(1).max(100),
+  email: z.string().email().max(255),
+  phone: z.string().max(40).optional().nullable(),
+  skills: z.string().max(4000).optional().nullable(),
+  years_experience: z.number().min(0).max(80).optional().nullable(),
+  cover_note: z.string().max(8000).optional().nullable(),
+});
 
 /**
  * Public careers application intake (service role).
- * Body: vacancy_code, first_name, last_name, email, phone?, skills?, years_experience?, cover_note?
  */
 export async function POST(req: NextRequest) {
   try {
-    const { clientIp, rateLimit } = await import("@/lib/api");
-    const ip = clientIp(req);
-    const rl = rateLimit(`careers-apply:${ip}`, 20, 60 * 60_000);
-    if (!rl.allowed) {
+    const rl = await ingressRateLimit("careers-apply", 20, 60 * 60_000, req);
+    if (!rl.ok) {
       return NextResponse.json(
         { error: "Too many applications from this network. Try later." },
-        { status: 429 }
+        { status: 429, headers: rl.response.headers }
       );
     }
 
-    const body = (await req.json()) as Record<string, unknown>;
-    const vacancyCode = String(body.vacancy_code || "").trim().slice(0, 80);
-    const first = String(body.first_name || "").trim().slice(0, 100);
-    const last = String(body.last_name || "").trim().slice(0, 100);
-    const email = String(body.email || "").trim().slice(0, 255).toLowerCase();
-    if (!vacancyCode || !first || !last || !email) {
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const body = raw as Record<string, unknown>;
+    const parsed = bodySchema.safeParse({
+      vacancy_code: String(body.vacancy_code || "").trim(),
+      first_name: String(body.first_name || "").trim(),
+      last_name: String(body.last_name || "").trim(),
+      email: String(body.email || "").trim().toLowerCase(),
+      phone: body.phone ? String(body.phone) : null,
+      skills: body.skills ? String(body.skills) : null,
+      years_experience: Number(body.years_experience || 0),
+      cover_note: body.cover_note ? String(body.cover_note) : null,
+    });
+    if (!parsed.success) {
       return NextResponse.json(
         { error: "vacancy_code, first_name, last_name, email required" },
         { status: 400 }
       );
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-    }
 
-    const emailRl = rateLimit(`careers-email:${email}`, 5, 24 * 60 * 60_000);
+    const emailRl = await rateLimitStrict(
+      `careers-email:${parsed.data.email}`,
+      5,
+      24 * 60 * 60_000
+    );
     if (!emailRl.allowed) {
       return NextResponse.json(
         { error: "Too many applications from this email today" },
@@ -43,24 +69,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const data = parsed.data;
     const sb = createAdminClient();
     const { data: vac, error: vErr } = await sb
       .from("ta_vacancies")
-      .select("id,company_id,vacancy_code,title,requirements,status,publish_external")
-      .eq("vacancy_code", vacancyCode)
+      .select(
+        "id,company_id,vacancy_code,title,requirements,status,publish_external"
+      )
+      .eq("vacancy_code", data.vacancy_code)
       .eq("status", "open")
       .eq("publish_external", true)
       .maybeSingle();
     if (vErr || !vac) {
-      return NextResponse.json({ error: "Vacancy not found or closed" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Vacancy not found or closed" },
+        { status: 404 }
+      );
     }
 
     const companyId = vac.company_id as string;
     const year = new Date().getFullYear();
     const candidateNumber = `CND-${year}-${Date.now().toString(36).toUpperCase()}`;
     const applicationNumber = `APP-${year}-${Date.now().toString(36).toUpperCase()}`;
-    const years = Number(body.years_experience || 0);
-    const skills = body.skills ? String(body.skills) : "";
+    const years = Number(data.years_experience || 0);
+    const skills = data.skills || "";
     const match = scoreCandidateMatch({
       requirements: vac.requirements as string,
       candidateSkills: skills,
@@ -72,10 +104,10 @@ export async function POST(req: NextRequest) {
       .insert({
         company_id: companyId,
         candidate_number: candidateNumber,
-        first_name: first,
-        last_name: last,
-        email,
-        phone: body.phone ? String(body.phone) : null,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        phone: data.phone || null,
         years_experience: years,
         skills: skills || null,
         source: "careers_portal",
@@ -93,20 +125,19 @@ export async function POST(req: NextRequest) {
       vacancy_title: vac.title,
       candidate_id: cand.id,
       candidate_number: cand.candidate_number,
-      candidate_name: `${first} ${last}`,
-      email,
-      phone: body.phone ? String(body.phone) : null,
+      candidate_name: `${data.first_name} ${data.last_name}`,
+      email: data.email,
+      phone: data.phone || null,
       stage_code: "applied",
       stage_name: "Applied",
       match_score: match.score,
       ai_summary: match.summary,
       source: "careers_portal",
       status: "open",
-      notes: body.cover_note ? String(body.cover_note) : null,
+      notes: data.cover_note || null,
     });
     if (aErr) throw aErr;
 
-    // Bump applications_count
     const { data: vacRow } = await sb
       .from("ta_vacancies")
       .select("applications_count")
@@ -127,7 +158,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Apply failed" },
+      { error: e instanceof Error ? e.message : "Application failed" },
       { status: 500 }
     );
   }
