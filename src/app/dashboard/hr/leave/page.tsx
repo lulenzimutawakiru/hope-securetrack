@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,8 +20,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
 import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -37,11 +37,6 @@ const LEAVE_TYPES = [
 ];
 
 export default function LeavePage() {
-  const [leave, setLeave] = useState<Array<Record<string, unknown>>>([]);
-  const [balances, setBalances] = useState<Array<Record<string, unknown>>>([]);
-  const [holidays, setHolidays] = useState<Array<Record<string, unknown>>>([]);
-  const [employees, setEmployees] = useState<Array<{ id: string; first_name: string; last_name: string; employee_number: string }>>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     employee_id: "",
@@ -51,41 +46,62 @@ export default function LeavePage() {
     reason: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data: l }, { data: b }, { data: h }, { data: e }] = await Promise.all([
-      supabase
-        .from("leave_requests")
-        .select("*, employees(first_name,last_name,employee_number)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase
-        .from("leave_balances")
-        .select("*, employees(first_name,last_name,employee_number)")
-        .eq("year", new Date().getFullYear())
-        .limit(100),
-      supabase
-        .from("public_holidays")
-        .select("*")
-        .gte("holiday_date", new Date().toISOString().slice(0, 10))
-        .order("holiday_date")
-        .limit(12),
-      supabase
-        .from("employees")
-        .select("id,first_name,last_name,employee_number")
-        .eq("status", "active")
-        .order("last_name"),
-    ]);
-    setLeave(l ?? []);
-    setBalances(b ?? []);
-    setHolidays(h ?? []);
-    setEmployees(e ?? []);
-    setLoading(false);
-  };
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  const {
+    data: leaveData,
+    isPending,
+    refetch: refetchLeave,
+  } = useEntityAll<Record<string, unknown>>("leave_requests", {
+    max: 100,
+    sort: "created_at",
+    order: "desc",
+    select: "*, employees(first_name,last_name,employee_number)",
+  });
+  const { data: balancesData, refetch: refetchBalances } = useEntityAll<
+    Record<string, unknown>
+  >("leave_balances", {
+    max: 100,
+    select: "*, employees(first_name,last_name,employee_number)",
+    filters: { year: new Date().getFullYear() },
+  });
+  const { data: holidaysData, refetch: refetchHolidays } = useEntityAll<
+    Record<string, unknown>
+  >("public_holidays", {
+    max: 200,
+    sort: "holiday_date",
+  });
+  const {
+    data: employeesData,
+    refetch: refetchEmployees,
+  } = useEntityAll<{
+    id: string;
+    first_name: string;
+    last_name: string;
+    employee_number: string;
+  }>("employees", {
+    max: 500,
+    select: "id,first_name,last_name,employee_number",
+    filters: { status: "active" },
+    sort: "last_name",
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const leave = leaveData ?? [];
+  const balances = balancesData ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  const holidays = (holidaysData ?? [])
+    .filter((h) => String(h.holiday_date) >= today)
+    .sort((a, b) =>
+      String(a.holiday_date).localeCompare(String(b.holiday_date))
+    )
+    .slice(0, 12);
+  const employees = employeesData ?? [];
+
+  const refresh = () => {
+    refetchLeave();
+    refetchBalances();
+    refetchHolidays();
+    refetchEmployees();
+  };
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +124,7 @@ export default function LeavePage() {
     else {
       toast.success("Leave submitted");
       setOpen(false);
-      load();
+      refresh();
     }
   };
 
@@ -117,11 +133,11 @@ export default function LeavePage() {
     if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Leave ${status}`);
-      load();
+      refresh();
     }
   };
 
-  if (loading) return <LoadingState />;
+  if (isPending) return <LoadingState />;
 
   const pending = leave.filter((l) => l.status === "pending").length;
 

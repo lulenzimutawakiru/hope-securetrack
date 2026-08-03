@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Truck } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -25,16 +25,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import type { Distributor } from "@/types/database";
 
 export default function DistributorsPage() {
   const { auth, hasPermission } = useUser();
-  const [distributors, setDistributors] = useState<Distributor[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -47,19 +45,16 @@ export default function DistributorsPage() {
     region: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("distributors")
-      .select("*")
-      .order("name");
-    setDistributors((data as Distributor[]) ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  const {
+    data: distributorsData,
+    isPending,
+    refetch,
+  } = useEntityAll<Distributor>("distributors", {
+    max: 500,
+    sort: "name",
+  });
+  const distributors = distributorsData ?? [];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +77,7 @@ export default function DistributorsPage() {
         city: "",
         region: "",
       });
-      load();
+      refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add distributor");
     } finally {
@@ -90,7 +85,7 @@ export default function DistributorsPage() {
     }
   };
 
-  if (loading) return <LoadingState />;
+  if (isPending) return <LoadingState />;
 
   return (
     <div>

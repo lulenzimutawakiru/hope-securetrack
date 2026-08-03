@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Box, Pencil, Archive, RotateCcw, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,19 +21,16 @@ import {
   EnterpriseDataGrid,
   type DataGridColumn,
 } from "@/components/enterprise/data-grid";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { crudCreate, crudDelete, crudRestore, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { toast } from "sonner";
-import type { Product, ProductCategory } from "@/types/database";
+import type { Product } from "@/types/database";
 
 type ProductRow = Product & { deleted_at?: string | null };
 
 export default function ProductsPage() {
   const { auth, hasPermission } = useUser();
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -48,26 +45,19 @@ export default function ProductsPage() {
     category_id: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    let pq = supabase
-      .from("products")
-      .select("*, product_categories(name, code)")
-      .order("name");
-    if (!showArchived) pq = pq.is("deleted_at", null);
-    const [{ data }, { data: cats }] = await Promise.all([
-      pq,
-      supabase.from("product_categories").select("*").eq("is_active", true),
-    ]);
-    setProducts((data as ProductRow[]) ?? []);
-    setCategories((cats as ProductCategory[]) ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showArchived]);
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  // Toggling showArchived changes the query key, so TanStack re-fetches.
+  const {
+    data: productsData,
+    isPending,
+    refetch: refetchProducts,
+  } = useEntityAll<ProductRow>("products", {
+    max: 500,
+    sort: "name",
+    select: "*, product_categories(name, code)",
+    includeDeleted: showArchived || undefined,
+  });
+  const products = productsData ?? [];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +85,7 @@ export default function ProductsPage() {
         color: "White",
         category_id: "",
       });
-      load();
+      refetchProducts();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create product");
     } finally {
@@ -133,7 +123,7 @@ export default function ProductsPage() {
       toast.success("Product updated");
       setEditOpen(false);
       setEditing(null);
-      load();
+      refetchProducts();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Update failed");
     } finally {
@@ -205,7 +195,7 @@ export default function ProductsPage() {
                       if (!res.ok) toast.error(res.error);
                       else {
                         toast.success("Archived");
-                        load();
+                        refetchProducts();
                       }
                     }}
                   >
@@ -222,7 +212,7 @@ export default function ProductsPage() {
                     if (!res.ok) toast.error(res.error);
                     else {
                       toast.success("Restored");
-                      load();
+                      refetchProducts();
                     }
                   }}
                 >
@@ -238,7 +228,7 @@ export default function ProductsPage() {
     [hasPermission]
   );
 
-  if (loading) return <LoadingState />;
+  if (isPending) return <LoadingState />;
 
   return (
     <div className="space-y-4">
@@ -351,7 +341,7 @@ export default function ProductsPage() {
           if (failed.length) toast.error(failed[0].error);
           else {
             toast.success(`Archived ${ids.length}`);
-            load();
+            refetchProducts();
           }
         }}
         bulkRestore={async (selected) => {
@@ -364,7 +354,7 @@ export default function ProductsPage() {
           if (failed.length) toast.error(failed[0].error);
           else {
             toast.success(`Restored ${ids.length}`);
-            load();
+            refetchProducts();
           }
         }}
       />

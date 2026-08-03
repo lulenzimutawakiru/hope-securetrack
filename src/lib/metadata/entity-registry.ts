@@ -624,6 +624,19 @@ defineEntity("leave_balances", "leave_balances", "hr", {
   searchable: [],
 });
 
+
+defineEntity("public_holidays", "public_holidays", "hr", {
+  view: "hr.view",
+  create: "hr.manage",
+  update: "hr.manage",
+  delete: "hr.manage",
+}, {
+  searchable: ["name"],
+  hasUpdatedAt: false,
+  createdBy: false,
+  updatedBy: false,
+});
+
 defineEntity("performance_reviews", "performance_reviews", "hr", {
   view: "hr.view",
   create: "hr.performance",
@@ -688,6 +701,19 @@ defineEntity("support_tickets", "support_tickets", "sd", {
   archivedAt: true,
   searchable: ["ticket_number", "subject", "requester_name"],
   createdBy: true,
+});
+
+
+defineEntity("sd_ticket_events", "sd_ticket_events", "sd", {
+  view: "sd.view",
+  create: "sd.agent",
+  update: "sd.manage",
+  delete: "sd.admin",
+}, {
+  searchable: ["message", "event_type"],
+  hasUpdatedAt: false,
+  createdBy: false,
+  updatedBy: false,
 });
 
 // ---- Finance / accounting ----------------------------------------------

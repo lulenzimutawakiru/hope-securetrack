@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Plus, Play, Copy, Trash2, PackageCheck, Factory, Search,
 } from "lucide-react";
@@ -21,8 +21,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -56,13 +56,6 @@ type Order = {
 
 export default function ProductionOrdersPage() {
   const { auth } = useUser();
-  const [rows, setRows] = useState<Order[]>([]);
-  const [products, setProducts] = useState<Array<{ id: string; product_code: string; name: string }>>([]);
-  const [boms, setBoms] = useState<Array<{ id: string; bom_code?: string; name?: string; product_id?: string }>>([]);
-  const [routings, setRoutings] = useState<Array<{ id: string; routing_code: string; name: string; product_id?: string }>>([]);
-  const [machines, setMachines] = useState<Array<{ id: string; name?: string; machine_code?: string }>>([]);
-  const [workCenters, setWorkCenters] = useState<Array<{ id: string; center_code: string; name: string }>>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
@@ -85,39 +78,66 @@ export default function ProductionOrdersPage() {
 
   const companyId = auth?.profile?.company_id as string | undefined;
 
-  const load = async () => {
-    const supabase = createClient();
-    let query = supabase
-      .from("mes_production_orders")
-      .select("*")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(500);
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  // Changing the status filter changes the query key, so TanStack re-fetches.
+  const {
+    data: rowsData,
+    isPending,
+    refetch: refetchOrders,
+  } = useEntityAll<Order>("mes_production_orders", {
+    max: 500,
+    sort: "created_at",
+    order: "desc",
+    filters: filter !== "all" ? { status: filter } : undefined,
+  });
+  const { data: productsData } = useEntityAll<{
+    id: string;
+    product_code: string;
+    name: string;
+  }>("products", {
+    max: 500,
+    sort: "name",
+    select: "id,product_code,name",
+    filters: { is_active: true },
+  });
+  const { data: bomsData } = useEntityAll<{
+    id: string;
+    bom_code?: string;
+    name?: string;
+    product_id?: string;
+  }>("bom_headers", {
+    max: 200,
+  });
+  const { data: routingsData } = useEntityAll<{
+    id: string;
+    routing_code: string;
+    name: string;
+    product_id?: string;
+  }>("mes_routings", {
+    max: 200,
+  });
+  const { data: machinesData } = useEntityAll<{
+    id: string;
+    name?: string;
+    machine_code?: string;
+  }>("production_machines", {
+    max: 100,
+  });
+  const { data: workCentersData } = useEntityAll<{
+    id: string;
+    center_code: string;
+    name: string;
+  }>("mes_work_centers", {
+    max: 100,
+    filters: { is_active: true },
+  });
 
-    if (filter !== "all") query = query.eq("status", filter);
-
-    const [{ data }, { data: prods }, { data: bomData }, { data: rt }, { data: mac }, { data: wc }] =
-      await Promise.all([
-        query,
-        supabase.from("products").select("id,product_code,name").eq("is_active", true).order("name").limit(500),
-        supabase.from("bom_headers").select("id,bom_code,name,product_id").is("deleted_at", null).limit(200),
-        supabase.from("mes_routings").select("id,routing_code,name,product_id").is("deleted_at", null).limit(200),
-        supabase.from("production_machines").select("id,name,machine_code").limit(100),
-        supabase.from("mes_work_centers").select("id,center_code,name").eq("is_active", true).limit(100),
-      ]);
-
-    setRows((data as Order[]) || []);
-    setProducts((prods as typeof products) || []);
-    setBoms((bomData as typeof boms) || []);
-    setRoutings((rt as typeof routings) || []);
-    setMachines((mac as typeof machines) || []);
-    setWorkCenters((wc as typeof workCenters) || []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, [filter]);
+  const rows = useMemo(() => rowsData ?? [], [rowsData]);
+  const products = productsData ?? [];
+  const boms = bomsData ?? [];
+  const routings = routingsData ?? [];
+  const machines = machinesData ?? [];
+  const workCenters = workCentersData ?? [];
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -173,7 +193,7 @@ export default function ProductionOrdersPage() {
       });
       toast.success("Production order created with work orders & material plan");
       setOpen(false);
-      await load();
+      await refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Create failed");
     } finally {
@@ -185,7 +205,7 @@ export default function ProductionOrdersPage() {
     try {
       await releaseProductionOrder(id);
       toast.success("Order released to shop floor");
-      await load();
+      await refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Release failed");
     }
@@ -196,7 +216,7 @@ export default function ProductionOrdersPage() {
     try {
       await duplicateProductionOrder(id, companyId);
       toast.success("Order duplicated");
-      await load();
+      await refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Duplicate failed");
     }
@@ -207,7 +227,7 @@ export default function ProductionOrdersPage() {
     try {
       await softDeleteProductionOrder(id);
       toast.success("Order cancelled");
-      await load();
+      await refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
     }
@@ -223,7 +243,7 @@ export default function ProductionOrdersPage() {
     }
   };
 
-  if (loading) return <LoadingState message="Loading production orders…" />;
+  if (isPending) return <LoadingState message="Loading production orders…" />;
 
   return (
     <div>

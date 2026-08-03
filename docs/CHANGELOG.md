@@ -1,4 +1,24 @@
 # Changelog
+## 2026-08-03 - Phase 13: frontend roadmap (query-layer adoption sweep, module boundaries)
+
+### Query-layer adoption
+
+- `src/hooks/use-entity-all.ts` - `useEntityAll` hook: client-side multi-page reads through the hardened `/api/v2/crud/[entity]` surface (pageSize <= 100, max cap, sort/order/search/select/includeDeleted/filters), cached under `entityKeys.list` so `useCrudMutation` invalidation refreshes it
+- `src/lib/metadata/entity-registry.ts` - registered `public_holidays` (hr) and `sd_ticket_events` (service desk) for CRUD API access with permission slugs and searchable fields
+
+### Pages migrated off direct browser Supabase reads
+
+- sales/quotations, hr/leave, distributors, products, procurement/orders, production/orders, service-desk/tickets, billing/invoices - reads now flow through the CRUD API (server-derived tenant/company, permission checks, audit logging); writes stay on `crudCreate` / `crudUpdate` / `crudDelete`; by-design control-plane reads (e.g. `user_profiles`) remain direct
+- Dead query paths removed (unused product-category and sd-team fetches); stale `loading` state replaced with `isPending` from the query layer
+
+### Module boundaries
+
+- `error.tsx` + `loading.tsx` added to all 53 dashboard modules (finance/fleet/payroll already had them), backed by shared `ModuleError` / `ModuleLoading` primitives
+
+### Validation
+
+- Typecheck, vitest (171), security suite (101), eslint (0 errors on changed files), production build, bundle audit - all green
+
 ## 2026-08-03 - Phase 12: frontend roadmap (query layer, auth context, grid UX)
 
 ### Query layer

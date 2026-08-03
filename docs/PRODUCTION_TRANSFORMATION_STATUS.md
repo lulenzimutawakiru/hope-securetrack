@@ -7,6 +7,15 @@
 
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
+## Phase 13 (2026-08-03) - frontend roadmap (query-layer adoption sweep, module boundaries)
+
+| Deliverable | Status |
+|------------|--------|
+| `useEntityAll` hook - client-side multi-page reads through `/api/v2/crud` with query-key caching and `useCrudMutation` invalidation; entity registrations for `public_holidays` / `sd_ticket_events` | Live |
+| 8 more pages on the hardened data layer (sales/quotations, hr/leave, distributors, products, procurement/orders, production/orders, service-desk/tickets, billing/invoices) - reads server-derived, writes on CRUD API | Live |
+| Module error/loading boundaries across all 53 dashboard modules (shared `ModuleError` / `ModuleLoading`) | Live |
+| Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
+
 ## Phase 12 (2026-08-03) - frontend roadmap (query layer, auth context, grid UX)
 
 | Deliverable | Status |

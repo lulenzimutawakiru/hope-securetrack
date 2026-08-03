@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Plus, Search, UserPlus, MessageSquare, ArrowUpRight, Copy, Archive,
+  Plus, Search, MessageSquare, ArrowUpRight, Copy, Archive,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { apiGet } from "@/lib/api-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -64,12 +66,8 @@ type Ticket = {
 
 export default function ServiceDeskTicketsPage() {
   const { auth } = useUser();
-  const [rows, setRows] = useState<Ticket[]>([]);
   const [events, setEvents] = useState<Array<Record<string, unknown>>>([]);
-  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
-  const [users, setUsers] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
   const [selected, setSelected] = useState<Ticket | null>(null);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,45 +92,47 @@ export default function ServiceDeskTicketsPage() {
 
   const companyId = auth?.profile?.company_id as string | undefined;
 
-  const load = async () => {
-    const supabase = createClient();
-    let query = supabase
-      .from("support_tickets")
-      .select("*, customers(name)")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(300);
-
-    if (filter === "open") {
-      query = query.not("status", "in", '("closed","resolved","archived")');
-    } else if (filter !== "all") {
-      query = query.eq("status", filter);
-    }
-
-    const [{ data }, { data: t }, { data: u }] = await Promise.all([
-      query,
-      supabase.from("sd_teams").select("id,name").eq("is_active", true),
-      supabase.from("user_profiles").select("id,first_name,last_name").eq("is_active", true).limit(100),
-    ]);
-    setRows((data as Ticket[]) || []);
-    setTeams((t as typeof teams) || []);
-    setUsers((u as typeof users) || []);
-    setLoading(false);
+  // Ticket/team reads flow through the hardened CRUD API (server-derived
+  // tenant/company). The "open" status filter has no CRUD API equivalent, so it
+  // is applied client-side over the server-scoped rows. user_profiles is
+  // control-plane and read directly by design.
+  const {
+    data: rowsData,
+    isPending,
+    refetch: refetchTickets,
+  } = useEntityAll<Ticket>("support_tickets", {
+    max: 300,
+    sort: "created_at",
+    order: "desc",
+    select: "*, customers(name)",
+    filters: filter !== "all" && filter !== "open" ? { status: filter } : undefined,
+  });
+  const [users, setUsers] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
+  const loadUsers = async () => {
+    const { data } = await createClient()
+      .from("user_profiles")
+      .select("id,first_name,last_name")
+      .eq("is_active", true)
+      .limit(100);
+    setUsers((data as typeof users) || []);
   };
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rows = (rowsData ?? []).filter(
+    (r) => filter !== "open" || !["closed", "resolved", "archived"].includes(r.status)
+  );
 
   const loadEvents = async (ticketId: string) => {
-    const { data } = await createClient()
-      .from("sd_ticket_events")
-      .select("*")
-      .eq("ticket_id", ticketId)
-      .order("created_at", { ascending: true })
-      .limit(100);
-    setEvents((data as Array<Record<string, unknown>>) || []);
+    const res = await apiGet<{ data: Array<Record<string, unknown>> }>(
+      `/api/v2/crud/sd_ticket_events?filters=${encodeURIComponent(
+        JSON.stringify({ ticket_id: ticketId })
+      )}`
+    );
+    setEvents(res.ok ? res.data.data : []);
   };
-
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, [filter]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -170,7 +170,7 @@ export default function ServiceDeskTicketsPage() {
       });
       toast.success(`Ticket ${t.ticket_number} created`);
       setOpen(false);
-      await load();
+      await refetchTickets();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Create failed");
     } finally {
@@ -190,7 +190,7 @@ export default function ServiceDeskTicketsPage() {
       });
       toast.success(`Status → ${status}`);
       setSelected(updated as Ticket);
-      await load();
+      await refetchTickets();
       await loadEvents(selected.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -208,7 +208,7 @@ export default function ServiceDeskTicketsPage() {
       });
       toast.success("Assignment updated");
       setSelected(updated as Ticket);
-      await load();
+      await refetchTickets();
       await loadEvents(selected.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -238,7 +238,7 @@ export default function ServiceDeskTicketsPage() {
     }
   };
 
-  if (loading) return <LoadingState message="Loading tickets…" />;
+  if (isPending) return <LoadingState message="Loading tickets…" />;
 
   return (
     <div>
@@ -537,7 +537,7 @@ export default function ServiceDeskTicketsPage() {
                         actor_id: auth?.user?.id,
                       });
                       toast.success("Escalated");
-                      await load();
+                      await refetchTickets();
                       await loadEvents(selected.id);
                     }}
                   >
@@ -550,7 +550,7 @@ export default function ServiceDeskTicketsPage() {
                       if (!companyId) return;
                       await duplicateTicket(selected.id, companyId, auth?.user?.id);
                       toast.success("Duplicated");
-                      await load();
+                      await refetchTickets();
                     }}
                   >
                     <Copy className="h-3.5 w-3.5 mr-1" /> Duplicate
@@ -562,7 +562,7 @@ export default function ServiceDeskTicketsPage() {
                       await softDeleteTicket(selected.id);
                       toast.success("Archived");
                       setSelected(null);
-                      await load();
+                      await refetchTickets();
                     }}
                   >
                     <Archive className="h-3.5 w-3.5 mr-1" /> Archive

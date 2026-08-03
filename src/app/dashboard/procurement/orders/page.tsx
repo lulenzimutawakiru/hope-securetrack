@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { FileText, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,21 +20,14 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DocumentActions } from "@/components/documents/document-actions";
-import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
-import { apiPost, apiDelete } from "@/lib/api-client";
+import { apiPost, apiDelete, apiGet } from "@/lib/api-client";
 import { crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 
 export default function PurchaseOrdersPage() {
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; code: string }>>([]);
-  const [products, setProducts] = useState<
-    Array<{ id: string; name: string; product_code: string; standard_cost: number }>
-  >([]);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     supplier_id: "",
@@ -46,33 +39,49 @@ export default function PurchaseOrdersPage() {
     notes: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: sup }, { data: prod }, { data: wh }] = await Promise.all([
-      supabase
-        .from("purchase_orders")
-        .select("*, suppliers(name, code), warehouses(name)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("suppliers").select("id,name,code").eq("is_active", true).order("name"),
-      supabase
-        .from("products")
-        .select("id,name,product_code,standard_cost")
-        .eq("is_active", true)
-        .order("name")
-        .limit(200),
-      supabase.from("warehouses").select("id,name").eq("is_active", true),
-    ]);
-    setRows(data ?? []);
-    setSuppliers(sup ?? []);
-    setProducts((prod as typeof products) ?? []);
-    setWarehouses(wh ?? []);
-    setLoading(false);
-  };
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  const {
+    data: rowsData,
+    isPending,
+    refetch: refetchOrders,
+  } = useEntityAll<Record<string, unknown>>("purchase_orders", {
+    max: 100,
+    sort: "created_at",
+    order: "desc",
+    select: "*, suppliers(name, code), warehouses(name)",
+  });
+  const { data: suppliersData } = useEntityAll<{
+    id: string;
+    name: string;
+    code: string;
+  }>("suppliers", {
+    max: 500,
+    sort: "name",
+    filters: { is_active: true },
+  });
+  const { data: productsData } = useEntityAll<{
+    id: string;
+    name: string;
+    product_code: string;
+    standard_cost: number;
+  }>("products", {
+    max: 200,
+    sort: "name",
+    select: "id,name,product_code,standard_cost",
+    filters: { is_active: true },
+  });
+  const { data: warehousesData } = useEntityAll<{
+    id: string;
+    name: string;
+  }>("warehouses", {
+    max: 500,
+    filters: { is_active: true },
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const rows = rowsData ?? [];
+  const suppliers = suppliersData ?? [];
+  const products = productsData ?? [];
+  const warehouses = warehousesData ?? [];
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +110,7 @@ export default function PurchaseOrdersPage() {
       if (!res.ok) throw new Error(res.error);
       toast.success(`PO ${res.data?.po?.po_number ?? ""} created`);
       setOpen(false);
-      load();
+      refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -115,7 +124,7 @@ export default function PurchaseOrdersPage() {
       const res = await crudUpdate("purchase_orders", id, patch);
       if (!res.ok) throw new Error(res.error);
       toast.success(`PO ${status}`);
-      load();
+      refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -136,18 +145,19 @@ export default function PurchaseOrdersPage() {
       const res = await apiDelete(`/api/procurement/orders/${encodeURIComponent(id)}`);
       if (!res.ok) throw new Error(res.error);
       toast.success("PO deleted");
-      load();
+      refetchOrders();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
   const buildPoDoc = async (r: Record<string, unknown>): Promise<BusinessDocument> => {
-    const supabase = createClient();
-    const { data: lines } = await supabase
-      .from("purchase_order_lines")
-      .select("*")
-      .eq("po_id", r.id as string);
+    const linesRes = await apiGet<{ data: Array<Record<string, unknown>> }>(
+      `/api/v2/crud/purchase_order_lines?filters=${encodeURIComponent(
+        JSON.stringify({ po_id: r.id })
+      )}`
+    );
+    const lines = linesRes.ok ? linesRes.data.data : [];
     const sup = r.suppliers as { name?: string; code?: string } | null;
     return {
       title: `Purchase Order ${r.po_number}`,
@@ -178,7 +188,7 @@ export default function PurchaseOrdersPage() {
     };
   };
 
-  if (loading) return <LoadingState />;
+  if (isPending) return <LoadingState />;
 
   return (
     <div>

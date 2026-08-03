@@ -32,6 +32,7 @@
 | R-15 | Critical npm CVEs | Upgraded next/vitest/sentry (crit → 0) |
 | R-16 | Legacy `matches_tenant()` JWT `app_role` trust + `NULL == NULL` tenant bypass; permissive legacy `FOR ALL` policies | Migration `20260804000001` drops the seven legacy policies, hardens `matches_tenant()` (server-authoritative platform/elevated + strict non-null equality via `user_tenant_id()`), makes dead legacy tables deny-by-default, and locks `industry_templates` / `entity_metadata` to admin read; static contract tests `tests/security/legacy-lockdown.test.ts` |
 | R-17 | Client-first data access with per-page duplicate auth fetches and no shared query layer | Phase 12 frontend roadmap: typed TanStack Query layer over `/api/v2/crud` with cache invalidation, single `UserProvider` auth context in the root layout (permissions derived from `role_permissions`), server-paginated `PaginatedDataGrid`, module error/loading boundaries, and bundle budget enforcement; 7 flagship pages migrated (finance/coa, hr/employees, procurement/suppliers, crm/accounts, sales/orders, payroll/runs, production/batches) |
+| R-18 | Remaining client-first data access on unmigrated pages (e.g. `inventory/stock`) with per-page fetches and no shared query layer | Phase 13 frontend sweep: `useEntityAll` hook, 8 more pages on `/api/v2/crud` (quotations, leave, distributors, products, purchase orders, production orders, tickets, invoices), `public_holidays` + `sd_ticket_events` entity registrations, and `error.tsx`/`loading.tsx` boundaries for all 53 dashboard modules |
 
 ---
 

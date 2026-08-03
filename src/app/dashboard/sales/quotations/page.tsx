@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FileSignature, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,18 +18,15 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { apiGet } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function QuotationsPage() {
   const { auth } = useUser();
-  const [quotes, setQuotes] = useState<Array<Record<string, unknown>>>([]);
-  const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
-  const [products, setProducts] = useState<Array<{ id: string; name: string }>>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     customer_id: "",
@@ -40,26 +37,29 @@ export default function QuotationsPage() {
     valid_days: "14",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data: q }, { data: c }, { data: p }] = await Promise.all([
-      supabase
-        .from("quotations")
-        .select("*, customers(name)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("customers").select("id,name").eq("is_active", true),
-      supabase.from("products").select("id,name").eq("is_active", true),
-    ]);
-    setQuotes(q ?? []);
-    setCustomers(c ?? []);
-    setProducts(p ?? []);
-    setLoading(false);
-  };
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  const {
+    data: quotesData,
+    isPending,
+    refetch: refetchQuotes,
+  } = useEntityAll<Record<string, unknown>>("quotations", {
+    max: 100,
+    sort: "created_at",
+    order: "desc",
+    select: "*, customers(name)",
+  });
+  const { data: customersData } = useEntityAll<{ id: string; name: string }>(
+    "customers",
+    { max: 500, sort: "name", filters: { is_active: true } }
+  );
+  const { data: productsData } = useEntityAll<{ id: string; name: string }>(
+    "products",
+    { max: 500, sort: "name", filters: { is_active: true } }
+  );
 
-  useEffect(() => {
-    load();
-  }, []);
+  const quotes = quotesData ?? [];
+  const customers = customersData ?? [];
+  const products = productsData ?? [];
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,18 +113,21 @@ export default function QuotationsPage() {
     }
     toast.success(`Quotation ${num} issued`);
     setOpen(false);
-    load();
+    refetchQuotes();
   };
 
   const convertToOrder = async (quoteId: string) => {
     if (!auth) return;
-    const supabase = createClient();
     const quote = quotes.find((q) => q.id === quoteId);
     if (!quote) return;
-    const { data: lines } = await supabase
-      .from("quotation_lines")
-      .select("*")
-      .eq("quotation_id", quoteId);
+    const linesRes = await apiGet<{
+      data: Array<Record<string, unknown>>;
+    }>(
+      `/api/v2/crud/quotation_lines?filters=${encodeURIComponent(
+        JSON.stringify({ quotation_id: quoteId })
+      )}`
+    );
+    const lines = linesRes.ok ? linesRes.data.data : [];
     const orderNumber = `SO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
     const orderRes = await crudCreate("sales_orders", {
       order_number: orderNumber,
@@ -168,10 +171,10 @@ export default function QuotationsPage() {
       converted_order_id: orderId,
     });
     toast.success(`Converted to ${orderNumber}`);
-    load();
+    refetchQuotes();
   };
 
-  if (loading) return <LoadingState />;
+  if (isPending) return <LoadingState />;
 
   return (
     <div>

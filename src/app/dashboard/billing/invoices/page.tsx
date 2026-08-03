@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FileText, Plus, Printer, Check, Send, CreditCard, Trash2, Eye, Sparkles,
   Copy, RotateCcw, Ban, Mail,
@@ -27,6 +27,8 @@ import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { apiGet } from "@/lib/api-client";
 import {
   INVOICE_TYPES,
   PAYMENT_METHODS,
@@ -81,11 +83,6 @@ type Inv = {
 
 export default function BillingInvoicesPage() {
   const { auth } = useUser();
-  const [rows, setRows] = useState<Inv[]>([]);
-  const [customers, setCustomers] = useState<Array<Record<string, unknown>>>([]);
-  const [orders, setOrders] = useState<Array<{ id: string; order_number: string; customer_id: string | null; status: string }>>([]);
-  const [taxCodes, setTaxCodes] = useState<Array<{ tax_code: string; name: string; rate: number }>>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -121,33 +118,46 @@ export default function BillingInvoicesPage() {
   });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data: inv }, { data: cust }, { data: so }, { data: tax }] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("*, customers(name,billing_address,tax_id,vat_number,email)")
-        .order("created_at", { ascending: false })
-        .limit(300),
-      supabase.from("customers").select("*").eq("is_active", true).order("name").limit(300),
-      supabase
-        .from("sales_orders")
-        .select("id,order_number,customer_id,status")
-        .in("status", ["confirmed", "dispatched", "completed", "invoiced"])
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("bill_tax_codes").select("tax_code,name,rate").eq("is_active", true),
-    ]);
-    setRows((inv as Inv[]) ?? []);
-    setCustomers(cust ?? []);
-    setOrders(so ?? []);
-    setTaxCodes(tax ?? []);
-    setLoading(false);
-  };
+  // Reads flow through the hardened CRUD API (server-derived tenant/company).
+  const {
+    data: rowsData,
+    isPending,
+    refetch: refetchInvoices,
+  } = useEntityAll<Inv>("invoices", {
+    max: 300,
+    sort: "created_at",
+    order: "desc",
+    select: "*, customers(name,billing_address,tax_id,vat_number,email)",
+  });
+  const { data: customersData } = useEntityAll<Record<string, unknown>>(
+    "customers",
+    { max: 300, sort: "name", filters: { is_active: true } }
+  );
+  const { data: ordersData } = useEntityAll<{
+    id: string;
+    order_number: string;
+    customer_id: string | null;
+    status: string;
+  }>("sales_orders", {
+    max: 100,
+    sort: "created_at",
+    order: "desc",
+    select: "id,order_number,customer_id,status",
+    filters: { status: ["confirmed", "dispatched", "completed", "invoiced"] },
+  });
+  const { data: taxCodesData } = useEntityAll<{
+    tax_code: string;
+    name: string;
+    rate: number;
+  }>("bill_tax_codes", {
+    max: 200,
+    filters: { is_active: true },
+  });
 
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, []);
+  const rows = rowsData ?? [];
+  const customers = customersData ?? [];
+  const orders = ordersData ?? [];
+  const taxCodes = useMemo(() => taxCodesData ?? [], [taxCodesData]);
 
   const previewTotals = useMemo(
     () =>
@@ -216,7 +226,7 @@ export default function BillingInvoicesPage() {
         toast.success("Invoice created");
       }
       setOpen(false);
-      await load();
+      await refetchInvoices();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Create failed");
     } finally {
@@ -229,7 +239,7 @@ export default function BillingInvoicesPage() {
       const supabase = createClient();
       await approveInvoice(supabase, id, auth?.profile?.id);
       toast.success("Invoice approved / issued");
-      await load();
+      await refetchInvoices();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Approve failed");
     }
@@ -237,13 +247,12 @@ export default function BillingInvoicesPage() {
 
   const markSent = async (inv: Inv) => {
     try {
-      const supabase = createClient();
-      const crudRes3 = await crudUpdate("invoices", inv.id, {
+      await crudUpdate("invoices", inv.id, {
           sent_at: new Date().toISOString(),
           sent_via: "email",
           updated_at: new Date().toISOString(),
         });
-      const crudRes2 = await crudCreate("bill_delivery_logs", {
+      await crudCreate("bill_delivery_logs", {
         company_id: auth?.profile?.company_id,
         invoice_id: inv.id,
         channel: "email",
@@ -251,7 +260,7 @@ export default function BillingInvoicesPage() {
         status: "sent",
       });
       toast.success("Marked as delivered to customer");
-      await load();
+      await refetchInvoices();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -259,12 +268,12 @@ export default function BillingInvoicesPage() {
 
   const printInv = async (inv: Inv) => {
     try {
-      const supabase = createClient();
-      const { data: ls } = await supabase
-        .from("invoice_lines")
-        .select("*")
-        .eq("invoice_id", inv.id)
-        .order("sort_order");
+      const linesRes = await apiGet<{ data: Array<Record<string, unknown>> }>(
+        `/api/v2/crud/invoice_lines?filters=${encodeURIComponent(
+          JSON.stringify({ invoice_id: inv.id })
+        )}`
+      );
+      const ls = linesRes.ok ? linesRes.data.data : [];
       const html = buildInvoiceHtml({
         invoice_number: inv.invoice_number,
         invoice_type: inv.invoice_type,
@@ -279,12 +288,12 @@ export default function BillingInvoicesPage() {
         payment_terms_label: inv.payment_terms_label,
         po_number: inv.po_number,
         lines: (ls || []).map((l) => ({
-          description: l.description || "",
-          quantity: l.quantity,
-          unit: l.unit,
-          unit_price: l.unit_price,
-          tax_rate: l.tax_rate,
-          discount_pct: l.discount_pct,
+          description: String(l.description || ""),
+          quantity: Number(l.quantity || 0),
+          unit: l.unit ? String(l.unit) : undefined,
+          unit_price: Number(l.unit_price || 0),
+          tax_rate: l.tax_rate ? Number(l.tax_rate) : undefined,
+          discount_pct: l.discount_pct ? Number(l.discount_pct) : undefined,
           line_total:
             Number(l.quantity) *
             Number(l.unit_price) *
@@ -354,7 +363,7 @@ export default function BillingInvoicesPage() {
       });
       toast.success("Payment recorded");
       setPayOpen(false);
-      await load();
+      await refetchInvoices();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Payment failed");
     } finally {
@@ -363,27 +372,26 @@ export default function BillingInvoicesPage() {
   };
 
   const view = async (inv: Inv) => {
-    const supabase = createClient();
-    const { data: ls } = await supabase
-      .from("invoice_lines")
-      .select("*")
-      .eq("invoice_id", inv.id);
+    const linesRes = await apiGet<{ data: Array<Record<string, unknown>> }>(
+      `/api/v2/crud/invoice_lines?filters=${encodeURIComponent(
+        JSON.stringify({ invoice_id: inv.id })
+      )}`
+    );
     setSelected(inv);
-    setLines(ls ?? []);
+    setLines(linesRes.ok ? (linesRes.data.data as typeof lines) : []);
     setViewOpen(true);
   };
 
   const voidInv = async (id: string) => {
     if (!confirm("Void this invoice?")) return;
-    const supabase = createClient();
-    const crudRes = await crudUpdate("invoices", id, {
+    await crudUpdate("invoices", id, {
         status: "void",
         voided_at: new Date().toISOString(),
         void_reason: "Voided from billing console",
         updated_at: new Date().toISOString(),
       });
     toast.success("Invoice voided");
-    await load();
+    await refetchInvoices();
   };
 
   const dup = async (id: string) => {
@@ -391,7 +399,7 @@ export default function BillingInvoicesPage() {
       const supabase = createClient();
       const inv = await duplicateInvoice(supabase, id, auth?.profile?.id);
       toast.success(`Duplicated as ${inv.invoice_number}`);
-      await load();
+      await refetchInvoices();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Duplicate failed");
     }
@@ -403,7 +411,7 @@ export default function BillingInvoicesPage() {
       const supabase = createClient();
       const inv = await reverseInvoice(supabase, id, auth?.profile?.id);
       toast.success(`Reversal credit ${inv.invoice_number} created`);
-      await load();
+      await refetchInvoices();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Reverse failed");
     }
@@ -415,7 +423,7 @@ export default function BillingInvoicesPage() {
       const supabase = createClient();
       await cancelInvoice(supabase, id, "Cancelled from console");
       toast.success("Invoice cancelled");
-      await load();
+      await refetchInvoices();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Cancel failed");
     }
@@ -436,7 +444,7 @@ export default function BillingInvoicesPage() {
         due_date: inv.due_date,
       });
       toast.success("Invoice email queued/sent");
-      await load();
+      await refetchInvoices();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Email failed");
     }
@@ -449,7 +457,7 @@ export default function BillingInvoicesPage() {
       await bulkApproveInvoices(supabase, selectedIds, auth?.profile?.id);
       toast.success(`Approved ${selectedIds.length} invoices`);
       setSelectedIds([]);
-      await load();
+      await refetchInvoices();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Bulk approve failed");
     }
@@ -471,7 +479,7 @@ export default function BillingInvoicesPage() {
     );
   });
 
-  if (loading) return <LoadingState message="Loading invoices…" />;
+  if (isPending) return <LoadingState message="Loading invoices…" />;
 
   const openAr = rows
     .filter((r) => !["paid", "void", "cancelled"].includes(r.status))
