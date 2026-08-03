@@ -1,4 +1,20 @@
 # Changelog
+## 2026-08-03 - Phase 16: frontend roadmap (inventory module CRUD read migration)
+
+### Remaining inventory pages on the hardened data layer
+
+- `src/app/dashboard/inventory/adjustments/page.tsx` - adjustment grid migrated to `useEntityAll` with the status filter composed into the query key; warehouse/product reference reads resolved from CRUD + browser sets; writes stay on `crudCreate`/`crudUpdate` with per-row error handling
+- `src/app/dashboard/inventory/transfers/page.tsx` - transfer list migrated to `useEntityAll("stock_transfers")` (created_at desc, 100-row cap); warehouse names resolved join-free from the CRUD reference set (active filter for form selects); ship/receive writes keep the hardened `/api/inventory/transfers` server APIs; cache invalidated via `entityKeys.entity`
+- `src/app/dashboard/inventory/traceability/page.tsx` - batch trace events migrated to `useEntityAll` (event_at desc) with a client-side term filter; stock balances read through CRUD and filtered client-side for `batch_number`; warehouse/product labels resolved join-free
+- `src/app/dashboard/inventory/reservations/page.tsx` - stock reservations + inventory approvals migrated to `useEntityAll` (created_at desc; approvals filtered to reservation documents); `reserve_stock`/`release_reservation` RPCs unchanged and tenant-scoped; approval writes via `crudUpdate` with entity-key invalidation
+- `src/app/dashboard/inventory/cycle-counts/page.tsx` - count + line reads migrated to `useEntityAll` (line list keyed to the selected count via equality filter); seeding from `stock_balances` and variance posting through `fetchAllPages`/`crudCreate`/`crudUpdate` (engine eq-only filter limitation handled client-side); adjustment-line failures abort the balance update
+- `src/app/dashboard/inventory/grn/page.tsx` - goods receipts + lines migrated to `useEntityAll` (receipts created_at desc; lines keyed to the selected receipt by `grn_id`); `DocumentActions` print payload now reads lines via `fetchAllPages`; `accept_grn_line` RPC unchanged; product names resolved from the browser reference set
+- `src/app/dashboard/inventory/replenishment/page.tsx` - AI insights + warehouses migrated to `useEntityAll` (insight_type `in` filter composed into the query key); reorder generation reads `stock_balances` via `fetchAllPages` (1000-row cap); PR grid intentionally stays on the RLS-bound browser client (`procurement.view` CRUD gate vs the inventory roles, same decision as the hub); requisition writes count only successful CRUD creates
+
+### Validation
+
+- Typecheck, vitest (171), security suite (101), eslint (0 errors on changed files) - all green
+
 ## 2026-08-03 - Phase 15: frontend roadmap (inventory module CRUD read migration)
 
 ### Inventory hub, balances and locations on the hardened data layer

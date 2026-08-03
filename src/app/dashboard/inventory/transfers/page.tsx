@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRightLeft, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,16 +19,18 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
 import { apiPost } from "@/lib/api-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { entityKeys } from "@/lib/api/query-keys";
 import { toast } from "sonner";
 
+const EM = "—";
+
 export default function TransfersPage() {
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
-  const [products, setProducts] = useState<Array<{ id: string; name: string; product_code: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     from_warehouse_id: "",
@@ -39,33 +41,51 @@ export default function TransfersPage() {
     reason: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: wh }, { data: prod }] = await Promise.all([
-      supabase
-        .from("stock_transfers")
-        .select(
-          "*, from_wh:warehouses!stock_transfers_from_warehouse_id_fkey(name), to_wh:warehouses!stock_transfers_to_warehouse_id_fkey(name)"
-        )
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("warehouses").select("id,name").eq("is_active", true),
-      supabase
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked (inventory.view) and
+  // dual-key scoped. Warehouse names resolve join-free from the reference
+  // set; the product picker stays on the RLS-bound browser client
+  // (products.view vs the inventory.view warehouse roles).
+  const transfersQ = useEntityAll<Record<string, unknown>>("stock_transfers", {
+    sort: "created_at",
+    order: "desc",
+    max: 100,
+  });
+  const warehousesQ = useEntityAll<{
+    id: string;
+    name: string;
+    is_active: boolean;
+  }>("warehouses", { select: "id,name,is_active", sort: "name" });
+  const productsQ = useQuery({
+    queryKey: ["stock-transfers", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
         .select("id,name,product_code")
         .eq("is_active", true)
         .order("name")
-        .limit(200),
-    ]);
-    setRows(data ?? []);
-    setWarehouses(wh ?? []);
-    setProducts(prod ?? []);
-    setLoading(false);
-  };
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        name: string;
+        product_code: string;
+      }>;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const rows = transfersQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  // Form selects list active warehouses only; row names resolve from the
+  // full set so transfers to deactivated sites still display their names.
+  const activeWarehouses = warehouses.filter((w) => w.is_active);
+  const products = productsQ.data ?? [];
+  const loading =
+    transfersQ.isPending || warehousesQ.isPending || productsQ.isPending;
+
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
 
   const createTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +114,9 @@ export default function TransfersPage() {
         `Transfer ${res.data?.transfer?.transfer_number ?? ""} shipped`
       );
       setOpen(false);
-      load();
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("stock_transfers"),
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -107,7 +129,9 @@ export default function TransfersPage() {
       );
       if (!res.ok) throw new Error(res.error);
       toast.success("Transfer received into destination warehouse");
-      load();
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("stock_transfers"),
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -149,7 +173,7 @@ export default function TransfersPage() {
                         <SelectValue placeholder="Source" />
                       </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((w) => (
+                        {activeWarehouses.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name}
                           </SelectItem>
@@ -169,7 +193,7 @@ export default function TransfersPage() {
                         <SelectValue placeholder="Destination" />
                       </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((w) => (
+                        {activeWarehouses.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name}
                           </SelectItem>
@@ -261,15 +285,13 @@ export default function TransfersPage() {
             </TableHeader>
             <TableBody>
               {rows.map((r) => {
-                const fromWh = r.from_wh as { name?: string } | null;
-                const toWh = r.to_wh as { name?: string } | null;
                 return (
                   <TableRow key={String(r.id)}>
                     <TableCell className="font-mono text-sm">
                       {String(r.transfer_number)}
                     </TableCell>
-                    <TableCell>{fromWh?.name ?? "—"}</TableCell>
-                    <TableCell>{toWh?.name ?? "—"}</TableCell>
+                    <TableCell>{warehouseName(r.from_warehouse_id as string)}</TableCell>
+                    <TableCell>{warehouseName(r.to_warehouse_id as string)}</TableCell>
                     <TableCell>
                       {r.transfer_date
                         ? formatDate(String(r.transfer_date))

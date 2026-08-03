@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ClipboardCheck, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,21 +20,22 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DocumentActions } from "@/components/documents/document-actions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
 import { toast } from "sonner";
 import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityAll, fetchAllPages } from "@/hooks/use-entity-all";
+import { entityKeys } from "@/lib/api/query-keys";
+
+const EM = "—";
 
 export default function GrnPage() {
   const { auth } = useUser();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [lines, setLines] = useState<Array<Record<string, unknown>>>([]);
+  const queryClient = useQueryClient();
   const [selectedGrn, setSelectedGrn] = useState<string | null>(null);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
-  const [products, setProducts] = useState<Array<{ id: string; name: string; product_code: string; standard_cost: number }>>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     warehouse_id: "",
@@ -48,68 +49,99 @@ export default function GrnPage() {
     notes: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: wh }, { data: prod }] = await Promise.all([
-      supabase
-        .from("goods_receipts")
-        .select("*, warehouses(name, code)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("warehouses").select("id,name").eq("is_active", true),
-      supabase
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked (inventory.view) and
+  // dual-key scoped. GRN lines load per selected receipt via an equality
+  // filter; product names resolve from the RLS-bound browser client
+  // (products.view vs the inventory.view gate here).
+  const grnsQ = useEntityAll<Record<string, unknown>>("goods_receipts", {
+    sort: "created_at",
+    order: "desc",
+    max: 100,
+  });
+  const linesQ = useEntityAll<Record<string, unknown>>(
+    "goods_receipt_lines",
+    {
+      filters: { grn_id: selectedGrn ?? undefined },
+      sort: "line_number",
+      max: 500,
+    },
+    { enabled: !!selectedGrn }
+  );
+  const warehousesQ = useEntityAll<{
+    id: string;
+    name: string;
+    code: string | null;
+    is_active: boolean;
+  }>("warehouses", { select: "id,name,code,is_active", sort: "name" });
+  const productsQ = useQuery({
+    queryKey: ["grn", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
         .select("id,name,product_code,standard_cost")
         .eq("is_active", true)
         .order("name")
-        .limit(200),
-    ]);
-    setRows(data ?? []);
-    setWarehouses(wh ?? []);
-    setProducts((prod as typeof products) ?? []);
-    setLoading(false);
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        name: string;
+        product_code: string;
+        standard_cost: number;
+      }>;
+    },
+  });
+
+  const rows = grnsQ.data ?? [];
+  const lines = linesQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  // Form selects list active warehouses only; row names resolve from the
+  // full set so receipts against deactivated sites still display.
+  const activeWarehouses = warehouses.filter((w) => w.is_active);
+  const products = productsQ.data ?? [];
+  const productsMap = new Map(products.map((p) => [p.id, p]));
+  const loading =
+    grnsQ.isPending || warehousesQ.isPending || productsQ.isPending;
+
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
+  const warehouseLabel = (id: string | null | undefined) => {
+    const w = warehouses.find((x) => x.id === id);
+    return w ? (w.code ? `${w.code} · ${w.name}` : w.name) : EM;
   };
 
-  const loadLines = async (grnId: string) => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("goods_receipt_lines")
-      .select("*, products(name, product_code)")
-      .eq("grn_id", grnId)
-      .order("line_number");
-    setLines(data ?? []);
-    setSelectedGrn(grnId);
+  const invalidate = (...entities: string[]) => {
+    for (const entity of entities) {
+      queryClient.invalidateQueries({ queryKey: entityKeys.entity(entity) });
+    }
   };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const createGrn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth?.profile) return;
     if (!form.warehouse_id || !form.product_id) {
       toast.error("Warehouse and product required");
       return;
     }
-    const supabase = createClient();
     const grnNumber = `GRN-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const product = products.find((p) => p.id === form.product_id);
     const unitCost = Number(form.unit_cost || product?.standard_cost || 0);
     const qty = Number(form.qty_received || 0);
 
     const crudRes2 = await crudCreate("goods_receipts", {
-        company_id: auth.profile.company_id,
-        grn_number: grnNumber,
-        warehouse_id: form.warehouse_id,
-        supplier_name: form.supplier_name || null,
-        purchase_order_ref: form.purchase_order_ref || null,
-        delivery_note_ref: form.delivery_note_ref || null,
-        status: "pending_inspection",
-        notes: form.notes || null,
-        received_by: auth.profile.id,
-        created_by: auth.profile.id,
-      });
+      company_id: auth.profile.company_id,
+      grn_number: grnNumber,
+      warehouse_id: form.warehouse_id,
+      supplier_name: form.supplier_name || null,
+      purchase_order_ref: form.purchase_order_ref || null,
+      delivery_note_ref: form.delivery_note_ref || null,
+      status: "pending_inspection",
+      notes: form.notes || null,
+      received_by: auth.profile.id,
+      created_by: auth.profile.id,
+    });
     if (!crudRes2.ok) {
       toast.error(crudRes2.error ?? "Failed to create GRN");
       return;
@@ -133,7 +165,7 @@ export default function GrnPage() {
     else {
       toast.success(`Created ${grnNumber}`);
       setOpen(false);
-      load();
+      invalidate("goods_receipts", "goods_receipt_lines");
     }
   };
 
@@ -147,8 +179,7 @@ export default function GrnPage() {
     if (error) toast.error(error.message);
     else {
       toast.success("Stock accepted into warehouse");
-      if (selectedGrn) loadLines(selectedGrn);
-      load();
+      invalidate("goods_receipts", "goods_receipt_lines");
     }
   };
 
@@ -186,7 +217,7 @@ export default function GrnPage() {
                         <SelectValue placeholder="Select warehouse" />
                       </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((w) => (
+                        {activeWarehouses.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name}
                           </SelectItem>
@@ -317,20 +348,21 @@ export default function GrnPage() {
               </TableHeader>
               <TableBody>
                 {rows.map((r) => {
-                  const wh = r.warehouses as { name?: string } | null;
                   return (
                     <TableRow
                       key={String(r.id)}
                       className="cursor-pointer"
-                      onClick={() => loadLines(String(r.id))}
+                      onClick={() => setSelectedGrn(String(r.id))}
                     >
                       <TableCell className="font-mono text-sm">
                         {String(r.grn_number)}
                       </TableCell>
-                      <TableCell>{wh?.name ?? "—"}</TableCell>
-                      <TableCell>{String(r.supplier_name ?? "—")}</TableCell>
                       <TableCell>
-                        {r.receipt_date ? formatDate(String(r.receipt_date)) : "—"}
+                        {warehouseName(r.warehouse_id as string)}
+                      </TableCell>
+                      <TableCell>{String(r.supplier_name ?? EM)}</TableCell>
+                      <TableCell>
+                        {r.receipt_date ? formatDate(String(r.receipt_date)) : EM}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={String(r.status)} />
@@ -341,11 +373,11 @@ export default function GrnPage() {
                           size="sm"
                           variant="ghost"
                           doc={async (): Promise<BusinessDocument> => {
-                            const supabase = createClient();
-                            const { data: glines } = await supabase
-                              .from("goods_receipt_lines")
-                              .select("*")
-                              .eq("grn_id", String(r.id));
+                            const glines = await fetchAllPages<
+                              Record<string, unknown>
+                            >("goods_receipt_lines", {
+                              filters: { grn_id: String(r.id) },
+                            });
                             return {
                               title: `GRN ${r.grn_number}`,
                               docType: "Goods Received Note",
@@ -355,18 +387,20 @@ export default function GrnPage() {
                                 : undefined,
                               status: String(r.status),
                               billToLabel: "Supplier",
-                              billToName: String(r.supplier_name ?? "—"),
+                              billToName: String(r.supplier_name ?? EM),
                               meta: [
                                 {
                                   label: "Warehouse",
-                                  value: wh?.name ?? "—",
+                                  value: warehouseLabel(
+                                    r.warehouse_id as string
+                                  ),
                                 },
                                 {
                                   label: "PO ref",
-                                  value: String(r.purchase_order_ref ?? "—"),
+                                  value: String(r.purchase_order_ref ?? EM),
                                 },
                               ],
-                              lines: (glines ?? []).map((l) => ({
+                              lines: glines.map((l) => ({
                                 description: String(l.item_description),
                                 quantity: Number(l.qty_received),
                                 unit: String(l.uom || "EA"),
@@ -402,20 +436,20 @@ export default function GrnPage() {
             ) : (
               <div className="space-y-3">
                 {lines.map((l) => {
-                  const prod = l.products as {
-                    name?: string;
-                    product_code?: string;
-                  } | null;
-                  const qty = Number(l.qty_received || 0) - Number(l.qty_damaged || 0);
+                  const prod = productsMap.get(String(l.product_id));
+                  const qty =
+                    Number(l.qty_received || 0) - Number(l.qty_damaged || 0);
                   return (
                     <div key={String(l.id)} className="rounded border p-3 space-y-2">
                       <div className="flex justify-between gap-2">
                         <div>
                           <div className="font-medium">
-                            {prod?.product_code ?? ""} {prod?.name ?? String(l.item_description)}
+                            {prod
+                              ? `${prod.product_code} ${prod.name}`
+                              : String(l.item_description)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Batch {String(l.batch_number ?? "—")} · Received{" "}
+                            Batch {String(l.batch_number ?? EM)} · Received{" "}
                             {formatNumber(Number(l.qty_received))} · Cost{" "}
                             {formatNumber(Number(l.unit_cost))}
                           </div>

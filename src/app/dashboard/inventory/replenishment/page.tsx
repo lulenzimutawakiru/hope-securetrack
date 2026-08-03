@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { RefreshCw, Plus, Brain } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,31 +21,17 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll, fetchAllPages } from "@/hooks/use-entity-all";
 
 export default function ReplenishmentPage() {
   const { auth } = useUser();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [insights, setInsights] = useState<Array<Record<string, unknown>>>([]);
-  const [products, setProducts] = useState<
-    Array<{
-      id: string;
-      name: string;
-      product_code: string;
-      reorder_level: number;
-      reorder_qty: number;
-      safety_stock: number;
-      standard_cost: number;
-      lead_time_days: number;
-      preferred_supplier_name: string | null;
-    }>
-  >([]);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     product_id: "",
@@ -55,52 +41,94 @@ export default function ReplenishmentPage() {
     source: "manual",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: prod }, { data: wh }, { data: ins }] = await Promise.all([
-      supabase
+  // The PR grid stays on the RLS-bound browser client: the CRUD gate for
+  // purchase_requisitions is procurement.view while this page serves the
+  // inventory roles (same decision as the inventory hub). Insights and
+  // warehouses flow through the hardened CRUD API (inventory.view), and the
+  // stock-balance read used by reorder generation is tenant/company-scoped
+  // server-side too. Products remain browser-side (products.view).
+  const prQ = useQuery({
+    queryKey: ["replenishment", "purchase-requisitions"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("purchase_requisitions")
         .select("*, products(name, product_code), warehouses(name)")
         .order("created_at", { ascending: false })
-        .limit(100),
-      supabase
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as Array<Record<string, unknown>>;
+    },
+  });
+  const insightsQ = useEntityAll<Record<string, unknown>>("inventory_insights", {
+    filters: {
+      status: "open",
+      insight_type: ["reorder", "stockout_prediction", "overstock"],
+    },
+    sort: "created_at",
+    order: "desc",
+    max: 5,
+  });
+  const warehousesQ = useEntityAll<{
+    id: string;
+    name: string;
+    is_active: boolean;
+  }>("warehouses", { select: "id,name,is_active", sort: "name" });
+  const productsQ = useQuery({
+    queryKey: ["replenishment", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
         .select(
           "id,name,product_code,reorder_level,reorder_qty,safety_stock,standard_cost,lead_time_days,preferred_supplier_name"
         )
         .eq("is_active", true)
         .order("name")
-        .limit(200),
-      supabase.from("warehouses").select("id,name").eq("is_active", true),
-      supabase
-        .from("inventory_insights")
-        .select("*")
-        .in("insight_type", ["reorder", "stockout_prediction", "overstock"])
-        .eq("status", "open")
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-    setRows(data ?? []);
-    setProducts((prod as typeof products) ?? []);
-    setWarehouses(wh ?? []);
-    setInsights(ins ?? []);
-    setLoading(false);
-  };
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        name: string;
+        product_code: string;
+        reorder_level: number;
+        reorder_qty: number;
+        safety_stock: number;
+        standard_cost: number;
+        lead_time_days: number;
+        preferred_supplier_name: string | null;
+      }>;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const rows = prQ.data ?? [];
+  const insights = insightsQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  // Form selects list active warehouses only; the first warehouse is still
+  // used as the default destination for reorder-generated requisitions.
+  const activeWarehouses = warehouses.filter((w) => w.is_active);
+  const products = productsQ.data ?? [];
+  const loading =
+    prQ.isPending ||
+    productsQ.isPending ||
+    warehousesQ.isPending ||
+    insightsQ.isPending;
+
+  const refreshPRs = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["replenishment", "purchase-requisitions"],
+    });
+  };
 
   const createReq = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth?.profile) return;
     const product = products.find((p) => p.id === form.product_id);
     const qty = Number(form.quantity || product?.reorder_qty || 0);
     if (!form.product_id || !qty) {
       toast.error("Product and quantity required");
       return;
     }
-    const supabase = createClient();
     const num = `PR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const unit = Number(product?.standard_cost || 0);
     const crudRes3 = await crudCreate("purchase_requisitions", {
@@ -124,13 +152,12 @@ export default function ReplenishmentPage() {
     else {
       toast.success(`Requisition ${num} created`);
       setOpen(false);
-      load();
+      refreshPRs();
     }
   };
 
   const setStatus = async (id: string, status: string) => {
-    if (!auth) return;
-    const supabase = createClient();
+    if (!auth?.profile) return;
     const patch: Record<string, unknown> = { status };
     if (status === "approved") {
       patch.approved_by = auth.profile.id;
@@ -140,19 +167,25 @@ export default function ReplenishmentPage() {
     if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
       toast.success(`Marked ${status}`);
-      load();
+      refreshPRs();
     }
   };
 
   const generateFromReorder = async () => {
-    if (!auth || !warehouses[0]) return;
-    const supabase = createClient();
-    const { data: balances } = await supabase
-      .from("stock_balances")
-      .select("product_id, quantity_on_hand, warehouse_id");
+    if (!auth?.profile || !warehouses[0]) return;
+    let balances: Array<Record<string, unknown>> = [];
+    try {
+      balances = await fetchAllPages<Record<string, unknown>>("stock_balances", {
+        select: "product_id,quantity_on_hand,warehouse_id",
+        max: 1000,
+      });
+    } catch {
+      toast.error("Failed to load stock balances");
+      return;
+    }
     let created = 0;
     for (const p of products) {
-      const bal = (balances ?? []).find((b) => b.product_id === p.id);
+      const bal = balances.find((b) => b.product_id === p.id);
       const onHand = Number(bal?.quantity_on_hand || 0);
       const reorder = Number(p.reorder_level || 0);
       if (reorder > 0 && onHand <= reorder) {
@@ -174,11 +207,15 @@ export default function ReplenishmentPage() {
           priority: onHand <= Number(p.safety_stock || 0) ? "high" : "medium",
           created_by: auth.profile.id,
         });
+        if (!crudRes.ok) {
+          toast.error(crudRes.error ?? "Failed to create requisition");
+          continue;
+        }
         created++;
       }
     }
     toast.success(created ? `Created ${created} requisition(s)` : "No SKUs at reorder level");
-    load();
+    refreshPRs();
   };
 
   if (loading) return <LoadingState />;
@@ -244,7 +281,7 @@ export default function ReplenishmentPage() {
                         <SelectValue placeholder="Warehouse" />
                       </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((w) => (
+                        {activeWarehouses.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name}
                           </SelectItem>

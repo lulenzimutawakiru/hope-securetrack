@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { BookmarkPlus, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,18 +19,18 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { entityKeys } from "@/lib/api/query-keys";
 import { toast } from "sonner";
 
+const EM = "—";
 const PURPOSES = ["sales_order", "production", "project", "department", "other"];
 
 export default function ReservationsPage() {
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [approvals, setApprovals] = useState<Array<Record<string, unknown>>>([]);
-  const [products, setProducts] = useState<Array<{ id: string; name: string; product_code: string }>>([]);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     product_id: "",
@@ -41,33 +41,76 @@ export default function ReservationsPage() {
     notes: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: prod }, { data: wh }, { data: ap }] = await Promise.all([
-      supabase
-        .from("stock_reservations")
-        .select("*, products(name, product_code), warehouses(name)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("products").select("id,name,product_code").eq("is_active", true).order("name").limit(200),
-      supabase.from("warehouses").select("id,name").eq("is_active", true),
-      supabase
-        .from("inventory_approvals")
-        .select("*")
-        .eq("document_type", "reservation")
-        .order("created_at", { ascending: false })
-        .limit(30),
-    ]);
-    setRows(data ?? []);
-    setProducts(prod ?? []);
-    setWarehouses(wh ?? []);
-    setApprovals(ap ?? []);
-    setLoading(false);
-  };
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked (inventory.view) and
+  // dual-key scoped. Product names resolve from the RLS-bound browser
+  // client (products.view vs the inventory.view gate here); warehouses come
+  // from the CRUD surface. Reserve/release keep the RPC engine, which is
+  // tenant-scoped and writes audit rows.
+  const rowsQ = useEntityAll<Record<string, unknown>>("stock_reservations", {
+    sort: "created_at",
+    order: "desc",
+    max: 100,
+  });
+  const approvalsQ = useEntityAll<Record<string, unknown>>(
+    "inventory_approvals",
+    {
+      filters: { document_type: "reservation" },
+      sort: "created_at",
+      order: "desc",
+      max: 30,
+    }
+  );
+  const warehousesQ = useEntityAll<{
+    id: string;
+    name: string;
+    is_active: boolean;
+  }>("warehouses", { select: "id,name,is_active", sort: "name" });
+  const productsQ = useQuery({
+    queryKey: ["reservations", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("products")
+        .select("id,name,product_code")
+        .eq("is_active", true)
+        .order("name")
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        name: string;
+        product_code: string;
+      }>;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const rows = rowsQ.data ?? [];
+  const approvals = approvalsQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  const activeWarehouses = warehouses.filter((w) => w.is_active);
+  const products = productsQ.data ?? [];
+  const productsMap = new Map(products.map((p) => [p.id, p]));
+  const productLabel = (id: string | null | undefined) => {
+    const p = productsMap.get(id ?? "");
+    return p ? `${p.product_code} ${EM} ${p.name}` : EM;
+  };
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
+  const loading =
+    rowsQ.isPending ||
+    approvalsQ.isPending ||
+    warehousesQ.isPending ||
+    productsQ.isPending;
+
+  const invalidateReservations = () =>
+    queryClient.invalidateQueries({
+      queryKey: entityKeys.entity("stock_reservations"),
+    });
+  const invalidateApprovals = () =>
+    queryClient.invalidateQueries({
+      queryKey: entityKeys.entity("inventory_approvals"),
+    });
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +127,8 @@ export default function ReservationsPage() {
     else {
       toast.success("Stock reserved");
       setOpen(false);
-      load();
+      invalidateReservations();
+      invalidateApprovals();
     }
   };
 
@@ -96,7 +140,7 @@ export default function ReservationsPage() {
     if (error) toast.error(error.message);
     else {
       toast.success("Reservation released");
-      load();
+      invalidateReservations();
     }
   };
 
@@ -136,7 +180,7 @@ export default function ReservationsPage() {
                       <SelectContent>
                         {products.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.product_code} — {p.name}
+                            {p.product_code} {EM} {p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -152,7 +196,7 @@ export default function ReservationsPage() {
                         <SelectValue placeholder="Warehouse" />
                       </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((w) => (
+                        {activeWarehouses.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name}
                           </SelectItem>
@@ -233,45 +277,39 @@ export default function ReservationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => {
-                const prod = r.products as { name?: string; product_code?: string } | null;
-                const wh = r.warehouses as { name?: string } | null;
-                return (
-                  <TableRow key={String(r.id)}>
-                    <TableCell className="font-mono text-sm">
-                      {String(r.reservation_number)}
-                      {r.reference_number ? (
-                        <div className="text-xs text-muted-foreground">
-                          Ref {String(r.reference_number)}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      {prod?.product_code} — {prod?.name}
-                    </TableCell>
-                    <TableCell>{wh?.name ?? "—"}</TableCell>
-                    <TableCell className="capitalize">
-                      {String(r.purpose).replace(/_/g, " ")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatNumber(Number(r.quantity))}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={String(r.status)} />
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {r.created_at ? formatDateTime(String(r.created_at)) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {r.status === "active" && (
-                        <Button size="sm" variant="outline" onClick={() => release(String(r.id))}>
-                          Release
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {rows.map((r) => (
+                <TableRow key={String(r.id)}>
+                  <TableCell className="font-mono text-sm">
+                    {String(r.reservation_number)}
+                    {r.reference_number ? (
+                      <div className="text-xs text-muted-foreground">
+                        Ref {String(r.reference_number)}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{productLabel(r.product_id as string)}</TableCell>
+                  <TableCell>{warehouseName(r.warehouse_id as string)}</TableCell>
+                  <TableCell className="capitalize">
+                    {String(r.purpose).replace(/_/g, " ")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatNumber(Number(r.quantity))}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={String(r.status)} />
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {r.created_at ? formatDateTime(String(r.created_at)) : EM}
+                  </TableCell>
+                  <TableCell>
+                    {r.status === "active" && (
+                      <Button size="sm" variant="outline" onClick={() => release(String(r.id))}>
+                        Release
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
@@ -299,14 +337,14 @@ export default function ReservationsPage() {
               approvals.map((a) => (
                 <TableRow key={String(a.id)}>
                   <TableCell className="font-mono text-sm">
-                    {String(a.document_number ?? "—")}
+                    {String(a.document_number ?? EM)}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={String(a.action)} />
                   </TableCell>
-                  <TableCell className="text-sm">{String(a.comments ?? "—")}</TableCell>
+                  <TableCell className="text-sm">{String(a.comments ?? EM)}</TableCell>
                   <TableCell className="text-sm">
-                    {a.created_at ? formatDateTime(String(a.created_at)) : "—"}
+                    {a.created_at ? formatDateTime(String(a.created_at)) : EM}
                   </TableCell>
                 </TableRow>
               ))

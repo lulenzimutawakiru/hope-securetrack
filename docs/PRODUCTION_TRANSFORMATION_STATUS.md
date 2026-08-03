@@ -25,6 +25,20 @@ SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 
 | Known limitation: `qr_codes` RLS update policy is restricted to QR/production roles, so warehouse-manager moves do not mirror QR status (matches legacy behavior; logged via warn) - flagged for a follow-up RLS/registry permission alignment | Tracked |
 | Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
 
+## Phase 16 (2026-08-03) - frontend roadmap (inventory module CRUD read migration)
+
+| Deliverable | Status |
+|------------|--------|
+| `inventory/adjustments` migrated - `useEntityAll` grid read (status filter in query key), CRUD + browser reference sets, `crudCreate`/`crudUpdate` writes with per-row error handling | Live |
+| `inventory/transfers` migrated - `useEntityAll("stock_transfers")` list read (created_at desc), join-free warehouse name resolution, ship/receive via hardened `/api/inventory/transfers` server APIs, entity-key cache invalidation | Live |
+| `inventory/traceability` migrated - `useEntityAll` batch trace events (event_at desc) + CRUD stock-balance read with client-side `batch_number` filter, join-free labels | Live |
+| `inventory/reservations` migrated - `useEntityAll` reservations + approvals (approvals filtered to reservation documents), tenant-scoped reserve/release RPCs unchanged, `crudUpdate` approval writes | Live |
+| `inventory/cycle-counts` migrated - count + line reads on `useEntityAll` (lines keyed to selected count), `stock_balances` seeding + variance posting via `fetchAllPages`/`crudCreate`/`crudUpdate`, client-side variance filter (engine eq-only) | Live |
+| `inventory/grn` migrated - receipts + lines on `useEntityAll` (lines keyed by `grn_id`), `DocumentActions` print payload via `fetchAllPages`, `accept_grn_line` RPC unchanged | Live |
+| `inventory/replenishment` migrated - insights + warehouses on `useEntityAll` (insight_type `in` filter), reorder generation reads `stock_balances` via `fetchAllPages`; PR grid stays browser-side by design (`procurement.view` CRUD gate vs inventory roles, same decision as hub) | Live |
+| Remaining browser-side inventory reads: `inventory/control`, `inventory/reports`, `inventory/valuation` - tracked as R-21 (next phase) | Tracked |
+| Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
+
 ## Phase 15 (2026-08-03) - frontend roadmap (inventory module CRUD read migration)
 
 | Deliverable | Status |

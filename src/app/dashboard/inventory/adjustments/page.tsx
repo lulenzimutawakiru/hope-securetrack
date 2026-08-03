@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { SlidersHorizontal, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,10 +19,15 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { apiPost } from "@/lib/api-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { entityKeys } from "@/lib/api/query-keys";
 import { toast } from "sonner";
+
+const EM = "—";
 
 const ADJ_TYPES = [
   "cycle_count",
@@ -36,12 +41,7 @@ const ADJ_TYPES = [
 ] as const;
 
 export default function AdjustmentsPage() {
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
-  const [products, setProducts] = useState<
-    Array<{ id: string; name: string; product_code: string; average_cost: number }>
-  >([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     warehouse_id: "",
@@ -51,31 +51,61 @@ export default function AdjustmentsPage() {
     reason: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: wh }, { data: prod }] = await Promise.all([
-      supabase
-        .from("stock_adjustments")
-        .select("*, warehouses(name), stock_adjustment_lines(*)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("warehouses").select("id,name").eq("is_active", true),
-      supabase
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked (inventory.view) and
+  // dual-key scoped. Adjustment deltas are computed join-free from the
+  // line set grouped client-side; the product picker stays on the
+  // RLS-bound browser client (products.view vs inventory.view roles).
+  const adjustmentsQ = useEntityAll<Record<string, unknown>>(
+    "stock_adjustments",
+    { sort: "created_at", order: "desc", max: 100 }
+  );
+  const linesQ = useEntityAll<Record<string, unknown>>(
+    "stock_adjustment_lines",
+    { sort: "created_at", order: "desc", max: 500 }
+  );
+  const warehousesQ = useEntityAll<{ id: string; name: string }>("warehouses", {
+    select: "id,name",
+    sort: "name",
+    filters: { is_active: true },
+  });
+  const productsQ = useQuery({
+    queryKey: ["stock-adjustments", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
         .select("id,name,product_code,average_cost,standard_cost")
         .eq("is_active", true)
         .order("name")
-        .limit(200),
-    ]);
-    setRows(data ?? []);
-    setWarehouses(wh ?? []);
-    setProducts((prod as typeof products) ?? []);
-    setLoading(false);
-  };
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        name: string;
+        product_code: string;
+        average_cost: number;
+      }>;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const rows = adjustmentsQ.data ?? [];
+  const adjustmentLines = linesQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  const products = productsQ.data ?? [];
+  const linesByAdjustment = new Map<string, Array<Record<string, unknown>>>();
+  for (const l of adjustmentLines) {
+    const key = String(l.adjustment_id ?? "");
+    if (!key) continue;
+    const arr = linesByAdjustment.get(key);
+    if (arr) arr.push(l);
+    else linesByAdjustment.set(key, [l]);
+  }
+  const loading =
+    adjustmentsQ.isPending || linesQ.isPending || warehousesQ.isPending || productsQ.isPending;
+
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
 
   const createAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +134,12 @@ export default function AdjustmentsPage() {
         `Adjustment ${res.data?.adjustment?.adjustment_number ?? ""} posted`
       );
       setOpen(false);
-      load();
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("stock_adjustments"),
+      });
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("stock_adjustment_lines"),
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -250,10 +285,7 @@ export default function AdjustmentsPage() {
             </TableHeader>
             <TableBody>
               {rows.map((r) => {
-                const wh = r.warehouses as { name?: string } | null;
-                const lines = (r.stock_adjustment_lines as Array<{
-                  qty_delta?: number;
-                }>) ?? [];
+                const lines = linesByAdjustment.get(String(r.id)) ?? [];
                 const delta = lines.reduce(
                   (s, l) => s + Number(l.qty_delta || 0),
                   0
@@ -263,7 +295,7 @@ export default function AdjustmentsPage() {
                     <TableCell className="font-mono text-sm">
                       {String(r.adjustment_number)}
                     </TableCell>
-                    <TableCell>{wh?.name ?? "—"}</TableCell>
+                    <TableCell>{warehouseName(r.warehouse_id as string)}</TableCell>
                     <TableCell className="capitalize">
                       {String(r.adjustment_type).replace(/_/g, " ")}
                     </TableCell>
