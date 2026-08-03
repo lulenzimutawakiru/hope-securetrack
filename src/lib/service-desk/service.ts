@@ -12,7 +12,14 @@ function pad(n: number, w = 5) {
   return String(n).padStart(w, "0");
 }
 
+/** Atomic, race-safe ticket number via DB sequence (SECURITY DEFINER RPC). */
 export async function nextTicketNumber(companyId: string): Promise<string> {
+  const { data, error } = await sb().rpc("next_support_ticket_number", {
+    p_company_id: companyId,
+  });
+  if (!error && data) return String(data);
+
+  // Fallback if migration not yet applied (dev only path)
   const year = new Date().getFullYear();
   const { count } = await sb()
     .from("support_tickets")
@@ -26,6 +33,9 @@ export async function nextNumber(
   table: string,
   prefix: string
 ): Promise<string> {
+  if (table === "support_tickets" || prefix === "SD") {
+    return nextTicketNumber(companyId);
+  }
   const year = new Date().getFullYear();
   const { count } = await sb()
     .from(table)
@@ -395,20 +405,23 @@ export async function escalateTicket(input: {
     actor_name: input.actor_name,
     is_public: false,
   });
-  // Bump priority if not already critical
+  // Bump priority if not already critical; persist escalation level
   const { data: t } = await sb()
     .from("support_tickets")
-    .select("priority")
+    .select("priority,escalation_level")
     .eq("id", input.ticket_id)
     .single();
+  const patch: Record<string, unknown> = {
+    escalation_level: input.level,
+    escalated_at: new Date().toISOString(),
+    last_escalation_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
   if (t && t.priority !== "critical" && input.level >= 2) {
-    const next =
+    patch.priority =
       t.priority === "low" ? "medium" : t.priority === "medium" ? "high" : "critical";
-    await sb()
-      .from("support_tickets")
-      .update({ priority: next, updated_at: new Date().toISOString() })
-      .eq("id", input.ticket_id);
   }
+  await sb().from("support_tickets").update(patch).eq("id", input.ticket_id);
 }
 
 export async function softDeleteTicket(ticketId: string) {

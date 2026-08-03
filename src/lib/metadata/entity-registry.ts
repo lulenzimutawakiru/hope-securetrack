@@ -693,8 +693,8 @@ defineEntity("shift_templates", "shift_templates", "wfm", {
 // ---- Service desk ------------------------------------------------------
 defineEntity("support_tickets", "support_tickets", "sd", {
   view: "sd.view",
-  create: "sd.agent",
-  update: "sd.manage",
+  create: "sd.portal",
+  update: "sd.agent",
   delete: "sd.admin",
 }, {
   softDelete: true,
@@ -706,7 +706,7 @@ defineEntity("support_tickets", "support_tickets", "sd", {
 
 defineEntity("sd_ticket_events", "sd_ticket_events", "sd", {
   view: "sd.view",
-  create: "sd.agent",
+  create: "sd.portal",
   update: "sd.manage",
   delete: "sd.admin",
 }, {

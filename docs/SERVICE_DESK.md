@@ -7,7 +7,37 @@ SecureTrack ERP — enterprise service desk / case management platform targeting
 ```text
 supabase/migrations/20260101000030_enterprise_service_desk_itsm.sql
 supabase/migrations/20260101000042_enterprise_ticketing_advanced.sql
+supabase/migrations/20260805000006_service_desk_enterprise.sql
+supabase/migrations/20260805000007_service_desk_ai_cx.sql
+supabase/migrations/20260806000001_servicedesk_rls_numbering_sla.sql
+supabase/migrations/20260806000002_servicedesk_rls_numbering_sla_fix.sql
 ```
+
+### 20260806000001 (ESM security + SLA engine)
+
+- **RLS #1** — `support_tickets` insert allows `sd.portal` (self-service create); update restricted to agents (sd.manage / sd.agent / sd.admin); requesters create via portal and comment through sd_ticket_events
+- **RLS #2** — `sd_ticket_events` insert allows portal + ticket creator/assignee (comments/timeline no longer blocked)
+- **Ticket numbering** — atomic `next_support_ticket_number(company_id)` via `document_sequences` (`support_ticket`) with row lock
+- **SLA columns** — escalation_level, breach flags, notification throttle timestamps
+- **Realtime** — `support_tickets`, `sd_ticket_events`, `sd_messages`, `sd_inbound_items` on `supabase_realtime`
+
+### 20260806000002 (tenant hardening follow-up)
+
+- **Revoke over-grant** - removes historical `sd.agent` grant from non-service roles (exec, manager, HR, finance, ops, sales, procurement, auditor); auditor reduced to view/portal
+- **Tenant columns** - adds `tenant_id` + FK + NOT NULL + backfill + `tenant_isolation_restrict` policy + auto-set trigger to `sd_messages` and `sd_inbound_items`
+- **Auto-set triggers** - `sd_ticket_events`, `sd_ai_sessions` derive tenant_id from company
+- **Re-asserts** - `support_tickets` tenant column/FK/trigger/policy and agents-only UPDATE policy (idempotent)
+
+## API-first surface
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST/GET | `/api/v2/servicedesk/tickets` | Create / list tickets (session tenant) |
+| POST/GET | `/api/v2/servicedesk/inbound` | Omni-channel ingestion + inbox |
+| POST | `/api/v2/servicedesk/ai/triage` | AI triage (+ optional ticket create + LLM enrich) |
+| GET/POST | `/api/v2/servicedesk/sla/cron` | SLA warning/breach + escalation engine (CRON_SECRET) |
+
+Cron (Vercel): every 5 min SLA scan; every 2 min job worker.
 
 ### 00030 (core ITSM)
 

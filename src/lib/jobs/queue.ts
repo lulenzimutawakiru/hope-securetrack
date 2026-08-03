@@ -11,6 +11,7 @@ export type JobType =
   | "webhook.deliver"
   | "siem.forward"
   | "payroll.async_process"
+  | "servicedesk.sla_scan"
   | "domain_event.consume"
   | "import.batch"
   | "generic";
@@ -303,6 +304,29 @@ export function defaultJobHandlers(deps: {
         return { ok: true };
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : "webhook failed" };
+      }
+    },
+    "servicedesk.sla_scan": async (job) => {
+      try {
+        const { runSlaEscalationScan } = await import(
+          "@/lib/service-desk/sla-engine"
+        );
+        const companyId = String(
+          job.company_id || job.payload?.company_id || ""
+        );
+        const result = await runSlaEscalationScan(deps.admin, {
+          companyId: companyId || undefined,
+          limit: Number(job.payload?.limit || 200) || 200,
+        });
+        if (result.errors.length && !result.scanned) {
+          return { ok: false, error: result.errors[0] };
+        }
+        return { ok: true };
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : "sla scan failed",
+        };
       }
     },
     "email.send": async (job) => {

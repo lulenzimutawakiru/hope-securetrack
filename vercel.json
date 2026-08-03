@@ -1,6 +1,16 @@
 {
   "framework": "nextjs",
   "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/v2/servicedesk/sla/cron",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/jobs/worker",
+      "schedule": "*/2 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
