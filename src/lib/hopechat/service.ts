@@ -279,6 +279,26 @@ export async function markChannelRead(input: {
     .eq("user_id", input.user_id);
 }
 
+/** Ensure the user has a membership row for a channel (self-heal for
+ *  accounts created before the public-channel autofollow migration). */
+export async function ensureChannelMembership(input: {
+  company_id: string;
+  channel_id: string;
+  user_id: string;
+}) {
+  await sb()
+    .from("hc_channel_members")
+    .upsert(
+      {
+        company_id: input.company_id,
+        channel_id: input.channel_id,
+        user_id: input.user_id,
+        role: "member",
+        joined_at: new Date().toISOString(),
+      },
+      { onConflict: "channel_id,user_id" }
+    );
+}
 export async function createMeeting(input: {
   company_id: string;
   title: string;

@@ -33,6 +33,7 @@ import {
   convertMessageToTicket,
   startDm,
   markChannelRead,
+  ensureChannelMembership,
   editMessage,
   softDeleteMessage,
   listCompanyUsers,
@@ -62,6 +63,13 @@ type ChatRow = Record<string, unknown>;
 type CompanyUser = { id: string; name: string; email?: string | null };
 
 /** Highlight @mentions and @emails in message bodies */
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message?: unknown }).message);
+  }
+  return "";
+}
 function HighlightedText({ text }: { text: string }) {
   const parts = String(text || "").split(
     /(@[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|@(?:channel|here|all)\b|@[\w.-]+)/g
@@ -141,6 +149,13 @@ export default function SecureChatPage() {
   useEffect(() => {
     if (activeId && userId) {
       markChannelRead({ channel_id: activeId, user_id: userId }).catch(() => {});
+      if (companyId) {
+        ensureChannelMembership({
+          company_id: companyId,
+          channel_id: activeId,
+          user_id: userId,
+        }).catch(() => {});
+      }
       setUnreadMap((prev) => {
         const next = { ...prev };
         delete next[activeId];
@@ -148,7 +163,7 @@ export default function SecureChatPage() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, userId]);
+  }, [activeId, userId, companyId]);
 
   useEffect(() => {
     loadChannels().catch(() => setLoading(false));
@@ -262,7 +277,7 @@ export default function SecureChatPage() {
       setTyping(false);
       await loadMessages(activeId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Send failed");
+      toast.error(errorMessage(err) || "Send failed");
     } finally {
       setSending(false);
     }
@@ -286,7 +301,7 @@ export default function SecureChatPage() {
       toast.success(`Sent ${file.name}`);
       await loadMessages(activeId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+      toast.error(errorMessage(err) || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -307,7 +322,7 @@ export default function SecureChatPage() {
       a.rel = "noopener";
       a.click();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Download failed");
+      toast.error(errorMessage(err) || "Download failed");
     }
   };
 
