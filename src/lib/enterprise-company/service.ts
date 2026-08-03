@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
+import { orgStats, wouldCreateCycle } from "./org-tree";
+import { ORG_NODE_TYPES } from "./types";
 
 function sb() {
   return createClient();
@@ -372,14 +374,29 @@ export async function listOrgNodes(companyId: string) {
   return data || [];
 }
 
-export async function createOrgNode(input: {
+export async function getOrgNode(id: string) {
+  const { data, error } = await sb()
+    .from("ec_org_nodes")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export type OrgNodeInput = {
   company_id: string;
   code: string;
   name: string;
   node_type: string;
   parent_id?: string | null;
-  manager_name?: string;
-}) {
+  manager_name?: string | null;
+  manager_user_id?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+};
+
+export async function createOrgNode(input: OrgNodeInput) {
   const { data, error } = await sb()
     .from("ec_org_nodes")
     .insert({
@@ -389,7 +406,9 @@ export async function createOrgNode(input: {
       node_type: input.node_type,
       parent_id: input.parent_id || null,
       manager_name: input.manager_name || null,
-      is_active: true,
+      manager_user_id: input.manager_user_id || null,
+      sort_order: input.sort_order ?? 0,
+      is_active: input.is_active ?? true,
     })
     .select("*")
     .single();
@@ -397,10 +416,50 @@ export async function createOrgNode(input: {
   return data;
 }
 
-export async function moveOrgNode(id: string, parentId: string | null) {
+export type OrgNodePatch = {
+  code?: string;
+  name?: string;
+  node_type?: string;
+  parent_id?: string | null;
+  manager_name?: string | null;
+  manager_user_id?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+};
+
+/** Reject a reparent that would create a cycle (self or descendant as parent). */
+export async function assertSafeReparent(
+  companyId: string,
+  nodeId: string,
+  parentId: string | null | undefined
+) {
+  if (!parentId) return;
+  if (parentId === nodeId) {
+    throw new Error("A node cannot be its own parent");
+  }
+  const nodes = await listOrgNodes(companyId);
+  if (!nodes.some((n) => n.id === nodeId)) {
+    throw new Error("Node not found");
+  }
+  if (wouldCreateCycle(nodes, nodeId, parentId)) {
+    throw new Error("Cannot move a node under one of its own descendants");
+  }
+}
+
+export async function updateOrgNode(id: string, patch: OrgNodePatch) {
   const { data, error } = await sb()
     .from("ec_org_nodes")
-    .update({ parent_id: parentId, updated_at: new Date().toISOString() })
+    .update({
+      ...(patch.code !== undefined ? { code: patch.code.toUpperCase() } : {}),
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.node_type !== undefined ? { node_type: patch.node_type } : {}),
+      ...(patch.parent_id !== undefined ? { parent_id: patch.parent_id || null } : {}),
+      ...(patch.manager_name !== undefined ? { manager_name: patch.manager_name || null } : {}),
+      ...(patch.manager_user_id !== undefined ? { manager_user_id: patch.manager_user_id || null } : {}),
+      ...(patch.sort_order !== undefined ? { sort_order: patch.sort_order } : {}),
+      ...(patch.is_active !== undefined ? { is_active: patch.is_active } : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .select("*")
     .single();
@@ -408,20 +467,143 @@ export async function moveOrgNode(id: string, parentId: string | null) {
   return data;
 }
 
-export function buildOrgTree(nodes: Array<Record<string, unknown>>) {
-  type Node = Record<string, unknown> & { children: Node[] };
-  const map = new Map<string, Node>();
-  const roots: Node[] = [];
-  for (const n of nodes) map.set(n.id as string, { ...n, children: [] });
-  for (const n of nodes) {
-    const node = map.get(n.id as string)!;
-    if (n.parent_id && map.has(n.parent_id as string)) {
-      map.get(n.parent_id as string)!.children.push(node);
-    } else {
-      roots.push(node);
+export async function moveOrgNode(
+  companyId: string,
+  id: string,
+  parentId: string | null
+) {
+  await assertSafeReparent(companyId, id, parentId);
+  return updateOrgNode(id, { parent_id: parentId });
+}
+
+export async function archiveOrgNode(id: string) {
+  return updateOrgNode(id, { is_active: false });
+}
+
+export async function restoreOrgNode(id: string) {
+  return updateOrgNode(id, { is_active: true });
+}
+
+/** Soft-delete a leaf node; refuses when children still exist. */
+export async function deleteOrgNode(id: string) {
+  const { data: children, error: childError } = await sb()
+    .from("ec_org_nodes")
+    .select("id")
+    .eq("parent_id", id)
+    .is("deleted_at", null)
+    .limit(1);
+  if (childError) throw childError;
+  if (children && children.length > 0) {
+    throw new Error("Cannot delete a node that still has child nodes. Move or archive children first.");
+  }
+  const { data, error } = await sb()
+    .from("ec_org_nodes")
+    .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getOrgStats(companyId: string) {
+  const nodes = await listOrgNodes(companyId);
+  return orgStats(nodes);
+}
+
+export type OrgImportResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+};
+
+/** Bulk upsert org nodes from CSV rows; parents wired by code on a second pass. */
+export async function importOrgNodes(
+  companyId: string,
+  rows: Array<Record<string, string>>
+): Promise<OrgImportResult> {
+  const result: OrgImportResult = { created: 0, updated: 0, skipped: 0, errors: [] };
+  if (rows.length === 0) return result;
+
+  const existing = await listOrgNodes(companyId);
+  const byCode = new Map(existing.map((n) => [String(n.code ?? "").toUpperCase(), n]));
+  const validTypes = new Set<string>(ORG_NODE_TYPES);
+
+  // First pass: upsert by code (no parent yet).
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNo = i + 2; // 1-based, header is row 1
+    const code = (row.code ?? "").trim().toUpperCase();
+    const name = (row.name ?? "").trim();
+    if (!code || !name) {
+      result.errors.push("Row " + rowNo + ": code and name are required");
+      result.skipped++;
+      continue;
+    }
+    const nodeType = (row.node_type ?? "department").trim();
+    if (!validTypes.has(nodeType)) {
+      result.errors.push("Row " + rowNo + ": unknown node_type '" + nodeType + "'");
+      result.skipped++;
+      continue;
+    }
+    const managerName = (row.manager_name ?? "").trim() || null;
+    const sortOrder = parseInt(row.sort_order ?? "0", 10);
+    const isActive = (row.is_active ?? "true").toLowerCase() !== "false";
+    const existingNode = byCode.get(code);
+    try {
+      if (existingNode) {
+        await updateOrgNode(existingNode.id, {
+          name,
+          node_type: nodeType,
+          manager_name: managerName,
+          sort_order: Number.isNaN(sortOrder) ? undefined : sortOrder,
+          is_active: isActive,
+        });
+        result.updated++;
+      } else {
+        const created = await createOrgNode({
+          company_id: companyId,
+          code,
+          name,
+          node_type: nodeType,
+          manager_name: managerName,
+          sort_order: Number.isNaN(sortOrder) ? 0 : sortOrder,
+          is_active: isActive,
+        });
+        byCode.set(code, created);
+        result.created++;
+      }
+    } catch (e) {
+      result.errors.push("Row " + rowNo + ": " + (e instanceof Error ? e.message : "update failed"));
+      result.skipped++;
     }
   }
-  return roots;
+
+  // Second pass: wire parents by parent_code, cycle-safe.
+  const fresh = await listOrgNodes(companyId);
+  const codeToId = new Map(fresh.map((n) => [String(n.code ?? "").toUpperCase(), n.id]));
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNo = i + 2;
+    const code = (row.code ?? "").trim().toUpperCase();
+    const parentCode = (row.parent_code ?? "").trim().toUpperCase();
+    const nodeId = codeToId.get(code);
+    if (!nodeId || !parentCode) continue;
+    const parentId = codeToId.get(parentCode);
+    if (!parentId) {
+      result.errors.push("Row " + rowNo + ": parent_code '" + row.parent_code + "' not found");
+      continue;
+    }
+    try {
+      await assertSafeReparent(companyId, nodeId, parentId);
+      await updateOrgNode(nodeId, { parent_id: parentId });
+    } catch (e) {
+      result.errors.push("Row " + rowNo + ": " + (e instanceof Error ? e.message : "parent link failed"));
+    }
+  }
+
+  return result;
 }
 
 // ─── Settings / branding ─────────────────────────────────────
