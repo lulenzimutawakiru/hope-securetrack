@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
-import { printDocument } from "@/lib/documents";
+import { printDocumentBranded } from "@/lib/documents-brand";
 import { toast } from "sonner";
 import { crudCreate } from "@/lib/api/crud-client";
 
@@ -88,9 +88,9 @@ export default function DocumentGeneratorPage() {
     }
   };
 
-  const preview = (r: Record<string, unknown>) => {
+  const preview = async (r: Record<string, unknown>) => {
     try {
-      printDocument({
+      await printDocumentBranded({
         title: String(r.title),
         docType: String(r.document_type).toUpperCase(),
         number: String(r.reference_number ?? r.id).slice(0, 36),
@@ -121,7 +121,7 @@ export default function DocumentGeneratorPage() {
         ],
         notes: "Computer-generated document pack for Hope Design Group Ltd.",
         footerNote: "Security Printing · Paper Manufacturing · Engineering",
-      });
+      }, auth?.profile?.company_id);
       toast.success("Print dialog opened");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Print failed");

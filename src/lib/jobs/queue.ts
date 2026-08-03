@@ -307,14 +307,25 @@ export function defaultJobHandlers(deps: {
     },
     "email.send": async (job) => {
       try {
+        const companyId = String(job.company_id || job.payload?.company_id || "");
         const outboxId = job.payload?.outbox_id as string | undefined;
         const to = job.payload?.to as string | undefined;
         const subject = String(job.payload?.subject || "SecureTrack");
         const body = String(job.payload?.body || job.payload?.html || "");
 
         if (to && body) {
-          const { sendEmail, wrapEmailHtml, textToEmailHtml, isResendConfigured } =
-            await import("@/lib/email");
+          const [
+            { sendEmail, wrapBrandedEmailHtml, textToEmailHtml, isResendConfigured },
+            { resolveCompanyBranding, brandToEmailBrand },
+          ] = await Promise.all([
+            import("@/lib/email"),
+            import("@/lib/branding/resolve"),
+          ]);
+          const emailBrand = companyId
+            ? brandToEmailBrand(
+                await resolveCompanyBranding(deps.admin, companyId)
+              )
+            : null;
           if (!isResendConfigured()) {
             if (outboxId) {
               await deps.admin
@@ -327,12 +338,14 @@ export function defaultJobHandlers(deps: {
           const result = await sendEmail({
             to,
             subject,
-            html: wrapEmailHtml({
+            html: wrapBrandedEmailHtml({
               title: subject,
               bodyHtml: textToEmailHtml(body),
               preheader: subject,
+              brand: emailBrand,
             }),
             text: body,
+            brand: emailBrand,
           });
           if (!result.ok) {
             return { ok: false, error: result.error || "email send failed" };

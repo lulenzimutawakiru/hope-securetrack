@@ -6,10 +6,11 @@ import {
   isResendConfigured,
   sendTemplatedEmail,
   sendEmail,
-  wrapEmailHtml,
+  wrapBrandedEmailHtml,
   textToEmailHtml,
   applyTemplateVars,
 } from "@/lib/email";
+import { resolveCompanyBranding, brandToEmailBrand } from "@/lib/branding/resolve";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   const companyId = profile?.company_id || ctx.companyId;
+  const brand = brandToEmailBrand(
+    await resolveCompanyBranding(supabase, companyId)
+  );
   const vars = {
     name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "User",
     email: profile?.email || "",
@@ -179,15 +183,18 @@ export async function POST(req: NextRequest) {
         bodyTemplate: messageBody,
         vars,
         tags: [{ name: "channel", value: "email" }],
+        brand,
       })
     : await sendEmail({
         to: body.to,
         subject,
-        html: wrapEmailHtml({
+        html: wrapBrandedEmailHtml({
           title: subject,
           bodyHtml: textToEmailHtml(messageBody),
+          brand,
         }),
         text: messageBody,
+        brand,
       });
 
   if (queued?.id) {

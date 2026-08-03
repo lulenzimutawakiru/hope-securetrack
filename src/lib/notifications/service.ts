@@ -9,9 +9,10 @@ import {
   isResendConfigured,
   sendTemplatedEmail,
   sendEmail,
-  wrapEmailHtml,
+  wrapBrandedEmailHtml,
   textToEmailHtml,
 } from "@/lib/email";
+import { resolveCompanyBranding, brandToEmailBrand } from "@/lib/branding/resolve";
 
 export type NotifyChannel = "in_app" | "email" | "sms" | "push" | "whatsapp";
 
@@ -286,6 +287,9 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
           email: profile.email,
           ...vars,
         };
+        const emailBrand = brandToEmailBrand(
+          await resolveCompanyBranding(admin, input.companyId)
+        );
         let sendResult;
         if (input.templateKey) {
           const { data: tpls } = await admin
@@ -306,18 +310,21 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
               { name: "category", value: category.slice(0, 50) },
               { name: "priority", value: priority },
             ],
+            brand: emailBrand,
           });
         } else {
           sendResult = await sendEmail({
             to: profile.email,
             subject: input.title,
-            html: wrapEmailHtml({
+            html: wrapBrandedEmailHtml({
               title: input.title,
               bodyHtml: textToEmailHtml(input.message || input.title),
               preheader: input.title,
+              brand: emailBrand,
             }),
             text: input.message || input.title,
             tags: [{ name: "category", value: category.slice(0, 50) }],
+            brand: emailBrand,
           });
         }
 

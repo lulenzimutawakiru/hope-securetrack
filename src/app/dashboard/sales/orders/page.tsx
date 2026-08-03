@@ -22,7 +22,9 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
 import { entityKeys } from "@/lib/api/query-keys";
-import { apiPost } from "@/lib/api-client";
+import { apiGet, apiPost } from "@/lib/api-client";
+import { DocumentActions } from "@/components/documents/document-actions";
+import type { BusinessDocument } from "@/lib/documents";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -45,7 +47,12 @@ interface SalesOrder {
   currency?: string;
   credit_approved?: boolean;
   requires_production?: boolean;
-  customers?: { name: string } | null;
+  customers?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  } | null;
 }
 
 interface Product {
@@ -101,7 +108,7 @@ export default function SalesOrdersPage() {
     pageSize: PAGE_SIZE,
     sort: "created_at",
     order: "desc",
-    select: "*, customers(name)",
+    select: "*, customers(name, email, phone, address)",
     search: search.trim() || undefined,
   });
   const customersQuery = useEntityList<Customer>("customers", {
@@ -122,6 +129,45 @@ export default function SalesOrdersPage() {
   const customers = customersQuery.data?.data ?? [];
   const products = productsQuery.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const buildOrderDoc = async (o: SalesOrder): Promise<BusinessDocument> => {
+    const linesRes = await apiGet<{ data: Array<Record<string, unknown>> }>(
+      `/api/v2/crud/sales_order_lines?filters=${encodeURIComponent(
+        JSON.stringify({ order_id: o.id })
+      )}`
+    );
+    const lines = (linesRes.ok ? linesRes.data.data : []).map((l) => ({
+      description: String(l.description || ""),
+      quantity: Number(l.quantity || 0),
+      unit: l.unit ? String(l.unit) : undefined,
+      unit_price: Number(l.unit_price || 0),
+      amount: Number(
+        l.line_total ?? Number(l.quantity || 0) * Number(l.unit_price || 0)
+      ),
+    }));
+    return {
+      title: `Sales Order ${o.order_number}`,
+      docType: "Sales Order",
+      number: o.order_number,
+      date: formatDate(o.order_date),
+      status: o.status,
+      currency: o.currency || "UGX",
+      billToLabel: "Order to",
+      billToName: o.customers?.name || "Customer",
+      billToMeta: [
+        o.customers?.address,
+        o.customers?.email,
+        o.customers?.phone,
+      ].filter((v): v is string => Boolean(v)),
+      meta: [
+        { label: "Type", value: o.order_type || "standard" },
+        { label: "Credit", value: o.credit_approved ? "Approved" : "On hold" },
+      ],
+      lines,
+      total: Number(o.total_amount || 0),
+      footerNote: "Thank you for your order",
+    };
+  };
 
   // Debounce the search box before it reaches the server-side query.
   useEffect(() => {
@@ -437,7 +483,7 @@ export default function SalesOrdersPage() {
                   <TableHead>Total</TableHead>
                   <TableHead>Credit</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Update</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -464,10 +510,12 @@ export default function SalesOrdersPage() {
                       <StatusBadge status={o.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Select
-                        value={o.status}
-                        onValueChange={(v) => updateStatus(o.id, v)}
-                      >
+                      <div className="inline-flex items-center gap-2">
+                        <DocumentActions doc={() => buildOrderDoc(o)} />
+                        <Select
+                          value={o.status}
+                          onValueChange={(v) => updateStatus(o.id, v)}
+                        >
                         <SelectTrigger className="w-[130px] ml-auto">
                           <SelectValue />
                         </SelectTrigger>
@@ -478,7 +526,8 @@ export default function SalesOrdersPage() {
                             </SelectItem>
                           ))}
                         </SelectContent>
-                      </Select>
+                        </Select>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

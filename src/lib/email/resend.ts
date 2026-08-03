@@ -15,8 +15,20 @@ export type SendEmailInput = {
   cc?: string | string[];
   bcc?: string | string[];
   tags?: Array<{ name: string; value: string }>;
+  brand?: EmailBrand | null;
   /** Idempotency / correlation */
   headers?: Record<string, string>;
+};
+
+/** Company branding payload used by the email wrapper (server-resolved, never client-supplied). */
+export type EmailBrand = {
+  name?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  companyInfo?: string[];
+  tagline?: string;
 };
 
 export type SendEmailResult =
@@ -59,17 +71,34 @@ export function applyTemplateVars(
   });
 }
 
-export function wrapEmailHtml(opts: {
+export function wrapBrandedEmailHtml(opts: {
   title?: string;
   bodyHtml: string;
   preheader?: string;
   footerNote?: string;
+  brand?: EmailBrand | null;
 }): string {
-  const company = env.app.company;
+  const brand = opts.brand || null;
+  const company = brand?.name?.trim() || env.app.company;
   const app = env.app.name;
+  const primaryColor = brand?.primaryColor?.trim() || "#0B1F3A";
+  const accentColor = brand?.accentColor?.trim() || "#C9A227";
+  const logoUrl = brand?.logoUrl?.trim();
+  const tagline = brand?.tagline?.trim();
+  const info = brand?.companyInfo?.filter(Boolean) || [];
   const pre = opts.preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(opts.preheader)}</div>`
     : "";
+  const logoBlock = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(company)}" style="display:block;max-height:44px;max-width:200px;width:auto;margin-bottom:8px;" />`
+    : "";
+  const taglineBlock = tagline
+    ? `<div style="color:#94a3b8;font-size:12px;margin-top:4px;">${escapeHtml(tagline)}</div>`
+    : "";
+  const infoBlock = info.length
+    ? info.map((line) => `<div style="margin-top:2px;">${escapeHtml(line)}</div>`).join("")
+    : "";
+  const defaultFooter = `${app} | ${company}`;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,9 +113,11 @@ export function wrapEmailHtml(opts: {
       <td align="center">
         <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr>
-            <td style="background:linear-gradient(135deg,#0B1F3A 0%,#0d2847 100%);padding:20px 24px;">
-              <div style="color:#C9A227;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">${escapeHtml(company)}</div>
+            <td style="background:linear-gradient(135deg,${primaryColor} 0%,${shadeColor(primaryColor)} 100%);padding:20px 24px;">
+              ${logoBlock}
+              <div style="color:${accentColor};font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">${escapeHtml(company)}</div>
               <div style="color:#ffffff;font-size:18px;font-weight:600;margin-top:4px;">${escapeHtml(opts.title || app)}</div>
+              ${taglineBlock}
             </td>
           </tr>
           <tr>
@@ -96,7 +127,8 @@ export function wrapEmailHtml(opts: {
           </tr>
           <tr>
             <td style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;">
-              ${escapeHtml(opts.footerNote || `${app} · ${company} · Security Printing · Paper · Engineering`)}
+              ${escapeHtml(opts.footerNote || defaultFooter)}
+              ${infoBlock}
               <br />This is an automated message. Please do not reply unless a reply-to address is provided.
             </td>
           </tr>
@@ -106,6 +138,29 @@ export function wrapEmailHtml(opts: {
   </table>
 </body>
 </html>`;
+}
+
+/** Backwards-compatible plain wrapper (no brand). */
+export function wrapEmailHtml(opts: {
+  title?: string;
+  bodyHtml: string;
+  preheader?: string;
+  footerNote?: string;
+}): string {
+  return wrapBrandedEmailHtml({ ...opts, brand: null });
+}
+
+/** Darken (or lighten) a hex color by `percent` for gradient falloff. */
+export function shadeColor(hex: string, percent = -12): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return hex;
+  const num = parseInt(m[1], 16);
+  const amt = Math.round(2.55 * percent);
+  const clamp = (c: number) => Math.min(255, Math.max(0, c));
+  const r = clamp((num >> 16) + amt);
+  const g = clamp(((num >> 8) & 0xff) + amt);
+  const b = clamp((num & 0xff) + amt);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
 function escapeHtml(s: string): string {
@@ -139,6 +194,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 
   const fromCfg = getResendFrom();
+  if (input.brand?.name && !process.env.RESEND_FROM_NAME?.trim()) {
+    fromCfg.name = input.brand.name;
+  }
   const from = fromCfg.email.includes("<")
     ? fromCfg.email
     : `${fromCfg.name} <${fromCfg.email}>`;
@@ -148,10 +206,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     (input.html ? input.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
   const html =
     input.html ||
-    wrapEmailHtml({
+    wrapBrandedEmailHtml({
       title: input.subject,
       bodyHtml: textToEmailHtml(text || input.subject),
       preheader: input.subject,
+      brand: input.brand || null,
     });
 
   if (!html && !text) {
@@ -200,14 +259,16 @@ export async function sendTemplatedEmail(opts: {
   bodyTemplate: string;
   vars?: Record<string, string | number | null | undefined>;
   tags?: Array<{ name: string; value: string }>;
+  brand?: EmailBrand | null;
 }): Promise<SendEmailResult> {
   const vars = opts.vars ?? {};
   const subject = applyTemplateVars(opts.subjectTemplate, vars);
   const bodyText = applyTemplateVars(opts.bodyTemplate, vars);
-  const html = wrapEmailHtml({
+  const html = wrapBrandedEmailHtml({
     title: subject,
     bodyHtml: textToEmailHtml(bodyText),
     preheader: subject,
+    brand: opts.brand || null,
   });
   return sendEmail({
     to: opts.to,
@@ -215,5 +276,6 @@ export async function sendTemplatedEmail(opts: {
     html,
     text: bodyText,
     tags: opts.tags,
+    brand: opts.brand || null,
   });
 }

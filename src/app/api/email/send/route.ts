@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, sendTemplatedEmail, isResendConfigured } from "@/lib/email";
 import { requireApiAuth } from "@/lib/security/api-auth";
 import { sanitizeHtml } from "@/lib/security/shared";
+import { resolveCompanyBranding, brandToEmailBrand } from "@/lib/branding/resolve";
 import { clientIp, rateLimit } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,9 @@ export async function POST(req: NextRequest) {
 
   const body = parsed.data;
   const supabase = await createClient();
+  const brand = brandToEmailBrand(
+    await resolveCompanyBranding(supabase, ctx.companyId)
+  );
   let result;
   let subjectUsed = body.subject || "";
   const templateKey: string | null = body.template_key || null;
@@ -111,6 +115,7 @@ export async function POST(req: NextRequest) {
       tags: body.tags || [
         { name: "template", value: body.template_key.slice(0, 50) },
       ],
+      brand,
     });
   } else {
     if (!body.subject) {
@@ -132,6 +137,7 @@ export async function POST(req: NextRequest) {
       text: body.text,
       replyTo: body.replyTo,
       tags: body.tags,
+      brand,
     });
     subjectUsed = body.subject;
   }

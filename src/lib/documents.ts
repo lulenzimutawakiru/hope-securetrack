@@ -3,6 +3,8 @@
  * Uses browser print (Save as PDF) + HTML/CSV downloads (no extra deps).
  */
 
+import type { ResolvedBrand } from "@/lib/branding/resolve";
+
 export type DocLine = {
   description: string;
   quantity?: number | string;
@@ -34,6 +36,18 @@ export type BusinessDocument = {
   balance?: number;
   notes?: string;
   footerNote?: string;
+  /** Company branding - resolved from the active company / brand profile */
+  logoUrl?: string;
+  companyLegalName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  taxId?: string;
+  registrationNumber?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
 };
 
 const COMPANY_DEFAULT = {
@@ -64,6 +78,15 @@ export function buildDocumentHtml(doc: BusinessDocument): string {
   const sub = doc.companySub ?? COMPANY_DEFAULT.sub;
   const currency = doc.currency ?? "UGX";
   const lines = doc.lines ?? [];
+  const primaryColor = doc.primaryColor ?? "#0f766e";
+  const address = doc.companyAddress ?? COMPANY_DEFAULT.address;
+  const contactLines = [
+    doc.companyPhone ? `Phone: ${doc.companyPhone}` : "",
+    doc.companyEmail || "",
+    doc.companyWebsite || "",
+    doc.taxId ? `Tax: ${doc.taxId}` : "",
+    doc.registrationNumber ? `Reg: ${doc.registrationNumber}` : "",
+  ].filter(Boolean);
 
   const lineRows =
     lines.length === 0
@@ -103,11 +126,12 @@ export function buildDocumentHtml(doc: BusinessDocument): string {
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; margin: 0; padding: 32px; background: #fff; }
-    .header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 3px solid #0f766e; padding-bottom: 16px; margin-bottom: 24px; }
+    .header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 3px solid ${primaryColor}; padding-bottom: 16px; margin-bottom: 24px; }
+    .brand .logo { max-height: 56px; width: auto; display: block; margin-bottom: 6px; }
     .brand h1 { margin: 0; font-size: 22px; color: #0f172a; }
     .brand p { margin: 4px 0 0; color: #64748b; font-size: 12px; }
     .doc-badge { text-align: right; }
-    .doc-badge .type { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #0f766e; font-weight: 700; }
+    .doc-badge .type { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: ${primaryColor}; font-weight: 700; }
     .doc-badge .num { font-size: 20px; font-weight: 700; font-family: ui-monospace, monospace; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
     .box { background: #f8fafc; border-radius: 8px; padding: 14px; }
@@ -117,10 +141,10 @@ export function buildDocumentHtml(doc: BusinessDocument): string {
     th.r, td.r { text-align: right; }
     .totals { margin-left: auto; width: 280px; font-size: 13px; }
     .totals .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e2e8f0; }
-    .totals .grand { font-size: 16px; font-weight: 700; border-bottom: none; padding-top: 10px; color: #0f766e; }
+    .totals .grand { font-size: 16px; font-weight: 700; border-bottom: none; padding-top: 10px; color: ${primaryColor}; }
     .notes { margin-top: 20px; padding: 12px; background: #fffbeb; border-radius: 8px; font-size: 12px; }
-    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }
-    .status { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #ccfbf1; color: #0f766e; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; }
+    .status { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #ccfbf1; color: ${primaryColor}; font-size: 11px; font-weight: 600; text-transform: uppercase; }
     @media print {
       body { padding: 12mm; }
       .no-print { display: none !important; }
@@ -130,9 +154,12 @@ export function buildDocumentHtml(doc: BusinessDocument): string {
 <body>
   <div class="header">
     <div class="brand">
+      ${doc.logoUrl ? `<img class="logo" src="${escapeHtml(doc.logoUrl)}" alt="${escapeHtml(company)}" />` : ""}
       <h1>${escapeHtml(company)}</h1>
-      <p>${escapeHtml(sub)}</p>
-      <p>${escapeHtml(COMPANY_DEFAULT.address)}</p>
+      ${sub ? `<p>${escapeHtml(sub)}</p>` : ""}
+      ${doc.companyLegalName && doc.companyLegalName !== company ? `<p>${escapeHtml(doc.companyLegalName)}</p>` : ""}
+      ${address ? `<p>${escapeHtml(address)}</p>` : ""}
+      ${contactLines.length ? `<p>${escapeHtml(contactLines.join(" \u00b7 "))}</p>` : ""}
     </div>
     <div class="doc-badge">
       <div class="type">${escapeHtml(doc.docType)}</div>
@@ -185,8 +212,8 @@ export function buildDocumentHtml(doc: BusinessDocument): string {
   }
 
   <div class="footer">
-    <div>${escapeHtml(doc.footerNote ?? "Computer-generated document · Hope Design ERP")}</div>
-    <div>${escapeHtml(COMPANY_DEFAULT.tagline)} · ${new Date().toLocaleString()}</div>
+    <div>${escapeHtml(doc.footerNote ?? `Computer-generated document \u00b7 ${company}`)}${contactLines.length ? ` \u00b7 ${escapeHtml(contactLines.join(" \u00b7 "))}` : ""}</div>
+    <div>${escapeHtml(COMPANY_DEFAULT.tagline)} \u00b7 ${new Date().toLocaleString()}</div>
   </div>
   <script>
     // Auto-focus print when opened for printing
@@ -370,4 +397,27 @@ export function downloadCsv(
   a.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+/** Merge a resolved company brand into a document (explicit doc fields win). */
+export function applyCompanyBrand(
+  doc: BusinessDocument,
+  brand: ResolvedBrand
+): BusinessDocument {
+  const address = brand.address || [brand.city, brand.country].filter(Boolean).join(", ");
+  const orUndef = (v: string): string | undefined => (v ? v : undefined);
+  return {
+    ...doc,
+    logoUrl: doc.logoUrl ?? orUndef(brand.logoUrl),
+    companyName: doc.companyName ?? orUndef(brand.name),
+    companyLegalName: doc.companyLegalName ?? orUndef(brand.legalName),
+    companyAddress: doc.companyAddress ?? orUndef(address),
+    companyPhone: doc.companyPhone ?? orUndef(brand.phone),
+    companyEmail: doc.companyEmail ?? orUndef(brand.email),
+    companyWebsite: doc.companyWebsite ?? orUndef(brand.website),
+    taxId: doc.taxId ?? orUndef(brand.taxNumber),
+    registrationNumber: doc.registrationNumber ?? orUndef(brand.registrationNumber),
+    primaryColor: doc.primaryColor ?? orUndef(brand.primaryColor),
+    secondaryColor: doc.secondaryColor ?? orUndef(brand.secondaryColor),
+    accentColor: doc.accentColor ?? orUndef(brand.accentColor),
+  };
 }

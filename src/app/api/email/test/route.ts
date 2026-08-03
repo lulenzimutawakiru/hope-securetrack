@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
 import {
   isResendConfigured,
   sendEmail,
-  wrapEmailHtml,
+  wrapBrandedEmailHtml,
   getResendFrom,
 } from "@/lib/email";
+import { resolveCompanyBranding, brandToEmailBrand } from "@/lib/branding/resolve";
 import { requireApiAuth } from "@/lib/security/api-auth";
 import { clientIp, rateLimit } from "@/lib/api";
 
@@ -32,6 +34,10 @@ export async function POST(req: NextRequest) {
   });
   if ("response" in auth) return auth.response;
   const { ctx } = auth;
+
+  const brand = brandToEmailBrand(
+    await resolveCompanyBranding(await createClient(), ctx.companyId)
+  );
 
   if (!isResendConfigured()) {
     return NextResponse.json(
@@ -68,11 +74,13 @@ export async function POST(req: NextRequest) {
   const result = await sendEmail({
     to,
     subject: `SecureTrack ERP test email`,
-    html: wrapEmailHtml({
+    html: wrapBrandedEmailHtml({
       title: "Test email",
       bodyHtml: `<p>This is a test message from SecureTrack ERP.</p>`,
+      brand,
     }),
     text: "This is a test message from SecureTrack ERP.",
+    brand,
   });
 
   if (!result.ok) {

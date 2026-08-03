@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
-import { printDocument } from "@/lib/documents";
+import { printDocumentBranded } from "@/lib/documents-brand";
 import { toast } from "sonner";
 import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
@@ -130,9 +130,9 @@ export default function DocumentIntelligencePage() {
     load();
   };
 
-  const printDoc = (r: Record<string, unknown>) => {
+  const printDoc = async (r: Record<string, unknown>) => {
     try {
-      printDocument({
+      await printDocumentBranded({
         title: String(r.title),
         docType: String(r.document_type).replace(/_/g, " ").toUpperCase(),
         number: String(r.document_code),
@@ -169,7 +169,7 @@ export default function DocumentIntelligencePage() {
         notes:
           "Digitally sealed document. Hash and QR enable tamper detection. Classification watermark applies to exports.",
         footerNote: "Hope Design Group Ltd · Document Intelligence · SecureTrack",
-      });
+      }, auth?.profile?.company_id);
       toast.success("Print dialog opened");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Print failed");

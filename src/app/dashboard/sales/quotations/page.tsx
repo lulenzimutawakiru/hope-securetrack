@@ -22,6 +22,8 @@ import { useUser } from "@/hooks/use-user";
 import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useEntityAll } from "@/hooks/use-entity-all";
 import { apiGet } from "@/lib/api-client";
+import { DocumentActions } from "@/components/documents/document-actions";
+import type { BusinessDocument } from "@/lib/documents";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -46,9 +48,15 @@ export default function QuotationsPage() {
     max: 100,
     sort: "created_at",
     order: "desc",
-    select: "*, customers(name)",
+    select: "*, customers(name, email, phone, address)",
   });
-  const { data: customersData } = useEntityAll<{ id: string; name: string }>(
+  const { data: customersData } = useEntityAll<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  }>(
     "customers",
     { max: 500, sort: "name", filters: { is_active: true } }
   );
@@ -60,6 +68,60 @@ export default function QuotationsPage() {
   const quotes = quotesData ?? [];
   const customers = customersData ?? [];
   const products = productsData ?? [];
+
+  const buildQuoteDoc = async (
+    q: Record<string, unknown>
+  ): Promise<BusinessDocument> => {
+    const cust = q.customers as {
+      name?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+    } | null;
+    const linesRes = await apiGet<{ data: Array<Record<string, unknown>> }>(
+      `/api/v2/crud/quotation_lines?filters=${encodeURIComponent(
+        JSON.stringify({ quotation_id: String(q.id) })
+      )}`
+    );
+    const lines = (linesRes.ok ? linesRes.data.data : []).map((l) => ({
+      description: String(l.description || ""),
+      quantity: Number(l.quantity || 0),
+      unit: l.unit ? String(l.unit) : undefined,
+      unit_price: Number(l.unit_price || 0),
+      amount: Number(
+        l.line_total ?? Number(l.quantity || 0) * Number(l.unit_price || 0)
+      ),
+    }));
+    return {
+      title: `Quotation ${String(q.quote_number)}`,
+      docType: "Quotation",
+      number: String(q.quote_number),
+      date: q.quote_date ? formatDate(String(q.quote_date)) : undefined,
+      dueDate: q.valid_until ? formatDate(String(q.valid_until)) : undefined,
+      status: String(q.status || "sent"),
+      currency: String(q.currency || "UGX"),
+      billToLabel: "Quotation to",
+      billToName: cust?.name || "Customer",
+      billToMeta: [cust?.address, cust?.email, cust?.phone].filter(
+        (v): v is string => Boolean(v)
+      ),
+      meta: [
+        { label: "Version", value: String(q.version || "1") },
+        { label: "Payment terms", value: String(q.payment_terms || "") },
+        { label: "Delivery terms", value: String(q.delivery_terms || "") },
+      ].filter((m) => m.value),
+      lines,
+      subtotal: Number(q.subtotal || 0),
+      tax: Number(q.tax_amount || 0),
+      total: Number(q.total_amount || 0),
+      notes: q.notes
+        ? String(q.notes)
+        : q.terms_conditions
+          ? String(q.terms_conditions)
+          : undefined,
+      footerNote: "Thank you for your business",
+    };
+  };
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,14 +379,17 @@ export default function QuotationsPage() {
                       <StatusBadge status={String(q.status)} />
                     </TableCell>
                     <TableCell className="text-right">
-                      {q.status !== "converted" && (
-                        <Button
-                          size="sm"
-                          onClick={() => convertToOrder(String(q.id))}
-                        >
-                          Convert to order
-                        </Button>
-                      )}
+                      <div className="inline-flex items-center gap-2">
+                        <DocumentActions doc={() => buildQuoteDoc(q)} />
+                        {q.status !== "converted" && (
+                          <Button
+                            size="sm"
+                            onClick={() => convertToOrder(String(q.id))}
+                          >
+                            Convert to order
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

@@ -15,6 +15,8 @@ import {
   downloadDocumentHtml,
   downloadDocumentCsv,
 } from "@/lib/documents";
+import { applyCompanyBrandToDoc } from "@/lib/documents-brand";
+import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 
 type Props = {
@@ -39,11 +41,12 @@ export function DocumentActions({
   className,
 }: Props) {
   const [busy, setBusy] = useState<"print" | "html" | "csv" | null>(null);
+  const { companyId } = useUser();
 
   const onPrint = async () => {
     setBusy("print");
     try {
-      const d = await resolveDoc(doc);
+      const d = await applyCompanyBrandToDoc(await resolveDoc(doc), companyId);
       if (!d?.number && !d?.title) {
         throw new Error("Document data is empty");
       }
@@ -59,7 +62,7 @@ export function DocumentActions({
   const onHtml = async () => {
     setBusy("html");
     try {
-      const d = await resolveDoc(doc);
+      const d = await applyCompanyBrandToDoc(await resolveDoc(doc), companyId);
       downloadDocumentHtml(d);
       toast.success("HTML downloaded — open file, then Ctrl+P to print/PDF");
     } catch (e) {
