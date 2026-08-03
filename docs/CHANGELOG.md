@@ -1,4 +1,16 @@
 # Changelog
+## 2026-08-03 - Phase 14: frontend roadmap (serialized inventory on the hardened data layer)
+
+### Serialized stock migration
+
+- `src/app/dashboard/inventory/stock/page.tsx` - reams/cartons reads now flow through `/api/v2/crud/[entity]` via `useEntityAll` (server-derived tenant/company, permission checks, audit logging); status filter composed into query params so the cache key and invalidation stay aligned; head-count stats use server-side exact totals from `useEntityList` (pageSize 1); move/dispatch writes go through `crudUpdate` with per-row error handling; movements recorded via `crudCreate`; QR chain-of-custody mirror is best-effort (`Promise.allSettled` + warn) because `qr_codes` RLS update is restricted to QR/production roles
+- `src/lib/metadata/entity-registry.ts` - registered `qr_codes` (inventory) with `qr.view` / `qr.generate` permission mappings and searchable fields
+- Distributors reference read intentionally stays on the RLS-bound browser client (`distributors.view` vs CRUD `crm.view` gate mismatch) - documented in-page
+
+### Validation
+
+- Typecheck, vitest (171), security suite (101), eslint (0 errors on changed files), production build, bundle audit - all green
+
 ## 2026-08-03 - Phase 13: frontend roadmap (query-layer adoption sweep, module boundaries)
 
 ### Query-layer adoption

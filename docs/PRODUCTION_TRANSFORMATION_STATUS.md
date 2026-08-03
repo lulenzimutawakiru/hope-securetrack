@@ -16,6 +16,15 @@ SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 
 | Module error/loading boundaries across all 53 dashboard modules (shared `ModuleError` / `ModuleLoading`) | Live |
 | Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
 
+## Phase 14 (2026-08-03) - frontend roadmap (serialized inventory on the hardened data layer)
+
+| Deliverable | Status |
+|------------|--------|
+| `inventory/stock` migrated to the hardened data layer - `useEntityAll` reads (reams/cartons/movements/warehouses), server-side exact totals for head-count stats, `crudUpdate` move/dispatch writes with per-row error handling, `crudCreate` movement logging, best-effort QR chain-of-custody mirror, aligned cache invalidation | Live |
+| `qr_codes` registered in the entity registry (`qr.view` / `qr.generate`) for permission-checked reads/writes | Live |
+| Known limitation: `qr_codes` RLS update policy is restricted to QR/production roles, so warehouse-manager moves do not mirror QR status (matches legacy behavior; logged via warn) - flagged for a follow-up RLS/registry permission alignment | Tracked |
+| Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
+
 ## Phase 12 (2026-08-03) - frontend roadmap (query layer, auth context, grid UX)
 
 | Deliverable | Status |

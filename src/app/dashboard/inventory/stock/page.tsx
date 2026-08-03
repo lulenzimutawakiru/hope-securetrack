@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Warehouse,
   ArrowRightLeft,
@@ -42,11 +42,15 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useEntityList } from "@/hooks/use-entity-query";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { entityKeys } from "@/lib/api/query-keys";
 import type {
   Ream,
   Carton,
@@ -70,20 +74,8 @@ type ItemKind = "ream" | "carton";
 
 export default function SerializedStockPage() {
   const { auth, hasPermission } = useUser();
-  const [reams, setReams] = useState<Ream[]>([]);
-  const [cartons, setCartons] = useState<Carton[]>([]);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
-  const [distributors, setDistributors] = useState<Distributor[]>([]);
-  const [warehouses, setWarehouses] = useState<
-    { id: string; name: string; code: string }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    reams: 0,
-    cartons: 0,
-    production: 0,
-    transit: 0,
-  });
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedReams, setSelectedReams] = useState<Set<string>>(new Set());
@@ -98,80 +90,94 @@ export default function SerializedStockPage() {
     notes: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    let reamQ = supabase
-      .from("reams")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    let cartonQ = supabase
-      .from("cartons")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked and dual-key (tenant +
+  // company) scoped. The status filter is composed into the query params so
+  // the cache key changes on filter switch and invalidation stays aligned.
+  const statusFilterQuery =
+    statusFilter === "all" ? undefined : { inventory_status: statusFilter };
 
-    if (statusFilter !== "all") {
-      reamQ = reamQ.eq("inventory_status", statusFilter);
-      cartonQ = cartonQ.eq("inventory_status", statusFilter);
-    }
+  const reamsQ = useEntityAll<Ream>("reams", {
+    max: 200,
+    sort: "created_at",
+    order: "desc",
+    filters: statusFilterQuery,
+  });
+  const cartonsQ = useEntityAll<Carton>("cartons", {
+    max: 200,
+    sort: "created_at",
+    order: "desc",
+    filters: statusFilterQuery,
+  });
+  const movementsQ = useEntityAll<InventoryMovement>("inventory_movements", {
+    max: 80,
+    sort: "performed_at",
+    order: "desc",
+  });
+  const warehousesQ = useEntityAll<{ id: string; name: string; code: string }>(
+    "warehouses",
+    { select: "id,name,code", filters: { is_active: true } }
+  );
 
-    const [
-      { data: reamData },
-      { data: cartonData },
-      { data: moveData },
-      { data: distData },
-      { data: whData },
-      reamCount,
-      cartonCount,
-      prodCount,
-      transitCount,
-    ] = await Promise.all([
-      reamQ,
-      cartonQ,
-      supabase
-        .from("inventory_movements")
+  // Distributors are a cross-module reference whose CRUD read gate is
+  // crm.view; the inventory warehouse roles that drive this page hold
+  // distributors.view instead, so this read stays on the RLS-bound browser
+  // client (company-scoped policy) to keep the dispatch dropdown working.
+  const distributorsQ = useQuery({
+    queryKey: ["stock", "distributors-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("distributors")
         .select("*")
-        .order("performed_at", { ascending: false })
-        .limit(80),
-      supabase.from("distributors").select("*").eq("is_active", true).order("name"),
-      supabase.from("warehouses").select("id,name,code").eq("is_active", true),
-      supabase
-        .from("reams")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_warehouse"),
-      supabase
-        .from("cartons")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_warehouse"),
-      supabase
-        .from("reams")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_production"),
-      supabase
-        .from("reams")
-        .select("*", { count: "exact", head: true })
-        .eq("inventory_status", "in_transit"),
-    ]);
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as Distributor[];
+    },
+  });
 
-    setReams((reamData as Ream[]) ?? []);
-    setCartons((cartonData as Carton[]) ?? []);
-    setMovements((moveData as InventoryMovement[]) ?? []);
-    setDistributors((distData as Distributor[]) ?? []);
-    setWarehouses(whData ?? []);
-    setStats({
-      reams: reamCount.count ?? 0,
-      cartons: cartonCount.count ?? 0,
-      production: prodCount.count ?? 0,
-      transit: transitCount.count ?? 0,
-    });
-    setLoading(false);
+  // Head-count stats use the server-side exact total from the CRUD API.
+  const reamsWhQ = useEntityList<Ream>("reams", {
+    pageSize: 1,
+    filters: { inventory_status: "in_warehouse" },
+  });
+  const cartonsWhQ = useEntityList<Carton>("cartons", {
+    pageSize: 1,
+    filters: { inventory_status: "in_warehouse" },
+  });
+  const prodQ = useEntityList<Ream>("reams", {
+    pageSize: 1,
+    filters: { inventory_status: "in_production" },
+  });
+  const transitQ = useEntityList<Ream>("reams", {
+    pageSize: 1,
+    filters: { inventory_status: "in_transit" },
+  });
+
+  const reams = reamsQ.data ?? [];
+  const cartons = cartonsQ.data ?? [];
+  const movements = movementsQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  const distributors = distributorsQ.data ?? [];
+  const stats = {
+    reams: reamsWhQ.data?.total ?? 0,
+    cartons: cartonsWhQ.data?.total ?? 0,
+    production: prodQ.data?.total ?? 0,
+    transit: transitQ.data?.total ?? 0,
   };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  const loading =
+    reamsQ.isPending ||
+    cartonsQ.isPending ||
+    movementsQ.isPending ||
+    warehousesQ.isPending ||
+    distributorsQ.isPending ||
+    reamsWhQ.isPending ||
+    cartonsWhQ.isPending ||
+    prodQ.isPending ||
+    transitQ.isPending;
+  const listError =
+    reamsQ.error ?? cartonsQ.error ?? movementsQ.error ?? warehousesQ.error;
 
   const filterSerial = <T extends { serial_number: string }>(items: T[]) => {
     if (!search) return items;
@@ -210,7 +216,7 @@ export default function SerializedStockPage() {
     }
   };
 
-  const handleMove = async (e: React.FormEvent) => {
+  const handleMove = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!auth) return;
 
@@ -244,30 +250,29 @@ export default function SerializedStockPage() {
 
     setMoving(true);
     try {
-      const supabase = createClient();
       const newStatus = resolveStatus(moveForm.action);
-      const table = moveForm.itemType === "ream" ? "reams" : "cartons";
-      const idField = moveForm.itemType === "ream" ? "ream_id" : "carton_id";
+      const isReam = moveForm.itemType === "ream";
+      const entity = isReam ? "reams" : "cartons";
+      const idField = isReam ? "ream_id" : "carton_id";
 
-      const updates: Record<string, unknown> = {
-        inventory_status: newStatus,
-      };
-      if (moveForm.warehouseId) {
-        updates.warehouse_id = moveForm.warehouseId;
-      }
+      // Status + warehouse updates flow through the hardened CRUD API
+      // (permission-checked, session-derived tenant/company, audited).
+      const updates: Record<string, unknown> = { inventory_status: newStatus };
+      if (moveForm.warehouseId) updates.warehouse_id = moveForm.warehouseId;
 
-      const { error } = await supabase.from(table).update(updates).in("id", ids);
-      if (error) throw error;
+      const results = await Promise.all(
+        ids.map((id) => crudUpdate(entity, id, updates))
+      );
+      const failed = results.find((r) => !r.ok);
+      if (failed) throw new Error(failed.error);
 
-      // Mirror status on linked QR codes where possible
-      if (moveForm.itemType === "ream") {
-        const { data: reamRows } = await supabase
-          .from("reams")
-          .select("qr_code_id")
-          .in("id", ids);
-        const qrIds = (reamRows ?? [])
-          .map((r) => r.qr_code_id)
-          .filter(Boolean) as string[];
+      // Mirror status on linked QR codes where possible. Best-effort: the
+      // qr_codes RLS update policy is restricted to QR/production roles, so
+      // denials are tolerated (matches the legacy silent behavior).
+      if (isReam) {
+        const qrIds = ids
+          .map((id) => reams.find((r) => r.id === id)?.qr_code_id)
+          .filter((v): v is string => Boolean(v));
         if (qrIds.length) {
           const qrStatus =
             newStatus === "in_warehouse"
@@ -280,16 +285,31 @@ export default function SerializedStockPage() {
                     ? "recalled"
                     : undefined;
           if (qrStatus) {
-            await supabase
-              .from("qr_codes")
-              .update({ status: qrStatus })
-              .in("id", qrIds);
+            const qrResults = await Promise.allSettled(
+              qrIds.map((qrId) =>
+                crudUpdate("qr_codes", qrId, { status: qrStatus })
+              )
+            );
+            const qrFailures = qrResults.filter(
+              (r) =>
+                r.status === "rejected" ||
+                (r.status === "fulfilled" && !r.value.ok)
+            );
+            if (qrFailures.length > 0) {
+              console.warn(
+                "[stock] QR mirror failed for " +
+                  qrFailures.length +
+                  "/" +
+                  qrIds.length +
+                  " code(s)",
+                qrFailures
+              );
+            }
           }
         }
       }
 
       const movements = ids.map((id) => ({
-        company_id: auth.profile.company_id,
         movement_type: moveForm.action,
         item_type: moveForm.itemType,
         [idField]: id,
@@ -305,13 +325,19 @@ export default function SerializedStockPage() {
         if (!crudRes.ok) throw new Error(crudRes.error);
       }
 
+      queryClient.invalidateQueries({ queryKey: entityKeys.entity("reams") });
+      queryClient.invalidateQueries({ queryKey: entityKeys.entity("cartons") });
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("inventory_movements"),
+      });
+      queryClient.invalidateQueries({ queryKey: entityKeys.entity("qr_codes") });
+
       toast.success(
         `Updated ${ids.length} ${moveForm.itemType}${ids.length > 1 ? "s" : ""} → ${newStatus.replace(/_/g, " ")}`
       );
       setMoveOpen(false);
       setSelectedReams(new Set());
       setSelectedCartons(new Set());
-      load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Move failed");
     } finally {
@@ -320,6 +346,14 @@ export default function SerializedStockPage() {
   };
 
   if (loading) return <LoadingState />;
+
+  if (listError) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+        Failed to load stock: {listError.message}
+      </div>
+    );
+  }
 
   const canMove =
     hasPermission("inventory.move") || hasPermission("inventory.manage");

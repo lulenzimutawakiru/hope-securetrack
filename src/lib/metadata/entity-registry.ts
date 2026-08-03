@@ -2817,6 +2817,15 @@ defineEntity("reams", "reams", "inventory", {
   searchable: ["serial_number"]
 });
 
+defineEntity("qr_codes", "qr_codes", "inventory", {
+  view: "qr.view",
+  create: "qr.generate",
+  update: "qr.generate",
+  delete: "qr.generate",
+}, {
+  searchable: ["human_serial", "status"]
+});
+
 defineEntity("rfqs", "rfqs", "procurement", {
   view: "procurement.view",
   create: "procurement.approve",
