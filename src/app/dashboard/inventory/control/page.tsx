@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Gauge, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,69 +13,92 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { formatNumber } from "@/lib/utils";
 
-interface Balance {
-  quantity_on_hand: number;
-  quantity_reserved: number;
-  quantity_available: number;
-  quantity_quarantine: number;
-  quantity_damaged: number;
-  quantity_in_transit: number;
-  quantity_on_order: number;
-  quantity_committed: number;
-  total_value: number;
-  products?: {
-    name: string;
-    product_code: string;
-    reorder_level: number;
-    safety_stock: number;
-    min_stock: number;
-    max_stock: number | null;
-    eoq: number | null;
-    abc_class: string;
-    xyz_class: string;
-  } | null;
-  warehouses?: { name: string; code: string } | null;
+const EM = "—";
+
+interface ProductRef {
+  id: string;
+  name: string;
+  product_code: string;
+  reorder_level: number | null;
+  safety_stock: number | null;
+  min_stock: number | null;
+  max_stock: number | null;
+  eoq: number | null;
+  abc_class: string | null;
+  xyz_class: string | null;
+}
+
+interface TotalsAccumulator {
+  onHand: number;
+  reserved: number;
+  available: number;
+  quarantine: number;
+  damaged: number;
+  inTransit: number;
+  onOrder: number;
+  committed: number;
+  value: number;
 }
 
 export default function StockControlPage() {
-  const [rows, setRows] = useState<Balance[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked (inventory.view) and
+  // dual-key scoped. Product names/levels resolve join-free from the
+  // RLS-bound browser client (products.view vs the inventory.view gate).
+  const balancesQ = useEntityAll<Record<string, unknown>>("stock_balances", {
+    sort: "total_value",
+    order: "desc",
+    max: 300,
+    select: "id,product_id,warehouse_id,quantity_on_hand,quantity_reserved,quantity_available,quantity_quarantine,quantity_damaged,quantity_in_transit,quantity_on_order,quantity_committed,total_value",
+  });
+  const warehousesQ = useEntityAll<{ id: string; name: string; code: string }>(
+    "warehouses",
+    { select: "id,name,code", sort: "name" }
+  );
+  const productsQ = useQuery({
+    queryKey: ["stock-control", "products-reference"],
+    queryFn: async () => {
       const supabase = createClient();
-      const { data } = await supabase
-        .from("stock_balances")
-        .select(
-          `quantity_on_hand, quantity_reserved, quantity_available, quantity_quarantine,
-           quantity_damaged, quantity_in_transit, quantity_on_order, quantity_committed, total_value,
-           products(name, product_code, reorder_level, safety_stock, min_stock, max_stock, eoq, abc_class, xyz_class),
-           warehouses(name, code)`
-        )
-        .order("total_value", { ascending: false })
-        .limit(300);
-      setRows((data as unknown as Balance[]) ?? []);
-      setLoading(false);
-    }
-    load();
-  }, []);
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, product_code, reorder_level, safety_stock, min_stock, max_stock, eoq, abc_class, xyz_class");
+      if (error) throw error;
+      return (data ?? []) as ProductRef[];
+    },
+  });
+
+  const warehouses = warehousesQ.data ?? [];
+  const productsMap = useMemo(
+    () => new Map((productsQ.data ?? []).map((p) => [p.id, p])),
+    [productsQ.data]
+  );
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
+  const loading =
+    balancesQ.isPending || warehousesQ.isPending || productsQ.isPending;
 
   const filtered = useMemo(() => {
+    const rows = balancesQ.data ?? [];
     if (!search) return rows;
     const s = search.toLowerCase();
-    return rows.filter(
-      (r) =>
-        r.products?.name?.toLowerCase().includes(s) ||
-        r.products?.product_code?.toLowerCase().includes(s)
-    );
-  }, [rows, search]);
+    return rows.filter((r) => {
+      const p = productsMap.get(String(r.product_id));
+      return (
+        p?.name?.toLowerCase().includes(s) ||
+        p?.product_code?.toLowerCase().includes(s)
+      );
+    });
+  }, [balancesQ.data, search, productsMap]);
 
   const totals = useMemo(() => {
-    return filtered.reduce(
+    return filtered.reduce<TotalsAccumulator>(
       (acc, r) => {
         acc.onHand += Number(r.quantity_on_hand || 0);
         acc.reserved += Number(r.quantity_reserved || 0);
@@ -160,23 +183,24 @@ export default function StockControlPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((r, i) => {
+                const p = productsMap.get(String(r.product_id));
                 const onHand = Number(r.quantity_on_hand || 0);
-                const safety = Number(r.products?.safety_stock || 0);
-                const reorder = Number(r.products?.reorder_level || 0);
+                const safety = Number(p?.safety_stock || 0);
+                const reorder = Number(p?.reorder_level || 0);
                 const belowSafety = safety > 0 && onHand <= safety;
                 const belowReorder = reorder > 0 && onHand <= reorder;
                 return (
                   <TableRow key={i}>
                     <TableCell>
-                      <div className="font-mono text-sm">{r.products?.product_code}</div>
-                      <div className="text-sm">{r.products?.name}</div>
+                      <div className="font-mono text-sm">{p?.product_code}</div>
+                      <div className="text-sm">{p?.name}</div>
                     </TableCell>
-                    <TableCell>{r.warehouses?.name ?? "—"}</TableCell>
+                    <TableCell>{warehouseName(r.warehouse_id as string)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="mr-1">
-                        {r.products?.abc_class ?? "C"}
+                        {p?.abc_class ?? "C"}
                       </Badge>
-                      <Badge variant="secondary">{r.products?.xyz_class ?? "Z"}</Badge>
+                      <Badge variant="secondary">{p?.xyz_class ?? "Z"}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{formatNumber(onHand)}</TableCell>
                     <TableCell className="text-right">
@@ -192,7 +216,7 @@ export default function StockControlPage() {
                       {formatNumber(reorder)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatNumber(Number(r.products?.eoq || 0))}
+                      {formatNumber(Number(p?.eoq || 0))}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatNumber(Math.round(Number(r.total_value || 0)))}

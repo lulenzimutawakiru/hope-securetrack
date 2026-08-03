@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileBarChart, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -11,9 +11,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { useEntityAll } from "@/hooks/use-entity-all";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
+
+const EM = "—";
 
 type ReportKey =
   | "balance"
@@ -25,85 +29,165 @@ type ReportKey =
 
 export default function InventoryReportsPage() {
   const [report, setReport] = useState<ReportKey>("balance");
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
 
-  const load = async (key: ReportKey) => {
-    setLoading(true);
-    const supabase = createClient();
-    let data: Array<Record<string, unknown>> | null = null;
-
-    if (key === "balance") {
-      const res = await supabase
-        .from("stock_balances")
-        .select(
-          "quantity_on_hand, quantity_available, total_value, batch_number, products(product_code, name), warehouses(code, name)"
-        )
-        .order("total_value", { ascending: false })
-        .limit(200);
-      data = res.data;
-    } else if (key === "movement") {
-      const res = await supabase
-        .from("inventory_movements")
-        .select(
-          "movement_type, quantity, qty_decimal, reference_number, performed_at, notes, products(product_code)"
-        )
-        .order("performed_at", { ascending: false })
-        .limit(200);
-      data = res.data;
-    } else if (key === "reorder") {
-      const res = await supabase
+  // Balance / expiry read stock_balances and movement reads
+  // inventory_movements through the hardened CRUD API: tenant/company are
+  // derived server-side, every row is permission-checked (inventory.view)
+  // and dual-key scoped. Reorder / slow / ABC are product-centric and stay
+  // on the RLS-bound browser client (products.view). Product/warehouse
+  // names resolve join-free from the reference sets below.
+  const balanceQ = useEntityAll<Record<string, unknown>>(
+    "stock_balances",
+    {
+      sort: "total_value",
+      order: "desc",
+      max: 200,
+      select: "id,product_id,warehouse_id,quantity_on_hand,quantity_available,total_value,batch_number",
+    },
+    { enabled: report === "balance" }
+  );
+  const movementQ = useEntityAll<Record<string, unknown>>(
+    "inventory_movements",
+    {
+      sort: "performed_at",
+      order: "desc",
+      max: 200,
+      select: "id,product_id,movement_type,quantity,qty_decimal,reference_number,performed_at",
+    },
+    { enabled: report === "movement" }
+  );
+  const expiryQ = useEntityAll<Record<string, unknown>>(
+    "stock_balances",
+    {
+      sort: "expiry_date",
+      order: "asc",
+      max: 1000,
+      select: "id,product_id,warehouse_id,batch_number,expiry_date,quantity_on_hand",
+    },
+    { enabled: report === "expiry" }
+  );
+  const reorderQ = useQuery({
+    queryKey: ["inventory-reports", "reorder"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
-        .select(
-          "product_code, name, reorder_level, safety_stock, reorder_qty, eoq, lead_time_days"
-        )
+        .select("product_code, name, reorder_level, safety_stock, reorder_qty, eoq, lead_time_days")
         .gt("reorder_level", 0)
         .order("product_code");
-      data = res.data;
-    } else if (key === "slow") {
-      const res = await supabase
+      if (error) throw error;
+      return (data ?? []) as Array<Record<string, unknown>>;
+    },
+    enabled: report === "reorder",
+  });
+  const slowQ = useQuery({
+    queryKey: ["inventory-reports", "slow"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
         .select("product_code, name, is_slow_moving, is_dead_stock, abc_class, average_cost")
         .or("is_slow_moving.eq.true,is_dead_stock.eq.true")
         .order("product_code");
-      data = res.data;
-    } else if (key === "expiry") {
-      const res = await supabase
-        .from("stock_balances")
-        .select(
-          "batch_number, expiry_date, quantity_on_hand, products(product_code, name), warehouses(name)"
-        )
-        .not("expiry_date", "is", null)
-        .order("expiry_date")
-        .limit(200);
-      data = res.data;
-    } else {
-      const res = await supabase
+      if (error) throw error;
+      return (data ?? []) as Array<Record<string, unknown>>;
+    },
+    enabled: report === "slow",
+  });
+  const abcQ = useQuery({
+    queryKey: ["inventory-reports", "abc"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("products")
-        .select(
-          "product_code, name, abc_class, xyz_class, annual_usage_value, average_cost, standard_cost"
-        )
+        .select("product_code, name, abc_class, xyz_class, annual_usage_value, average_cost, standard_cost")
         .eq("is_active", true)
         .order("abc_class")
         .order("annual_usage_value", { ascending: false })
         .limit(200);
-      data = res.data;
+      if (error) throw error;
+      return (data ?? []) as Array<Record<string, unknown>>;
+    },
+    enabled: report === "abc",
+  });
+
+  // Reference sets: products (RLS browser client, role-agnostic read) and
+  // warehouses (CRUD) resolve ids on balance / movement / expiry rows.
+  const productsRefQ = useQuery({
+    queryKey: ["inventory-reports", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, product_code, name");
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        product_code: string;
+        name: string;
+      }>;
+    },
+  });
+  const warehousesRefQ = useEntityAll<{ id: string; name: string; code: string }>(
+    "warehouses",
+    { select: "id,name,code", sort: "name" }
+  );
+
+  const productsMap = useMemo(
+    () => new Map((productsRefQ.data ?? []).map((p) => [p.id, p])),
+    [productsRefQ.data]
+  );
+  const warehouses = warehousesRefQ.data ?? [];
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
+
+  // The active report's rows; expiry strips rows without a batch expiry
+  // date (the CRUD engine supports eq/in filters only).
+  const rows = useMemo(() => {
+    if (report === "balance") return balanceQ.data ?? [];
+    if (report === "movement") return movementQ.data ?? [];
+    if (report === "expiry") {
+      return (expiryQ.data ?? []).filter((r) => r.expiry_date != null);
     }
+    if (report === "reorder") return reorderQ.data ?? [];
+    if (report === "slow") return slowQ.data ?? [];
+    return abcQ.data ?? [];
+  }, [
+    report,
+    balanceQ.data,
+    movementQ.data,
+    expiryQ.data,
+    reorderQ.data,
+    slowQ.data,
+    abcQ.data,
+  ]);
 
-    setRows(data ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load(report);
-  }, [report]);
+  const activePending =
+    report === "balance"
+      ? balanceQ.isPending
+      : report === "movement"
+        ? movementQ.isPending
+        : report === "expiry"
+          ? expiryQ.isPending
+          : report === "reorder"
+            ? reorderQ.isPending
+            : report === "slow"
+              ? slowQ.isPending
+              : abcQ.isPending;
+  const loading = activePending || productsRefQ.isPending || warehousesRefQ.isPending;
 
   const exportCsv = () => {
     if (!rows.length) {
       toast.error("Nothing to export");
       return;
     }
-    const keys = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== "object");
+    // Scalar join ids are internal UUIDs; drop them so exports keep the
+    // original column set (product/warehouse names now come from maps).
+    const keys = Object.keys(rows[0]).filter(
+      (k) =>
+        !["id", "product_id", "warehouse_id"].includes(k) &&
+        typeof rows[0][k] !== "object"
+    );
     const header = keys.join(",") + "\n";
     const body = rows
       .map((r) =>
@@ -241,25 +325,19 @@ export default function InventoryReportsPage() {
                 </TableRow>
               ) : (
                 rows.map((r, i) => {
-                  const prod = r.products as
-                    | { product_code?: string; name?: string }
-                    | null
-                    | undefined;
-                  const wh = r.warehouses as
-                    | { name?: string; code?: string }
-                    | null
-                    | undefined;
+                  const prod = productsMap.get(String(r.product_id));
+                  const wh = warehouseName(r.warehouse_id as string);
                   return (
                     <TableRow key={i}>
                       {report === "balance" && (
                         <>
                           <TableCell>
-                            {prod?.product_code ?? "—"}{" "}
+                            {prod?.product_code ?? EM}{" "}
                             <span className="text-muted-foreground text-sm">
                               {prod?.name}
                             </span>
                           </TableCell>
-                          <TableCell>{wh?.name ?? "—"}</TableCell>
+                          <TableCell>{wh}</TableCell>
                           <TableCell className="text-right">
                             {formatNumber(Number(r.quantity_on_hand))}
                           </TableCell>
@@ -276,14 +354,13 @@ export default function InventoryReportsPage() {
                           <TableCell className="text-sm whitespace-nowrap">
                             {r.performed_at
                               ? formatDateTime(String(r.performed_at))
-                              : "—"}
+                              : EM}
                           </TableCell>
                           <TableCell className="capitalize">
                             {String(r.movement_type).replace(/_/g, " ")}
                           </TableCell>
                           <TableCell>
-                            {(r.products as { product_code?: string } | null)
-                              ?.product_code ?? "—"}
+                            {prod?.product_code ?? EM}
                           </TableCell>
                           <TableCell className="text-right">
                             {formatNumber(
@@ -291,14 +368,14 @@ export default function InventoryReportsPage() {
                             )}
                           </TableCell>
                           <TableCell className="font-mono text-xs">
-                            {String(r.reference_number ?? "—")}
+                            {String(r.reference_number ?? EM)}
                           </TableCell>
                         </>
                       )}
                       {report === "reorder" && (
                         <>
                           <TableCell>
-                            {String(r.product_code)} — {String(r.name)}
+                            {String(r.product_code)} {EM} {String(r.name)}
                           </TableCell>
                           <TableCell className="text-right">
                             {formatNumber(Number(r.reorder_level))}
@@ -319,7 +396,7 @@ export default function InventoryReportsPage() {
                       {report === "slow" && (
                         <>
                           <TableCell>
-                            {String(r.product_code)} — {String(r.name)}
+                            {String(r.product_code)} {EM} {String(r.name)}
                           </TableCell>
                           <TableCell className="space-x-1">
                             {r.is_slow_moving ? (
@@ -329,7 +406,7 @@ export default function InventoryReportsPage() {
                               <Badge className="bg-red-100 text-red-800">Dead</Badge>
                             ) : null}
                           </TableCell>
-                          <TableCell>{String(r.abc_class ?? "—")}</TableCell>
+                          <TableCell>{String(r.abc_class ?? EM)}</TableCell>
                           <TableCell className="text-right">
                             {formatNumber(Number(r.average_cost || 0))}
                           </TableCell>
@@ -338,7 +415,7 @@ export default function InventoryReportsPage() {
                       {report === "expiry" && (
                         <>
                           <TableCell className="font-mono text-sm">
-                            {String(r.batch_number ?? "—")}
+                            {String(r.batch_number ?? EM)}
                           </TableCell>
                           <TableCell>
                             {prod?.product_code} {prod?.name}
@@ -352,7 +429,7 @@ export default function InventoryReportsPage() {
                       {report === "abc" && (
                         <>
                           <TableCell>
-                            {String(r.product_code)} — {String(r.name)}
+                            {String(r.product_code)} {EM} {String(r.name)}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{String(r.abc_class)}</Badge>

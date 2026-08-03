@@ -1,4 +1,18 @@
 # Changelog
+## 2026-08-03 - Phase 17: frontend roadmap (inventory module CRUD read migration)
+
+### Final inventory list reads on the hardened data layer (R-21 closed)
+
+- `src/app/dashboard/inventory/control/page.tsx` - control grid migrated to `useEntityAll("stock_balances")` (inventory.view CRUD gate); totals accumulation uses a typed `TotalsAccumulator` interface with `filtered.reduce<TotalsAccumulator>(...)` (resolves the unknown-accumulator inference); warehouse labels resolved join-free from the CRUD reference set; products stay browser-side by design (`products.view` CRUD gate vs the page roles)
+- `src/app/dashboard/inventory/reports/page.tsx` - six report inputs moved to dedicated TanStack queries (`enabled: report === key`); reorder/slow/ABC reads stay on the browser products set, balance/expiry read CRUD `stock_balances` (broad `expiry_date asc` fetch with client-side null filter - engine supports eq/in only), movement reads CRUD `inventory_movements`; CSV export drops scalar id/product/warehouse keys and join objects to preserve the original column shape
+- `src/app/dashboard/inventory/valuation/page.tsx` - snapshot grid migrated to `useEntityAll("inventory_valuations")` (inventory.view gate, created_by tracked); snapshot writes stay on `crudCreate`; cache invalidation switched from the legacy `load()` pattern to `entityKeys.entity(...)` (`inventory_valuations` + `stock_balances`)
+- `src/lib/metadata/entity-registry.ts` - registered `inventory_movements` (read `inventory.view`, delete `inventory.admin`, sortable `performed_at`; no created/updated-at columns)
+- R-21 closed: no remaining browser-side inventory list reads; product references stay browser-side by design across the module (same decision as the hub/replenishment)
+
+### Validation
+
+- Typecheck, vitest (171), security suite (101), eslint (0 errors on changed files), production build, bundle audit - all green
+
 ## 2026-08-03 - Phase 16: frontend roadmap (inventory module CRUD read migration)
 
 ### Remaining inventory pages on the hardened data layer

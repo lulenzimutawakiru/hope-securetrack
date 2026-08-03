@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Calculator } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,57 +12,91 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { entityKeys } from "@/lib/api/query-keys";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import { crudCreate } from "@/lib/api/crud-client";
 
+const EM = "—";
+
+interface ProductRef {
+  id: string;
+  name: string;
+  product_code: string;
+  valuation_method: string | null;
+  standard_cost: number | null;
+  average_cost: number | null;
+  abc_class: string | null;
+}
+
 export default function ValuationPage() {
   const { auth } = useUser();
-  const [balances, setBalances] = useState<Array<Record<string, unknown>>>([]);
-  const [snapshots, setSnapshots] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data }, { data: snap }] = await Promise.all([
-      supabase
-        .from("stock_balances")
-        .select(
-          "quantity_on_hand, unit_cost, total_value, batch_number, products(name, product_code, valuation_method, standard_cost, average_cost, abc_class), warehouses(name)"
-        )
-        .order("total_value", { ascending: false })
-        .limit(300),
-      supabase
-        .from("inventory_valuations")
-        .select("*")
-        .order("valuation_date", { ascending: false })
-        .limit(20),
-    ]);
-    setBalances(data ?? []);
-    setSnapshots(snap ?? []);
-    setLoading(false);
-  };
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, every row is permission-checked (inventory.view) and
+  // dual-key scoped. Product/warehouse names resolve join-free from the
+  // reference sets (products stay on the RLS-bound browser client).
+  const balancesQ = useEntityAll<Record<string, unknown>>("stock_balances", {
+    sort: "total_value",
+    order: "desc",
+    max: 300,
+    select: "id,product_id,warehouse_id,quantity_on_hand,unit_cost,total_value,batch_number",
+  });
+  const snapshotsQ = useEntityAll<Record<string, unknown>>("inventory_valuations", {
+    sort: "valuation_date",
+    order: "desc",
+    max: 20,
+  });
+  const warehousesQ = useEntityAll<{ id: string; name: string }>("warehouses", {
+    select: "id,name",
+    sort: "name",
+  });
+  const productsQ = useQuery({
+    queryKey: ["inventory-valuation", "products-reference"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, product_code, valuation_method, standard_cost, average_cost, abc_class");
+      if (error) throw error;
+      return (data ?? []) as ProductRef[];
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const balances = balancesQ.data ?? [];
+  const snapshots = snapshotsQ.data ?? [];
+  const warehouses = warehousesQ.data ?? [];
+  const productsMap = useMemo(
+    () => new Map((productsQ.data ?? []).map((p) => [p.id, p])),
+    [productsQ.data]
+  );
+  const warehouseName = (id: string | null | undefined) =>
+    warehouses.find((w) => w.id === id)?.name ?? EM;
+  const loading =
+    balancesQ.isPending ||
+    snapshotsQ.isPending ||
+    warehousesQ.isPending ||
+    productsQ.isPending;
 
   const totals = useMemo(() => {
-    const value = balances.reduce((s, b) => s + Number(b.total_value || 0), 0);
-    const qty = balances.reduce((s, b) => s + Number(b.quantity_on_hand || 0), 0);
-    const aClass = balances.filter((b) => {
-      const p = b.products as { abc_class?: string } | null;
+    const rows = balancesQ.data ?? [];
+    const value = rows.reduce((s, b) => s + Number(b.total_value || 0), 0);
+    const qty = rows.reduce((s, b) => s + Number(b.quantity_on_hand || 0), 0);
+    const aClass = rows.filter((b) => {
+      const p = productsMap.get(String(b.product_id));
       return p?.abc_class === "A";
     });
     const aValue = aClass.reduce((s, b) => s + Number(b.total_value || 0), 0);
     return { value, qty, aValue, aShare: value ? (aValue / value) * 100 : 0 };
-  }, [balances]);
+  }, [balancesQ.data, productsMap]);
 
   const snapshot = async () => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudCreate("inventory_valuations", {
       company_id: auth.profile.company_id,
       valuation_date: new Date().toISOString().slice(0, 10),
@@ -75,7 +109,12 @@ export default function ValuationPage() {
     if (!crudRes.ok) toast.error(crudRes.error);
     else {
       toast.success("Valuation snapshot saved");
-      load();
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("inventory_valuations"),
+      });
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("stock_balances"),
+      });
     }
   };
 
@@ -83,17 +122,12 @@ export default function ValuationPage() {
     const header = "SKU,Name,Warehouse,Method,Qty,UnitCost,Value,ABC\n";
     const body = balances
       .map((b) => {
-        const p = b.products as {
-          product_code?: string;
-          name?: string;
-          valuation_method?: string;
-          abc_class?: string;
-        } | null;
-        const w = b.warehouses as { name?: string } | null;
+        const p = productsMap.get(String(b.product_id));
+        const w = warehouseName(b.warehouse_id as string);
         return [
           p?.product_code,
           `"${p?.name ?? ""}"`,
-          w?.name,
+          w,
           p?.valuation_method,
           b.quantity_on_hand,
           b.unit_cost,
@@ -172,20 +206,15 @@ export default function ValuationPage() {
             </TableHeader>
             <TableBody>
               {balances.map((b, i) => {
-                const p = b.products as {
-                  product_code?: string;
-                  name?: string;
-                  valuation_method?: string;
-                  abc_class?: string;
-                } | null;
-                const w = b.warehouses as { name?: string } | null;
+                const p = productsMap.get(String(b.product_id));
+                const w = warehouseName(b.warehouse_id as string);
                 return (
                   <TableRow key={i}>
                     <TableCell>
                       <div className="font-mono text-sm">{p?.product_code}</div>
                       <div className="text-sm">{p?.name}</div>
                     </TableCell>
-                    <TableCell>{w?.name ?? "—"}</TableCell>
+                    <TableCell>{w}</TableCell>
                     <TableCell className="capitalize text-sm">
                       {(p?.valuation_method ?? "weighted_average").replace(/_/g, " ")}
                     </TableCell>
@@ -232,7 +261,7 @@ export default function ValuationPage() {
               snapshots.map((s) => (
                 <TableRow key={String(s.id)}>
                   <TableCell>
-                    {s.valuation_date ? formatDate(String(s.valuation_date)) : "—"}
+                    {s.valuation_date ? formatDate(String(s.valuation_date)) : EM}
                   </TableCell>
                   <TableCell className="capitalize">
                     {String(s.method).replace(/_/g, " ")}
@@ -243,7 +272,7 @@ export default function ValuationPage() {
                   <TableCell className="text-right">
                     {formatNumber(Math.round(Number(s.total_value)))}
                   </TableCell>
-                  <TableCell className="text-sm">{String(s.notes ?? "—")}</TableCell>
+                  <TableCell className="text-sm">{String(s.notes ?? EM)}</TableCell>
                 </TableRow>
               ))
             )}

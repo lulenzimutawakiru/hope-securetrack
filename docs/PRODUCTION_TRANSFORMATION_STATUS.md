@@ -25,6 +25,17 @@ SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 
 | Known limitation: `qr_codes` RLS update policy is restricted to QR/production roles, so warehouse-manager moves do not mirror QR status (matches legacy behavior; logged via warn) - flagged for a follow-up RLS/registry permission alignment | Tracked |
 | Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
 
+## Phase 17 (2026-08-03) - frontend roadmap (inventory module CRUD read migration)
+
+| Deliverable | Status |
+|------------|--------|
+| `inventory/control` migrated - `useEntityAll("stock_balances")` grid read (inventory.view gate), typed `TotalsAccumulator` reduce for KPI accumulation, join-free warehouse label resolution; products reference stays browser-side by design (`products.view` CRUD gate vs page roles) | Live |
+| `inventory/reports` migrated - six report inputs on dedicated TanStack queries (`enabled: report === key`); balance/expiry via CRUD `stock_balances` (client-side expiry-date filter - engine eq/in only), movement via CRUD `inventory_movements`, reorder/slow/ABC via browser products by design; CSV export preserves column shape (scalar/join keys dropped) | Live |
+| `inventory/valuation` migrated - snapshot grid on `useEntityAll("inventory_valuations")` (inventory.view gate, created_by tracked), `crudCreate` snapshot writes, `entityKeys.entity` cache invalidation replacing the legacy `load()` pattern | Live |
+| `inventory_movements` registered in the entity registry (read `inventory.view`, delete `inventory.admin`, sortable `performed_at`) | Live |
+| R-21 closed: last three browser-side inventory list reads migrated - the inventory module is fully on the hardened data layer (product references remain browser-side by design) | Closed |
+| Typecheck / vitest (171) / security suite (101) / eslint (0 errors on changed files) / production build / bundle audit | Green |
+
 ## Phase 16 (2026-08-03) - frontend roadmap (inventory module CRUD read migration)
 
 | Deliverable | Status |
