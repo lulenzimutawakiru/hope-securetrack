@@ -1,4 +1,6 @@
 export type TaEntityConfig = {
+  /** Show the detail drawer (comments + attachments) for records */
+  detail?: boolean;
   title: string;
   description: string;
   table: string;

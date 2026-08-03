@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
-  Plus, Trash2, Copy, Download, RefreshCw, Search, Pencil, Archive,
+  Plus, Trash2, Copy, Download, RefreshCw, Search, Pencil, Archive, Eye,
+  MessageSquare, Paperclip, FileText, Upload, Send,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,13 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
@@ -26,6 +31,11 @@ import {
   taList, taCreate, taUpdate, taSoftDelete, taDuplicate,
   taBulkStatus, taNextNumber, toCsv, downloadCsv, taRestore,
 } from "@/lib/ta/crud";
+import {
+  taListComments, taAddComment, taDeleteComment,
+  taListAttachments, taUploadAttachment, taDeleteAttachment,
+  getTaFileUrl, formatFileSize,
+} from "@/lib/ta/activity";
 import { toast } from "sonner";
 
 export type TaFieldDef = {
@@ -40,6 +50,8 @@ export type TaFieldDef = {
 };
 
 export type TaEntityConfig = {
+  /** Show the detail drawer (comments + attachments) for records */
+  detail?: boolean;
   title: string;
   description: string;
   table: string;
@@ -65,6 +77,13 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [detailRow, setDetailRow] = useState<Record<string, unknown> | null>(null);
+  const [comments, setComments] = useState<Array<Record<string, unknown>>>([]);
+  const [attachments, setAttachments] = useState<Array<Record<string, unknown>>>([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const companyId = auth?.profile?.company_id;
 
@@ -215,7 +234,7 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
     if (selected.size === 0) return toast.error("Select rows first");
     try {
       await taBulkStatus(config.table, Array.from(selected), st, auth?.user.id);
-      toast.success(`Status ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${st}`);
+      toast.success(`Status → ${st}`);
       setSelected(new Set());
       await load();
     } catch (e) {
@@ -223,6 +242,115 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
     }
   };
 
+  const openDetail = async (row: Record<string, unknown>) => {
+    setDetailRow(row);
+    try {
+      const [c, a] = await Promise.all([
+        taListComments(config.table, row.id as string),
+        taListAttachments(config.table, row.id as string),
+      ]);
+      setComments(c);
+      setAttachments(a);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Detail load failed");
+    }
+  };
+
+  const refreshDetail = async (id: string) => {
+    try {
+      const [c, a] = await Promise.all([
+        taListComments(config.table, id),
+        taListAttachments(config.table, id),
+      ]);
+      setComments(c);
+      setAttachments(a);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Detail refresh failed");
+    }
+  };
+
+  const addComment = async () => {
+    if (!detailRow || !companyId || !auth) return;
+    const body = commentBody.trim();
+    if (!body) return toast.error("Write a comment first");
+    setDetailBusy(true);
+    try {
+      const name = auth.profile?.first_name
+        ? `${auth.profile.first_name} ${auth.profile.last_name ?? ""}`.trim()
+        : undefined;
+      await taAddComment({
+        companyId,
+        refTable: config.table,
+        refId: detailRow.id as string,
+        body,
+        authorId: auth.user.id,
+        authorName: name,
+      });
+      setCommentBody("");
+      await refreshDetail(detailRow.id as string);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Comment failed");
+    } finally {
+      setDetailBusy(false);
+    }
+  };
+
+  const deleteComment = async (id: string) => {
+    if (!confirm("Delete this comment?")) return;
+    try {
+      await taDeleteComment(id);
+      if (detailRow) await refreshDetail(detailRow.id as string);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  };
+
+  const onUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !detailRow || !companyId) return;
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Max file size is 25 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      await taUploadAttachment({
+        companyId,
+        refTable: config.table,
+        refId: detailRow.id as string,
+        file,
+        uploaderId: auth?.user.id,
+      });
+      toast.success("Uploaded");
+      await refreshDetail(detailRow.id as string);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const downloadAttachment = async (a: Record<string, unknown>) => {
+    try {
+      const url = await getTaFileUrl(String(a.storage_path));
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    }
+  };
+
+  const deleteAttachment = async (a: Record<string, unknown>) => {
+    if (!confirm(`Delete ${String(a.file_name)}?`)) return;
+    try {
+      await taDeleteAttachment(a.id as string, String(a.storage_path));
+      if (detailRow) await refreshDetail(detailRow.id as string);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  };
   const exportCsv = () => {
     const cols = config.columns.map((c) => c.key);
     downloadCsv(
@@ -231,7 +359,7 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
     );
   };
 
-  if (loading) return <LoadingState message={`Loading ${config.title}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦`} />;
+  if (loading) return <LoadingState message={`Loading ${config.title}…`} />;
 
   return (
     <div>
@@ -263,7 +391,7 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
       <div className="flex flex-wrap gap-2 mb-4">
         <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="SearchÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input className="pl-8" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {config.statusField && config.statusOptions && (
           <Select value={status} onValueChange={setStatus}>
@@ -281,7 +409,7 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
             <SelectTrigger className="w-[160px]"><SelectValue placeholder={`Bulk (${selected.size})`} /></SelectTrigger>
             <SelectContent>
               {config.statusOptions.map((s) => (
-                <SelectItem key={s} value={s}>ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ {s}</SelectItem>
+                <SelectItem key={s} value={s}>→ {s}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -329,9 +457,9 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
                   {config.columns.map((c) => (
                     <TableCell key={c.key} className="text-sm">
                       {c.key === (config.statusField || "status") ? (
-                        <Badge variant="outline">{String(r[c.key] ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</Badge>
+                        <Badge variant="outline">{String(r[c.key] ?? "—")}</Badge>
                       ) : (
-                        String(r[c.key] ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")
+                        String(r[c.key] ?? "—")
                       )}
                     </TableCell>
                   ))}
@@ -342,6 +470,11 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
                       </Button>
                     ) : (
                       <>
+                        {config.detail && (
+                          <Button size="sm" variant="ghost" onClick={() => openDetail(r)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -395,10 +528,123 @@ export function TaEntityPage({ config }: { config: TaEntityConfig }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} disabled={busy}>{busy ? "SavingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Save"}</Button>
+            <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {config.detail && detailRow && (
+        <Sheet open onOpenChange={(v) => { if (!v) { setDetailRow(null); setCommentBody(""); } }}>
+          <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>{config.title} detail</SheetTitle>
+              <SheetDescription>
+                {String(detailRow[config.columns[0]?.key ?? "id"] ?? "")}
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {config.fields.map((f) => {
+                const v = detailRow[f.key];
+                if (v == null || v === "") return null;
+                return (
+                  <div key={f.key} className="text-sm">
+                    <div className="text-xs text-muted-foreground">{f.label}</div>
+                    <div className="font-medium break-words">
+                      {f.type === "date" && typeof v === "string" ? v.slice(0, 10) : String(v)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <MessageSquare className="h-4 w-4" /> Comments ({comments.length})
+              </div>
+              {comments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No comments yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {comments.map((c) => (
+                    <div key={c.id as string} className="rounded-md border p-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{String(c.author_name || "User")}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(String(c.created_at)).toLocaleString()}
+                          </span>
+                          <button
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteComment(c.id as string)}
+                            aria-label="Delete comment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap">{String(c.body)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-start gap-2">
+                <Textarea
+                  className="min-h-[60px]"
+                  placeholder="Add a comment..."
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                />
+                <Button size="sm" onClick={addComment} disabled={detailBusy}>
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Paperclip className="h-4 w-4" /> Attachments ({attachments.length})
+              </div>
+              {attachments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No attachments yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {attachments.map((a) => (
+                    <div key={a.id as string} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{String(a.file_name)}</div>
+                          <div className="text-xs text-muted-foreground">{formatFileSize(Number(a.file_size_bytes))}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button size="sm" variant="ghost" onClick={() => downloadAttachment(a)}>
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteAttachment(a)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input ref={fileInputRef} type="file" className="hidden" onChange={onUpload} />
+                <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  <Upload className="h-3.5 w-3.5 mr-1" />
+                  {uploading ? "Uploading..." : "Upload file"}
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

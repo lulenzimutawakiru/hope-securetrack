@@ -12,6 +12,7 @@ function cfg(p: TaEntityConfig): TaEntityConfig {
 
 export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   headcount: cfg({
+    detail: true,
     title: "Headcount plans",
     description: "Strategic workforce and headcount planning by department",
     table: "ta_headcount_plans",
@@ -47,6 +48,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   requisitions: cfg({
+    detail: true,
     title: "Recruitment requests",
     description: "Requisitions with multi-level approval",
     table: "ta_requisitions",
@@ -150,6 +152,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   vacancies: cfg({
+    detail: true,
     title: "Vacancies",
     description: "Published and draft job openings",
     table: "ta_vacancies",
@@ -223,6 +226,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   candidates: cfg({
+    detail: true,
     title: "Candidate database",
     description: "Talent profiles and resume inventory",
     table: "ta_candidates",
@@ -260,6 +264,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   applications: cfg({
+    detail: true,
     title: "Applications (ATS)",
     description: "Application lifecycle records",
     table: "ta_applications",
@@ -465,6 +470,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   interviews: cfg({
+    detail: true,
     title: "Interview management",
     description: "Scheduling, panels, and recommendations",
     table: "ta_interviews",
@@ -589,6 +595,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   offers: cfg({
+    detail: true,
     title: "Offer management",
     description: "Offer letters, approvals and acceptances",
     table: "ta_offers",
@@ -634,6 +641,7 @@ export const TA_ENTITIES: Record<string, TaEntityConfig> = {
   }),
 
   onboarding: cfg({
+    detail: true,
     title: "Digital onboarding tasks",
     description: "Cross-department pre-boarding and day-one tasks",
     table: "ta_onboarding_tasks",
