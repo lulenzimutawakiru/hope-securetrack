@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Printer, Download, FileSpreadsheet, MoreHorizontal, Loader2 } from "lucide-react";
+import { Printer, Download, FileSpreadsheet, FileText, MoreHorizontal, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import {
   printDocument,
   downloadDocumentHtml,
   downloadDocumentCsv,
+  downloadDocumentPdf,
 } from "@/lib/documents";
 import { applyCompanyBrandToDoc } from "@/lib/documents-brand";
 import { useUser } from "@/hooks/use-user";
@@ -40,7 +41,7 @@ export function DocumentActions({
   showLabel = true,
   className,
 }: Props) {
-  const [busy, setBusy] = useState<"print" | "html" | "csv" | null>(null);
+  const [busy, setBusy] = useState<"print" | "html" | "csv" | "pdf" | null>(null);
   const { companyId } = useUser();
 
   const onPrint = async () => {
@@ -51,7 +52,7 @@ export function DocumentActions({
         throw new Error("Document data is empty");
       }
       printDocument(d);
-      toast.success("Print dialog opened — choose printer or Save as PDF");
+      toast.success("Print dialog opened â€” choose printer or Save as PDF");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Print failed");
     } finally {
@@ -64,7 +65,7 @@ export function DocumentActions({
     try {
       const d = await applyCompanyBrandToDoc(await resolveDoc(doc), companyId);
       downloadDocumentHtml(d);
-      toast.success("HTML downloaded — open file, then Ctrl+P to print/PDF");
+      toast.success("HTML downloaded â€” open file, then Ctrl+P to print/PDF");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Download failed");
     } finally {
@@ -72,6 +73,21 @@ export function DocumentActions({
     }
   };
 
+  const onPdf = async () => {
+    setBusy("pdf");
+    try {
+      const d = await applyCompanyBrandToDoc(await resolveDoc(doc), companyId);
+      if (!d?.number && !d?.title) {
+        throw new Error("Document data is empty");
+      }
+      await downloadDocumentPdf(d);
+      toast.success("PDF downloaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "PDF download failed");
+    } finally {
+      setBusy(null);
+    }
+  };
   const onCsv = async () => {
     setBusy("csv");
     try {

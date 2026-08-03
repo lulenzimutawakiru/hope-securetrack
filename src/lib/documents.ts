@@ -421,3 +421,37 @@ export function applyCompanyBrand(
     accentColor: doc.accentColor ?? orUndef(brand.accentColor),
   };
 }
+
+/**
+ * Download a branded document as a real PDF.
+ * Renders server-side (session-scoped company branding) via /api/documents/pdf.
+ */
+export async function downloadDocumentPdf(
+  doc: BusinessDocument,
+  filename?: string
+): Promise<void> {
+  const res = await fetch("/api/documents/pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doc }),
+  });
+  if (!res.ok) {
+    let msg = `PDF generation failed (${res.status})`;
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j?.error) msg = j.error;
+    } catch {
+      /* keep default */
+    }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download =
+    filename ??
+    `${doc.docType.replace(/\s+/g, "-").toLowerCase()}-${doc.number || Date.now()}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
