@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Play, Lock, Unlock, FileText, Building2, Banknote } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +12,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { useEntityList } from "@/hooks/use-entity-query";
+import { entityKeys } from "@/lib/api/query-keys";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -20,40 +22,40 @@ import { apiPost, promptDualControlId } from "@/lib/api-client";
 
 export default function PayrollRunsPage() {
   const { auth } = useUser();
-  const [runs, setRuns] = useState<Array<Record<string, unknown>>>([]);
-  const [lines, setLines] = useState<Array<Record<string, unknown>>>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
 
   const companyId = auth?.profile?.company_id as string | undefined;
 
-  const load = async () => {
-    const { data } = await createClient()
-      .from("payroll_runs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setRuns((data as Array<Record<string, unknown>>) || []);
-    if (data?.[0]) await loadLines(String(data[0].id));
-    setLoading(false);
+  // Runs flow through the hardened CRUD API (permission-checked, server-scoped).
+  const runsQuery = useEntityList<Record<string, unknown>>("payroll_runs", {
+    pageSize: 50,
+    sort: "created_at",
+    order: "desc",
+  });
+  const runs = useMemo(() => runsQuery.data?.data ?? [], [runsQuery.data]);
+  // Active run: the user's explicit selection, or the most recent run once the
+  // list loads (derived, so no state-sync effect is needed).
+  const activeRunId = selected ?? (runs.length > 0 ? String(runs[0].id) : null);
+
+  // Payroll lines load reactively for the selected run (join embedded server-side).
+  const linesQuery = useEntityList<Record<string, unknown>>(
+    "payroll_lines",
+    {
+      filters: activeRunId ? { payroll_run_id: activeRunId } : {},
+      select: "*, employees(first_name,last_name,employee_number,department)",
+    },
+    { enabled: !!activeRunId }
+  );
+  const lines = useMemo(() => linesQuery.data?.data ?? [], [linesQuery.data]);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: entityKeys.entity("payroll_runs") });
+    queryClient.invalidateQueries({ queryKey: entityKeys.entity("payroll_lines") });
   };
 
-  const loadLines = async (id: string) => {
-    const { data } = await createClient()
-      .from("payroll_lines")
-      .select("*, employees(first_name,last_name,employee_number,department)")
-      .eq("payroll_run_id", id)
-      .order("created_at");
-    setLines((data as Array<Record<string, unknown>>) || []);
-    setSelected(id);
-  };
-
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, []);
-
-  /** Server API — preferred production path */
+  /** Server API - preferred production path */
   const process = async () => {
     if (!companyId) return;
     setBusy(true);
@@ -79,7 +81,7 @@ export default function PayrollRunsPage() {
           `Payroll processed: ${run?.run_number || "run"} · ${run?.employee_count ?? 0} employees`
         );
       }
-      await load();
+      refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Process failed");
     } finally {
@@ -88,12 +90,12 @@ export default function PayrollRunsPage() {
   };
 
   const publish = async () => {
-    if (!companyId || !selected) return;
+    if (!companyId || !activeRunId) return;
     setBusy(true);
     try {
       const r = await publishPayslips({
         company_id: companyId,
-        payroll_run_id: selected,
+        payroll_run_id: activeRunId,
       });
       toast.success(`Published ${r.count} payslips`);
     } catch (err) {
@@ -104,7 +106,7 @@ export default function PayrollRunsPage() {
   };
 
   const bankFile = async (dualControlId?: string | null) => {
-    if (!selected) return;
+    if (!activeRunId) return;
     setBusy(true);
     try {
       const res = await apiPost<{
@@ -115,7 +117,7 @@ export default function PayrollRunsPage() {
         file_content?: string;
         csv_preview?: string;
       }>("/api/payroll/bank-file", {
-        payroll_run_id: selected,
+        payroll_run_id: activeRunId,
         dual_control_id: dualControlId || undefined,
       });
 
@@ -145,7 +147,7 @@ export default function PayrollRunsPage() {
         URL.revokeObjectURL(url);
       }
       toast.success(`Bank batch ${batchNo} generated (server)`);
-      await load();
+      refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Batch failed");
     } finally {
@@ -154,14 +156,14 @@ export default function PayrollRunsPage() {
   };
 
   const releasePay = async (dualControlId?: string | null) => {
-    if (!selected) return;
-    const active = runs.find((r) => String(r.id) === selected);
+    if (!activeRunId) return;
+    const active = runs.find((r) => String(r.id) === activeRunId);
     const net = Number(active?.net_total || 0);
     if (!confirm("Release payroll payment for this run? This marks the run paid.")) return;
     setBusy(true);
     try {
       const res = await apiPost("/api/payroll/release", {
-        payroll_run_id: selected,
+        payroll_run_id: activeRunId,
         dual_control_id: dualControlId || undefined,
         post_gl: true,
         net_total: net > 0 ? net : undefined,
@@ -180,7 +182,7 @@ export default function PayrollRunsPage() {
         return;
       }
       toast.success("Payroll released (server)");
-      await load();
+      refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Release failed");
     } finally {
@@ -198,15 +200,15 @@ export default function PayrollRunsPage() {
         await lockPayrollRun(String(run.id), auth.user.id);
         toast.success("Payroll locked");
       }
-      await load();
+      refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Lock failed");
     }
   };
 
-  if (loading) return <LoadingState message="Loading payroll runs…" />;
+  if (runsQuery.isPending) return <LoadingState message="Loading payroll runs…" />;
 
-  const active = runs.find((r) => String(r.id) === selected) || runs[0];
+  const active = runs.find((r) => String(r.id) === activeRunId) || runs[0];
 
   return (
     <div>
@@ -222,7 +224,7 @@ export default function PayrollRunsPage() {
               size="sm"
               variant="outline"
               onClick={publish}
-              disabled={!selected || busy}
+              disabled={!activeRunId || busy}
               aria-label="Publish payslips"
             >
               <FileText className="h-4 w-4 mr-1" /> Publish payslips
@@ -231,7 +233,7 @@ export default function PayrollRunsPage() {
               size="sm"
               variant="outline"
               onClick={() => bankFile()}
-              disabled={!selected || busy}
+              disabled={!activeRunId || busy}
               aria-label="Generate bank file"
             >
               <Building2 className="h-4 w-4 mr-1" /> Bank file
@@ -240,7 +242,7 @@ export default function PayrollRunsPage() {
               size="sm"
               variant="secondary"
               onClick={() => releasePay()}
-              disabled={!selected || busy}
+              disabled={!activeRunId || busy}
               aria-label="Release payroll payment"
             >
               <Banknote className="h-4 w-4 mr-1" /> Release pay
@@ -279,17 +281,17 @@ export default function PayrollRunsPage() {
                 {runs.map((r) => (
                   <TableRow
                     key={String(r.id)}
-                    className={selected === String(r.id) ? "bg-muted/50" : "cursor-pointer"}
-                    onClick={() => loadLines(String(r.id))}
+                    className={activeRunId === String(r.id) ? "bg-muted/50" : "cursor-pointer"}
+                    onClick={() => setSelected(String(r.id))}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        void loadLines(String(r.id));
+                        setSelected(String(r.id));
                       }
                     }}
                     tabIndex={0}
                     role="button"
-                    aria-selected={selected === String(r.id)}
+                    aria-pressed={activeRunId === String(r.id)}
                   >
                     <TableCell>
                       <div className="font-medium text-sm">{String(r.period_label)}</div>
@@ -332,7 +334,7 @@ export default function PayrollRunsPage() {
         </div>
 
         <div className="rounded-md border lg:col-span-2 max-h-[520px] overflow-y-auto">
-          {lines.length === 0 ? (
+          {!activeRunId || lines.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               Select a run to view lines
             </div>

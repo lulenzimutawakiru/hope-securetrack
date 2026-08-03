@@ -7,6 +7,18 @@
 
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
+## Phase 12 (2026-08-03) - frontend roadmap (query layer, auth context, grid UX)
+
+| Deliverable | Status |
+|------------|--------|
+| Typed query layer (`query-keys.ts`, `use-entity-query.ts`) - server-paginated reads + writes over `/api/v2/crud/[entity]` with cache invalidation and memoized mutation handles | Live |
+| Single client auth context (`UserProvider` in root layout; `use-user.ts` reads context; permissions derived from `role_permissions` once per session) | Live |
+| UI primitives: `PermissionGate`, `ModuleError`/`ModuleLoading`, server-paginated `PaginatedDataGrid`; finance/fleet/payroll `error.tsx` + `loading.tsx` boundaries | Live |
+| 7 flagship pages migrated to the query layer (finance/coa, hr/employees, procurement/suppliers, crm/accounts, sales/orders, payroll/runs, production/batches) | Live |
+| Bundle budget enforcement (`scripts/bundle-audit.mjs`, `npm run audit:bundle`) - 0 chunks > 500 KB, 0 routes > 1,500 KB | Live |
+| Typecheck / vitest (171) / security suite (101) / eslint (clean on changed files) / production build | Green |
+
+
 ## Phase 11 (2026-08-03) - legacy identity & permissive-policy lockdown
 
 | Deliverable | Status |

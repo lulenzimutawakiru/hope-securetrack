@@ -30,7 +30,8 @@
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
     "db:seed": "supabase db seed",
-    "test:e2e:payroll": "playwright test e2e/payroll-dual-control.spec.ts"
+    "test:e2e:payroll": "playwright test e2e/payroll-dual-control.spec.ts",
+    "audit:bundle": "node scripts/bundle-audit.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

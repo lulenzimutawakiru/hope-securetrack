@@ -20,8 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
-import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -42,10 +41,12 @@ interface Customer {
   is_active: boolean;
 }
 
+const PAGE_SIZE = 100;
+
 export default function CrmAccountsPage() {
-  const [rows, setRows] = useState<Customer[]>([]);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -59,21 +60,33 @@ export default function CrmAccountsPage() {
     territory: "Central Uganda",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const { data } = await supabase.from("customers").select("*").order("name");
-    setRows((data as Customer[]) ?? []);
-    setLoading(false);
-  };
-
+  // Debounce the search box before it reaches the server-side query.
   useEffect(() => {
-    load();
-  }, []);
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Reads flow through the hardened CRUD API; search is server-side over the
+  // registered searchable fields (name, code, email).
+  const { data, isPending } = useEntityList<Customer>("customers", {
+    page,
+    pageSize: PAGE_SIZE,
+    sort: "name",
+    search: search.trim() || undefined,
+  });
+  const crud = useCrudMutation<Customer>("customers");
+
+  const rows = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = form.code || `CUS-${Date.now().toString(36).toUpperCase()}`;
-    const res = await crudCreate("customers", {
+    const res = await crud.create({
       name: form.name,
       code,
       customer_type: form.customer_type,
@@ -94,21 +107,10 @@ export default function CrmAccountsPage() {
     else {
       toast.success("Account created");
       setOpen(false);
-      load();
     }
   };
 
-  const filtered = rows.filter((r) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      r.name.toLowerCase().includes(q) ||
-      r.code.toLowerCase().includes(q) ||
-      (r.city || "").toLowerCase().includes(q)
-    );
-  });
-
-  if (loading) return <LoadingState />;
+  if (isPending) return <LoadingState />;
 
   return (
     <div>
@@ -129,60 +131,51 @@ export default function CrmAccountsPage() {
                 </DialogHeader>
                 <div className="grid gap-3 py-4 max-h-[60vh] overflow-y-auto">
                   <div className="space-y-2">
-                    <Label>Company name</Label>
+                    <Label>Account name</Label>
                     <Input
                       required
+                      placeholder="Acme Corp"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <Label>Code</Label>
-                      <Input
-                        value={form.code}
-                        onChange={(e) => setForm({ ...form, code: e.target.value })}
-                        placeholder="Auto"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Type</Label>
-                      <Select
-                        value={form.customer_type}
-                        onValueChange={(v) =>
-                          setForm({ ...form, customer_type: v })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            "corporate",
-                            "government",
-                            "education",
-                            "ngo",
-                            "dealer",
-                            "distributor",
-                            "export",
-                            "retail",
-                          ].map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Code</Label>
+                    <Input
+                      placeholder="Auto-generated"
+                      value={form.code}
+                      onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    />
                   </div>
-                  <Input
-                    placeholder="Industry"
-                    value={form.industry}
-                    onChange={(e) =>
-                      setForm({ ...form, industry: e.target.value })
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select
+                      value={form.customer_type}
+                      onValueChange={(v) =>
+                        setForm({ ...form, customer_type: v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="corporate">Corporate</SelectItem>
+                        <SelectItem value="government">Government</SelectItem>
+                        <SelectItem value="dealer">Dealer</SelectItem>
+                        <SelectItem value="export">Export</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Industry</Label>
+                    <Input
+                      value={form.industry}
+                      onChange={(e) =>
+                        setForm({ ...form, industry: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <Input
                       placeholder="City"
                       value={form.city}
@@ -230,66 +223,91 @@ export default function CrmAccountsPage() {
         <Input
           className="pl-9"
           placeholder="Search accounts…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState icon={Building2} title="No accounts" />
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Territory</TableHead>
-                <TableHead>Credit</TableHead>
-                <TableHead>Loyalty</TableHead>
-                <TableHead className="text-right">360°</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-mono text-sm">{c.code}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {[c.city, c.phone].filter(Boolean).join(" · ")}
-                    </div>
-                  </TableCell>
-                  <TableCell className="capitalize text-xs">
-                    {(c.customer_type || "—").replace(/_/g, " ")}
-                  </TableCell>
-                  <TableCell className="text-sm">{c.territory ?? "—"}</TableCell>
-                  <TableCell>
-                    <div className="text-xs">
-                      UGX {formatNumber(Number(c.credit_limit || 0))}
-                    </div>
-                    <StatusBadge status={c.credit_status || "ok"} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {c.loyalty_level || "standard"}
-                    </Badge>
-                    <div className="text-[10px] text-muted-foreground">
-                      {c.loyalty_points ?? 0} pts
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/dashboard/crm/accounts/${c.id}`}>
-                      <Button size="sm" variant="outline">
-                        Open
-                      </Button>
-                    </Link>
-                  </TableCell>
+        <div>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Territory</TableHead>
+                  <TableHead>Credit</TableHead>
+                  <TableHead>Loyalty</TableHead>
+                  <TableHead className="text-right">360°</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-mono text-sm">{c.code}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {[c.city, c.phone].filter(Boolean).join(" · ")}
+                      </div>
+                    </TableCell>
+                    <TableCell className="capitalize text-xs">
+                      {(c.customer_type || "—").replace(/_/g, " ")}
+                    </TableCell>
+                    <TableCell className="text-sm">{c.territory ?? "—"}</TableCell>
+                    <TableCell>
+                      <div className="text-xs">
+                        UGX {formatNumber(Number(c.credit_limit || 0))}
+                      </div>
+                      <StatusBadge status={c.credit_status || "ok"} />
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {c.loyalty_level || "standard"}
+                      </Badge>
+                      <div className="text-[10px] text-muted-foreground">
+                        {c.loyalty_points ?? 0} pts
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/dashboard/crm/accounts/${c.id}`}>
+                        <Button size="sm" variant="outline">
+                          Open
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {total > PAGE_SIZE && (
+            <div className="flex items-center justify-end gap-2 mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Prev
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {pageCount}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={page >= pageCount}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Users, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -11,16 +11,13 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { LoadingState } from "@/components/ui/loading-state";
 import {
-  EnterpriseDataGrid,
   type DataGridColumn,
 } from "@/components/enterprise/data-grid";
-import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
+import { PaginatedDataGrid } from "@/components/enterprise/paginated-data-grid";
+import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { crudCreate } from "@/lib/api/crud-client";
 
 type SupplierRow = {
   id: string;
@@ -39,9 +36,8 @@ type SupplierRow = {
 };
 
 export default function SuppliersPage() {
-  const { auth } = useUser();
-  const [rows, setRows] = useState<SupplierRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     code: "",
@@ -52,27 +48,21 @@ export default function SuppliersPage() {
     country: "Uganda",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("suppliers")
-      .select("*")
-      .order("name")
-      .limit(500);
-    setRows((data as SupplierRow[]) ?? []);
-    setLoading(false);
-  };
+  // Reads and writes flow through the hardened CRUD API (tenant/company
+  // derived server-side, permission-checked, paginated).
+  const { data, isPending, error } = useEntityList<SupplierRow>("suppliers", {
+    page,
+    pageSize,
+    sort: "name",
+  });
+  const crud = useCrudMutation<SupplierRow>("suppliers");
 
-  useEffect(() => {
-    load();
-  }, []);
+  const rows = data?.data ?? [];
+  const total = data?.total ?? 0;
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const supabase = createClient();
-    const crudRes = await crudCreate("suppliers", {
-      company_id: auth.profile.company_id,
+    const res = await crud.create({
       code: form.code,
       name: form.name,
       category: form.category,
@@ -82,11 +72,10 @@ export default function SuppliersPage() {
       is_approved_vendor: false,
       is_active: true,
     });
-    if (!crudRes.ok) toast.error(crudRes.error);
+    if (!res.ok) toast.error(res.error);
     else {
       toast.success("Supplier created");
       setOpen(false);
-      load();
     }
   };
 
@@ -117,7 +106,7 @@ export default function SuppliersPage() {
         header: "Category",
         cell: ({ getValue }) => (
           <span className="capitalize text-sm">
-            {String(getValue() ?? "â€”").replace(/_/g, " ")}
+            {String(getValue() ?? "—").replace(/_/g, " ")}
           </span>
         ),
       },
@@ -141,14 +130,14 @@ export default function SuppliersPage() {
             <Badge
               variant="outline"
               className={
-                n >= 60
-                  ? "border-red-300 text-red-700"
+                n >= 70
+                  ? "bg-red-50 text-red-700"
                   : n >= 40
-                    ? "border-amber-300 text-amber-700"
-                    : "border-green-300 text-green-700"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-green-50 text-green-700"
               }
             >
-              {String(getValue() ?? "â€”")}
+              {String(getValue() ?? "—")}
             </Badge>
           );
         },
@@ -175,13 +164,13 @@ export default function SuppliersPage() {
     []
   );
 
-  if (loading) return <LoadingState />;
+  if (isPending) return null;
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Suppliers"
-        description="Enterprise grid Â· vendor master Â· risk Â· OTD Â· export"
+        description="Enterprise grid · vendor master · risk · OTD · export"
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">
@@ -251,17 +240,27 @@ export default function SuppliersPage() {
         }
       />
 
-      <EnterpriseDataGrid
-        data={rows}
+      <PaginatedDataGrid
+        rows={rows}
         columns={columns}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        loading={isPending}
+        error={error}
+        onPageChange={(p) => setPage(p)}
+        onPageSizeChange={(s) => {
+          setPageSize(s);
+          setPage(1);
+        }}
         storageKey="grid:suppliers"
         height={520}
         exportFilename="suppliers"
-        emptyMessage="No suppliers â€” add approved vendors"
+        emptyMessage="No suppliers — add approved vendors"
       />
       <p className="text-caption flex items-center gap-1">
         <Users className="h-3 w-3" />
-        Pin Code column Â· save filter presets Â· bulk export CSV
+        Pin Code column · save filter presets · bulk export CSV
       </p>
     </div>
   );

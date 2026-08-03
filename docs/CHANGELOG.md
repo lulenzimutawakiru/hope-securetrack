@@ -1,4 +1,43 @@
 # Changelog
+## 2026-08-03 - Phase 12: frontend roadmap (query layer, auth context, grid UX)
+
+### Query layer
+
+- `src/lib/api/query-keys.ts` - typed TanStack Query key factory per entity (all / list / detail)
+- `src/hooks/use-entity-query.ts` - `useEntityList` + `useCrudMutation` over the hardened `/api/v2/crud/[entity]` surface: server-side tenant/company derivation, permission checks, lifecycle-field stripping, cache invalidation on write; the mutation handle is memoized so page-level `useCallback`/`useMemo` dependencies stay stable
+
+### Client auth context
+
+- `src/components/providers/user-provider.tsx` + `src/hooks/use-user.ts` - single `UserProvider` mounted in the root layout resolves the profile from `user_profiles` (server-authoritative) and derives permissions from `role_permissions` once per session; `useUser()` keeps the same public API and reads the shared context, replacing one duplicate fetch per page
+- `src/lib/auth/permissions.ts` - client-side permission enrichment mirroring server role expansion (`super_administrator` wildcard, platform elevation)
+
+### UI primitives
+
+- `src/components/security/permission-gate.tsx` - declarative permission gating for client UI (cosmetic; server-side enforcement unchanged)
+- `src/components/ui/module-error.tsx` + `module-loading.tsx` - consistent module-level error/loading boundaries
+- `src/components/enterprise/paginated-data-grid.tsx` - server-paginated enterprise grid (sort, filter, pin, bulk archive, export, recycle-bin aware) wired to the CRUD list response
+- Per-module `error.tsx` + `loading.tsx` boundaries added for finance, fleet, payroll
+
+### Page migrations (7 flagship pages)
+
+- `finance/coa` - server-paginated Chart of Accounts with archive/restore and bulk actions
+- `hr/employees` - employee + leave-request read/write through the CRUD API
+- `procurement/suppliers` - supplier create/list through the CRUD API
+- `crm/accounts` - customer accounts read/write through the CRUD API
+- `sales/orders` - order creation with customer credit-status checks through the CRUD API
+- `payroll/runs` - payroll-run list with reactive per-run lines; active-run selection derived from query data (no state-sync effect)
+- `production/batches` - MES batch create/list through the CRUD API
+
+### Bundle budget
+
+- `scripts/bundle-audit.mjs` + `npm run audit:bundle` - enforces 500 KB chunk / 1,500 KB route budgets; currently 0 chunks / 0 routes over budget (heaviest route 1,406 KB)
+
+### Validation
+
+- typecheck, vitest (171), security suite (101), eslint clean on changed files, production build green, bundle audit green
+
+---
+
 ## 2026-08-03 - Phase 11: legacy identity & permissive-policy lockdown
 
 ### Database / RLS

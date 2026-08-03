@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Factory } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -33,19 +33,15 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import type { ProductionBatch, Product } from "@/types/database";
 import { PRODUCTION_STATUSES } from "@/lib/constants";
 
 export default function ProductionPage() {
   const { auth, hasPermission } = useUser();
-  const [batches, setBatches] = useState<ProductionBatch[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<string>("all");
@@ -57,30 +53,29 @@ export default function ProductionPage() {
     manufacturing_date: new Date().toISOString().slice(0, 10),
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    let query = supabase
-      .from("production_batches")
-      .select("*, products(name, product_code)")
-      .order("created_at", { ascending: false });
+  // Reads flow through the hardened CRUD API: tenant/company derived
+  // server-side, rows permission-checked. Filter is server-side (eq), so the
+  // status tabs refetch through the API instead of client-side filtering.
+  const batchesQuery = useEntityList<ProductionBatch>("production_batches", {
+    select: "*, products(name, product_code)",
+    filters: filter !== "all" ? { production_status: filter } : {},
+    sort: "created_at",
+    order: "desc",
+  });
+  const productsQuery = useEntityList<Product>("products", {
+    pageSize: 100,
+    sort: "name",
+    filters: { is_active: true },
+  });
+  const factoriesQuery = useEntityList<{ id: string }>("factories", {
+    pageSize: 1,
+    filters: { is_active: true },
+  });
+  const crud = useCrudMutation<ProductionBatch>("production_batches");
 
-    if (filter !== "all") {
-      query = query.eq("production_status", filter);
-    }
-
-    const [{ data }, { data: prods }] = await Promise.all([
-      query,
-      supabase.from("products").select("*").eq("is_active", true).order("name"),
-    ]);
-
-    setBatches((data as ProductionBatch[]) ?? []);
-    setProducts((prods as Product[]) ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-  }, [filter]);
+  const batches = batchesQuery.data?.data ?? [];
+  const products = productsQuery.data?.data ?? [];
+  const factory = factoriesQuery.data?.data?.[0];
 
   const generateBatchNumber = () => {
     const d = new Date();
@@ -95,29 +90,18 @@ export default function ProductionPage() {
     setSaving(true);
 
     try {
-      const supabase = createClient();
       const product = products.find((p) => p.id === form.product_id);
       if (!product) {
         toast.error("Select a product");
         return;
       }
-
-      const { data: factory } = await supabase
-        .from("factories")
-        .select("id")
-        .eq("company_id", auth.profile.company_id)
-        .eq("is_active", true)
-        .limit(1)
-        .single();
-
       if (!factory) {
         toast.error("No active factory found");
         return;
       }
 
       const batchNumber = generateBatchNumber();
-      const crudRes2 = await crudCreate("production_batches", {
-        company_id: auth.profile.company_id,
+      const res = await crud.create({
         factory_id: factory.id,
         product_id: product.id,
         batch_number: batchNumber,
@@ -131,11 +115,10 @@ export default function ProductionPage() {
         notes: form.notes || null,
         production_status: "draft",
         qc_status: "pending",
-        created_by: auth.profile.id,
-        operator_id: auth.profile.id,
+        operator_id: auth.user?.id,
       });
 
-      if (!crudRes2.ok) throw new Error(crudRes2.error);
+      if (!res.ok) throw new Error(res.error);
 
       toast.success(`Batch ${batchNumber} created`);
       setOpen(false);
@@ -146,7 +129,6 @@ export default function ProductionPage() {
         notes: "",
         manufacturing_date: new Date().toISOString().slice(0, 10),
       });
-      load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create batch");
     } finally {
@@ -155,17 +137,15 @@ export default function ProductionPage() {
   };
 
   const updateStatus = async (id: string, production_status: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("production_batches", id, { production_status });
-    if (!crudRes.ok) {
-      toast.error(crudRes.error);
+    const res = await crud.update(id, { production_status });
+    if (!res.ok) {
+      toast.error(res.error);
       return;
     }
     toast.success("Status updated");
-    load();
   };
 
-  if (loading) return <LoadingState />;
+  if (batchesQuery.isPending || productsQuery.isPending) return <LoadingState />;
 
   return (
     <div>
@@ -173,7 +153,7 @@ export default function ProductionPage() {
         title="Production"
         description="Manage production batches and manufacturing runs"
         actions={
-          hasPermission("production.create") && (
+          hasPermission("mes.manage") && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button>

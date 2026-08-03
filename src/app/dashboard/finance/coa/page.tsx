@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Layers, Plus, Pencil, Archive, RotateCcw, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -14,16 +14,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { LoadingState } from "@/components/ui/loading-state";
 import {
-  EnterpriseDataGrid,
   type DataGridColumn,
 } from "@/components/enterprise/data-grid";
-import { createClient } from "@/lib/supabase/client";
-import { useUser } from "@/hooks/use-user";
-import { softDeleteMany, restoreMany } from "@/lib/soft-delete";
+import { PaginatedDataGrid } from "@/components/enterprise/paginated-data-grid";
+import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
 import { toast } from "sonner";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 
 const ACCOUNT_TYPES = [
   "asset",
@@ -52,86 +48,65 @@ type CoaRow = {
   deleted_at: string | null;
 };
 
+const EMPTY_FORM = {
+  account_code: "",
+  account_name: "",
+  account_type: "asset",
+  normal_balance: "debit",
+  reporting_group: "Balance Sheet",
+  is_postable: true,
+};
+
 export default function CoaPage() {
-  const { auth } = useUser();
-  const [rows, setRows] = useState<CoaRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const [showArchived, setShowArchived] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    account_code: "",
-    account_name: "",
-    account_type: "asset",
-    normal_balance: "debit",
-    reporting_group: "Balance Sheet",
-    is_postable: true,
+  const [form, setForm] = useState(EMPTY_FORM);
+
+  // Reads flow through the hardened CRUD API: tenant/company are derived
+  // server-side, list rows are permission-checked and paginated.
+  const { data, isPending, error } = useEntityList<CoaRow>("chart_of_accounts", {
+    page,
+    pageSize,
+    sort: "account_code",
+    includeDeleted: showArchived || undefined,
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    let q = supabase.from("chart_of_accounts").select("*").order("account_code");
-    if (!showArchived) q = q.is("deleted_at", null);
-    const { data } = await q;
-    setRows((data as CoaRow[]) ?? []);
-    setLoading(false);
-  };
+  // Writes flow through the same API; lifecycle fields (company_id, tenant_id,
+  // created_by) are stripped and re-derived server-side.
+  const crud = useCrudMutation<CoaRow>("chart_of_accounts");
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showArchived]);
+  const rows = data?.data ?? [];
+  const total = data?.total ?? 0;
 
   const resetForm = () => {
-    setForm({
-      account_code: "",
-      account_name: "",
-      account_type: "asset",
-      normal_balance: "debit",
-      reporting_group: "Balance Sheet",
-      is_postable: true,
-    });
+    setForm(EMPTY_FORM);
     setEditId(null);
   };
 
-  const save = async (e: React.FormEvent) => {
+  const save = async (e: FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const supabase = createClient();
-    if (editId) {
-      const crudRes2 = await crudUpdate("chart_of_accounts", editId, {
-          account_name: form.account_name,
-          account_type: form.account_type,
-          normal_balance: form.normal_balance,
-          reporting_group: form.reporting_group,
-          is_postable: form.is_postable,
+    const payload = {
+      account_name: form.account_name,
+      account_type: form.account_type,
+      normal_balance: form.normal_balance,
+      reporting_group: form.reporting_group,
+      is_postable: form.is_postable,
+    };
+    const res = editId
+      ? await crud.update(editId, payload)
+      : await crud.create({
+          ...payload,
+          account_code: form.account_code,
+          is_active: true,
         });
-      if (!crudRes2.ok) toast.error(crudRes2.error);
-      else {
-        toast.success("Account updated");
-        setOpen(false);
-        resetForm();
-        load();
-      }
-    } else {
-      const crudRes = await crudCreate("chart_of_accounts", {
-        company_id: auth.profile.company_id,
-        account_code: form.account_code,
-        account_name: form.account_name,
-        account_type: form.account_type,
-        normal_balance: form.normal_balance,
-        reporting_group: form.reporting_group,
-        is_postable: form.is_postable,
-        is_active: true,
-        created_by: auth.profile.id,
-      });
-      if (!crudRes.ok) toast.error(crudRes.error);
-      else {
-        toast.success("Account created");
-        setOpen(false);
-        resetForm();
-        load();
-      }
+    if (!res.ok) toast.error(res.error);
+    else {
+      toast.success(editId ? "Account updated" : "Account created");
+      setOpen(false);
+      resetForm();
     }
   };
 
@@ -148,30 +123,18 @@ export default function CoaPage() {
     setOpen(true);
   };
 
-  const archiveOne = async (id: string) => {
+  const archiveOne = useCallback(async (id: string) => {
     if (!confirm("Archive this account?")) return;
-    const supabase = createClient();
-    const { error } = await softDeleteMany(supabase, "chart_of_accounts", [id], {
-      is_active: false,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Archived");
-      load();
-    }
-  };
+    const res = await crud.remove(id);
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Archived");
+  }, [crud]);
 
-  const restoreOne = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await restoreMany(supabase, "chart_of_accounts", [id], {
-      is_active: true,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Restored");
-      load();
-    }
-  };
+  const restoreOne = useCallback(async (id: string) => {
+    const res = await crud.restore(id);
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Restored");
+  }, [crud]);
 
   const columns = useMemo<DataGridColumn<CoaRow>[]>(
     () => [
@@ -263,11 +226,10 @@ export default function CoaPage() {
         },
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [archiveOne, restoreOne]
   );
 
-  if (loading) return <LoadingState />;
+  if (isPending) return null;
 
   return (
     <div className="space-y-4">
@@ -393,9 +355,19 @@ export default function CoaPage() {
         }
       />
 
-      <EnterpriseDataGrid
-        data={rows}
+      <PaginatedDataGrid
+        rows={rows}
         columns={columns}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        loading={isPending}
+        error={error}
+        onPageChange={(p) => setPage(p)}
+        onPageSizeChange={(s) => {
+          setPageSize(s);
+          setPage(1);
+        }}
         storageKey="grid:coa"
         height={520}
         exportFilename="chart-of-accounts"
@@ -404,28 +376,14 @@ export default function CoaPage() {
           const ids = selected.filter((r) => !r.deleted_at).map((r) => r.id);
           if (!ids.length) return;
           if (!confirm(`Archive ${ids.length} account(s)?`)) return;
-          const supabase = createClient();
-          const { error } = await softDeleteMany(supabase, "chart_of_accounts", ids, {
-            is_active: false,
-          });
-          if (error) toast.error(error.message);
-          else {
-            toast.success(`Archived ${ids.length}`);
-            load();
-          }
+          await Promise.all(ids.map((id) => crud.remove(id)));
+          toast.success(`Archived ${ids.length}`);
         }}
         bulkRestore={async (selected) => {
           const ids = selected.filter((r) => r.deleted_at).map((r) => r.id);
           if (!ids.length) return;
-          const supabase = createClient();
-          const { error } = await restoreMany(supabase, "chart_of_accounts", ids, {
-            is_active: true,
-          });
-          if (error) toast.error(error.message);
-          else {
-            toast.success(`Restored ${ids.length}`);
-            load();
-          }
+          await Promise.all(ids.map((id) => crud.restore(id)));
+          toast.success(`Restored ${ids.length}`);
         }}
       />
       <p className="text-caption flex items-center gap-1">

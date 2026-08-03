@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Users, Plus, CalendarDays } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
-import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
+import { entityKeys } from "@/lib/api/query-keys";
 import { apiPost } from "@/lib/api-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,11 +50,11 @@ interface LeaveRequest {
   employees?: { first_name: string; last_name: string; employee_number: string } | null;
 }
 
+const EMP_PAGE_SIZE = 100;
+
 export default function HrEmployeesPage() {
   const [tab, setTab] = useState<"employees" | "leave">("employees");
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [leave, setLeave] = useState<LeaveRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [empPage, setEmpPage] = useState(1);
   const [empOpen, setEmpOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -75,24 +76,29 @@ export default function HrEmployeesPage() {
     reason: "",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data: e }, { data: l }] = await Promise.all([
-      supabase.from("employees").select("*").order("last_name"),
-      supabase
-        .from("leave_requests")
-        .select("*, employees(first_name,last_name,employee_number)")
-        .order("created_at", { ascending: false })
-        .limit(50),
-    ]);
-    setEmployees((e as Employee[]) ?? []);
-    setLeave((l as LeaveRequest[]) ?? []);
-    setLoading(false);
-  };
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    load();
-  }, []);
+  // Reads flow through the hardened CRUD API: tenant/company derived
+  // server-side, rows permission-checked, paginated instead of unbounded
+  // browser-to-Supabase selects.
+  const empQuery = useEntityList<Employee>("employees", {
+    page: empPage,
+    pageSize: EMP_PAGE_SIZE,
+    sort: "last_name",
+  });
+  const leaveQuery = useEntityList<LeaveRequest>("leave_requests", {
+    pageSize: 50,
+    sort: "created_at",
+    order: "desc",
+    select: "*, employees(first_name,last_name,employee_number)",
+  });
+
+  const empCrud = useCrudMutation<Employee>("employees");
+  const leaveCrud = useCrudMutation<LeaveRequest>("leave_requests");
+
+  const employees = empQuery.data?.data ?? [];
+  const empTotal = empQuery.data?.total ?? 0;
+  const leave = leaveQuery.data?.data ?? [];
 
   const createEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,8 +106,8 @@ export default function HrEmployeesPage() {
     try {
       const num =
         empForm.employee_number ||
-        `EMP-${String(employees.length + 1).padStart(4, "0")}`;
-      const res = await crudCreate("employees", {
+        `EMP-${String(empTotal + 1).padStart(4, "0")}`;
+      const res = await empCrud.create({
         employee_number: num,
         first_name: empForm.first_name,
         last_name: empForm.last_name,
@@ -116,7 +122,6 @@ export default function HrEmployeesPage() {
       if (!res.ok) throw new Error(res.error);
       toast.success("Employee added");
       setEmpOpen(false);
-      load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -135,7 +140,7 @@ export default function HrEmployeesPage() {
           1,
           Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
         );
-      const res = await crudCreate("leave_requests", {
+      const res = await leaveCrud.create({
         employee_id: leaveForm.employee_id,
         leave_type: leaveForm.leave_type,
         start_date: leaveForm.start_date,
@@ -147,7 +152,6 @@ export default function HrEmployeesPage() {
       if (!res.ok) throw new Error(res.error);
       toast.success("Leave request submitted");
       setLeaveOpen(false);
-      load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -160,14 +164,17 @@ export default function HrEmployeesPage() {
     if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Leave ${status}`);
-      load();
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("leave_requests"),
+      });
     }
   };
 
-  if (loading) return <LoadingState />;
+  if (empQuery.isPending || leaveQuery.isPending) return <LoadingState />;
 
   const active = employees.filter((e) => e.status === "active").length;
   const pendingLeave = leave.filter((l) => l.status === "pending").length;
+  const empPageCount = Math.max(1, Math.ceil(empTotal / EMP_PAGE_SIZE));
 
   return (
     <div>
@@ -378,7 +385,7 @@ export default function HrEmployeesPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <StatCard title="Employees" value={formatNumber(employees.length)} icon={Users} />
+        <StatCard title="Employees" value={formatNumber(empTotal)} icon={Users} />
         <StatCard title="Active" value={formatNumber(active)} />
         <StatCard title="Pending leave" value={formatNumber(pendingLeave)} />
       </div>
@@ -404,44 +411,69 @@ export default function HrEmployeesPage() {
         employees.length === 0 ? (
           <EmptyState icon={Users} title="No employees yet" />
         ) : (
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Hire date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employees.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="font-mono text-sm">
-                      {e.employee_number}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {e.first_name} {e.last_name}
-                      {e.email && (
-                        <div className="text-xs text-muted-foreground">
-                          {e.email}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{e.department ?? "—"}</TableCell>
-                    <TableCell>{e.job_title ?? "—"}</TableCell>
-                    <TableCell>
-                      {e.hire_date ? formatDate(e.hire_date) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={e.status} />
-                    </TableCell>
+          <div>
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Hire date</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {employees.map((e) => (
+                    <TableRow key={e.id}>
+                      <TableCell className="font-mono text-sm">
+                        {e.employee_number}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {e.first_name} {e.last_name}
+                        {e.email && (
+                          <div className="text-xs text-muted-foreground">
+                            {e.email}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>{e.department ?? "—"}</TableCell>
+                      <TableCell>{e.job_title ?? "—"}</TableCell>
+                      <TableCell>
+                        {e.hire_date ? formatDate(e.hire_date) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={e.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {empTotal > EMP_PAGE_SIZE && (
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={empPage <= 1}
+                  onClick={() => setEmpPage((p) => p - 1)}
+                >
+                  Prev
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {empPage} of {empPageCount}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={empPage >= empPageCount}
+                  onClick={() => setEmpPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )
       ) : leave.length === 0 ? (

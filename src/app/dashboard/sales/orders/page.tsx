@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, ShoppingCart } from "lucide-react";
+import { Plus, Search, ShoppingCart } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,9 +20,9 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { useEntityList, useCrudMutation } from "@/hooks/use-entity-query";
+import { entityKeys } from "@/lib/api/query-keys";
 import { apiPost } from "@/lib/api-client";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -53,21 +54,22 @@ interface Product {
   product_code: string;
 }
 
-const ORDER_TYPES = [
-  "standard",
-  "blanket",
-  "contract",
-  "repeat",
-  "rush",
-  "government",
-  "export",
+const ORDER_STATUSES = [
+  "draft",
+  "confirmed",
+  "picking",
+  "dispatched",
+  "invoiced",
+  "completed",
+  "cancelled",
 ];
 
+const PAGE_SIZE = 100;
+
 export default function SalesOrdersPage() {
-  const [orders, setOrders] = useState<SalesOrder[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [orderOpen, setOrderOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,34 +92,52 @@ export default function SalesOrdersPage() {
     credit_limit: "5000000",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const [{ data: o }, { data: c }, { data: p }] = await Promise.all([
-      supabase
-        .from("sales_orders")
-        .select("*, customers(name)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase.from("customers").select("*").order("name"),
-      supabase.from("products").select("id,name,product_code").eq("is_active", true),
-    ]);
-    setOrders((o as SalesOrder[]) ?? []);
-    setCustomers((c as Customer[]) ?? []);
-    setProducts((p as Product[]) ?? []);
-    setLoading(false);
-  };
+  const queryClient = useQueryClient();
 
+  // Reads flow through the hardened CRUD API: tenant/company derived
+  // server-side, rows permission-checked, paginated server-side.
+  const ordersQuery = useEntityList<SalesOrder>("sales_orders", {
+    page,
+    pageSize: PAGE_SIZE,
+    sort: "created_at",
+    order: "desc",
+    select: "*, customers(name)",
+    search: search.trim() || undefined,
+  });
+  const customersQuery = useEntityList<Customer>("customers", {
+    pageSize: PAGE_SIZE,
+    sort: "name",
+  });
+  const productsQuery = useEntityList<Product>("products", {
+    pageSize: PAGE_SIZE,
+    sort: "name",
+    filters: { is_active: true },
+  });
+
+  const customerCrud = useCrudMutation<Customer>("customers");
+  const orderCrud = useCrudMutation<SalesOrder>("sales_orders");
+
+  const orders = ordersQuery.data?.data ?? [];
+  const total = ordersQuery.data?.total ?? 0;
+  const customers = customersQuery.data?.data ?? [];
+  const products = productsQuery.data?.data ?? [];
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Debounce the search box before it reaches the server-side query.
   useEffect(() => {
-    load();
-  }, []);
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const createCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const code =
-        customerForm.code || `CUS-${Date.now().toString(36).toUpperCase()}`;
-      const res = await crudCreate("customers", {
+      const code = customerForm.code || `CUS-${Date.now().toString(36).toUpperCase()}`;
+      const res = await customerCrud.create({
         name: customerForm.name,
         code,
         phone: customerForm.phone || null,
@@ -130,13 +150,9 @@ export default function SalesOrdersPage() {
         credit_status: "ok",
         is_active: true,
       });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
+      if (!res.ok) throw new Error(res.error);
       toast.success("Customer created");
       setCustomerOpen(false);
-      load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -157,10 +173,7 @@ export default function SalesOrdersPage() {
         order_type: orderForm.order_type,
         requires_production: orderForm.requires_production === "true",
       });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
+      if (!res.ok) throw new Error(res.error);
       const data = res.data as { order_number?: string; credit_approved?: boolean };
       if (data.credit_approved === false) {
         toast.message(`Order ${data.order_number ?? ""} on credit hold`);
@@ -168,7 +181,9 @@ export default function SalesOrdersPage() {
         toast.success(`Order ${data.order_number ?? ""} confirmed`);
       }
       setOrderOpen(false);
-      load();
+      queryClient.invalidateQueries({
+        queryKey: entityKeys.entity("sales_orders"),
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -177,15 +192,12 @@ export default function SalesOrdersPage() {
   };
 
   const updateStatus = async (id: string, status: string) => {
-    const res = await crudUpdate("sales_orders", id, { status });
+    const res = await orderCrud.update(id, { status });
     if (!res.ok) toast.error(res.error);
-    else {
-      toast.success("Status updated");
-      load();
-    }
+    else toast.success("Status updated");
   };
 
-  if (loading) return <LoadingState />;
+  if (ordersQuery.isPending) return <LoadingState />;
 
   return (
     <div>
@@ -292,90 +304,70 @@ export default function SalesOrdersPage() {
                     <DialogTitle>Sales order</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-3 py-4">
-                    <Select
-                      value={orderForm.customer_id}
-                      onValueChange={(v) =>
-                        setOrderForm({ ...orderForm, customer_id: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={orderForm.order_type}
-                      onValueChange={(v) =>
-                        setOrderForm({ ...orderForm, order_type: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORDER_TYPES.map((t) => (
-                          <SelectItem key={t} value={t} className="capitalize">
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={orderForm.product_id}
-                      onValueChange={(v) =>
-                        setOrderForm({ ...orderForm, product_id: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Input
-                        type="number"
-                        min={1}
-                        value={orderForm.quantity}
-                        onChange={(e) =>
-                          setOrderForm({ ...orderForm, quantity: e.target.value })
-                        }
-                      />
+                    <div className="space-y-2">
+                      <Label>Customer</Label>
                       <Select
-                        value={orderForm.unit}
+                        value={orderForm.customer_id}
                         onValueChange={(v) =>
-                          setOrderForm({ ...orderForm, unit: v })
+                          setOrderForm({ ...orderForm, customer_id: v })
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select customer" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="carton">Carton</SelectItem>
-                          <SelectItem value="ream">Ream</SelectItem>
+                          {customers.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
-                      <Input
-                        type="number"
-                        value={orderForm.unit_price}
-                        onChange={(e) =>
-                          setOrderForm({
-                            ...orderForm,
-                            unit_price: e.target.value,
-                          })
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Product</Label>
+                      <Select
+                        value={orderForm.product_id}
+                        onValueChange={(v) =>
+                          setOrderForm({ ...orderForm, product_id: v })
                         }
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} ({p.product_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input
+                          type="number"
+                          value={orderForm.quantity}
+                          onChange={(e) =>
+                            setOrderForm({ ...orderForm, quantity: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Unit price</Label>
+                        <Input
+                          type="number"
+                          value={orderForm.unit_price}
+                          onChange={(e) =>
+                            setOrderForm({
+                              ...orderForm,
+                              unit_price: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
                     <Select
                       value={orderForm.requires_production}
@@ -409,87 +401,113 @@ export default function SalesOrdersPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <StatCard title="Orders" value={formatNumber(orders.length)} icon={ShoppingCart} />
-        <StatCard
-          title="Customers"
-          value={formatNumber(customers.length)}
+      <div className="relative max-w-sm mb-6">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Search order number…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <StatCard title="Orders" value={formatNumber(total)} icon={ShoppingCart} />
+        <StatCard title="Customers" value={formatNumber(customers.length)} />
         <StatCard
           title="Credit holds"
-          value={formatNumber(orders.filter((o) => !o.credit_approved && o.status === "draft").length)}
+          value={formatNumber(
+            orders.filter((o) => !o.credit_approved && o.status === "draft").length
+          )}
         />
       </div>
 
       {orders.length === 0 ? (
         <EmptyState icon={ShoppingCart} title="No sales orders" />
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Credit</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Update</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-mono text-sm">{o.order_number}</TableCell>
-                  <TableCell className="capitalize text-xs">
-                    {o.order_type || "standard"}
-                    {o.requires_production ? " · MTO" : ""}
-                  </TableCell>
-                  <TableCell>{o.customers?.name ?? "—"}</TableCell>
-                  <TableCell>{formatDate(o.order_date)}</TableCell>
-                  <TableCell>
-                    {o.currency || "UGX"} {formatNumber(Number(o.total_amount))}
-                  </TableCell>
-                  <TableCell>
-                    {o.credit_approved ? (
-                      <StatusBadge status="approved" />
-                    ) : (
-                      <StatusBadge status="on_hold" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={o.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Select
-                      value={o.status}
-                      onValueChange={(v) => updateStatus(o.id, v)}
-                    >
-                      <SelectTrigger className="w-[130px] ml-auto">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          "draft",
-                          "confirmed",
-                          "picking",
-                          "dispatched",
-                          "invoiced",
-                          "completed",
-                          "cancelled",
-                        ].map((s) => (
-                          <SelectItem key={s} value={s} className="capitalize">
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
+        <div>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order #</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Credit</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Update</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {orders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono text-sm">{o.order_number}</TableCell>
+                    <TableCell className="capitalize text-xs">
+                      {o.order_type || "standard"}
+                      {o.requires_production ? " · MTO" : ""}
+                    </TableCell>
+                    <TableCell>{o.customers?.name ?? "—"}</TableCell>
+                    <TableCell>{formatDate(o.order_date)}</TableCell>
+                    <TableCell>
+                      {o.currency || "UGX"} {formatNumber(Number(o.total_amount))}
+                    </TableCell>
+                    <TableCell>
+                      {o.credit_approved ? (
+                        <StatusBadge status="approved" />
+                      ) : (
+                        <StatusBadge status="on_hold" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={o.status} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Select
+                        value={o.status}
+                        onValueChange={(v) => updateStatus(o.id, v)}
+                      >
+                        <SelectTrigger className="w-[130px] ml-auto">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ORDER_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s} className="capitalize">
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {total > PAGE_SIZE && (
+            <div className="flex items-center justify-end gap-2 mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Prev
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {pageCount}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={page >= pageCount}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
