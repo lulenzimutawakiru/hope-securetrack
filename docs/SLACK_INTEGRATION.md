@@ -76,3 +76,21 @@ Tables:
 1. Slack App → Basic Information → regenerate **Signing Secret** / **Client Secret**
 2. Update `.env.local` / Vercel
 3. Redeploy / restart dev server
+
+## Go-live checklist
+
+1. **DB** — apply `20260811000001_slack_integration.sql` (`supabase db push` when Docker is up, or run SQL on hosted Supabase).
+2. **Env** — `SLACK_*` vars on the ERP host (Vercel / `.env.local`). Never commit secrets.
+3. **Slack app URLs** (https://api.slack.com/apps/A0BMWDC45LZ):
+   - OAuth Redirect: `https://<domain>/api/v2/integrations/slack/oauth/callback`
+   - Events Request URL: `https://<domain>/api/v2/integrations/slack/events`
+4. **ERP UI** — Dashboard → Integrations → **Slack · SecureChat** → Connect Slack → set channel → Send test.
+5. **Ticket fan-out** — new service-desk tickets include channel `slack` (posts once to the company workspace when `notify_tickets` is on).
+6. **Optional Bolt Socket Mode** — separate project `C:\Users\user\Projects\SecureChat` uses the same app credentials; set `SLACK_BOT_TOKEN` + `SLACK_APP_TOKEN` there if running `npm start` for Socket Mode listeners.
+
+## Domain events
+
+| Event | Slack |
+|-------|--------|
+| `ticket.created` | Company channel (domain handler + SD notify) |
+| `invoice.paid` | Via notification.dispatch with `channels: ["in_app","slack"]` |

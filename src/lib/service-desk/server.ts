@@ -219,7 +219,8 @@ export async function createTicketServer(
       message: `${input.ticket.subject}${
         assigned_to ? ` - Assigned to agent` : ""
       }`,
-      channels: ["email"],
+      // email to assignees; slack fans out once to company workspace if connected
+      channels: ["email", "slack"],
       category: "service_desk",
       priority: priority === "critical" ? "urgent" : priority === "high" ? "high" : "normal",
       sourceModule: "service_desk",
@@ -229,6 +230,24 @@ export async function createTicketServer(
       link: `/dashboard/service-desk/tickets?id=${data.id}`,
       createdBy: input.created_by,
     });
+  } else {
+    // Still post to Slack workspace even if no user recipients
+    try {
+      const { notifyCompanySlack } = await import("@/lib/slack");
+      await notifyCompanySlack(
+        input.company_id,
+        `Ticket ${ticket_number} created`,
+        String(input.ticket.subject || ""),
+        {
+          eventType: "ticket.created",
+          entityType: "support_ticket",
+          entityId: data.id,
+          link: `/dashboard/service-desk/tickets?id=${data.id}`,
+        }
+      );
+    } catch {
+      /* slack optional */
+    }
   }
 
   return data;

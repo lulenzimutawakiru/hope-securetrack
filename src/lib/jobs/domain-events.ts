@@ -60,10 +60,44 @@ export function defaultDomainEventHandlers(): Record<string, EventHandler> {
           category: "billing",
           sourceEvent: event.event_type,
           entityId: (event.payload?.invoice_id as string) || event.id,
+          channels: ["in_app", "slack"],
         },
       });
       return { ok: true };
     },
+    "ticket.created": async (event, sb) => {
+      if (!event.company_id) return { ok: true };
+      try {
+        const { notifyCompanySlack } = await import("@/lib/slack");
+        const subject =
+          (event.payload?.subject as string) ||
+          (event.payload?.ticket_number as string) ||
+          "New ticket";
+        await notifyCompanySlack(
+          event.company_id,
+          "Service Desk ticket created",
+          subject,
+          {
+            eventType: "ticket.created",
+            entityType: "support_ticket",
+            entityId:
+              (event.payload?.ticket_id as string) ||
+              (event.payload?.id as string) ||
+              event.id,
+            link: event.payload?.link
+              ? String(event.payload.link)
+              : undefined,
+          }
+        );
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : "slack notify failed",
+        };
+      }
+      return { ok: true };
+    },
+
     "security.dual_control.approved": async (event, sb) => {
       await enqueueJob(sb, {
         companyId: event.company_id,
