@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { verifyCustomersKyc } from "../client";
+import {
+  checkMsisdnActive,
+  getIdentityStatus,
+  verifyBiometric,
+  verifyAddressScore,
+  verifyCustomerSingle,
+  verifyCustomersKyc,
+  verifyCustomersKycPost,
+  verifyKycScore,
+  verifyNameScore,
+} from "../client";
 import {
   describeMadapiError,
   isMadapiSuccessCode,
@@ -84,5 +94,87 @@ describe("MADAPI status codes (swagger)", () => {
     expect(isMadapiSuccessCode("3000")).toBe(false);
     expect(isMadapiSuccessCode("4000")).toBe(false);
     expect(isMadapiSuccessCode("5000")).toBe(false);
+  });
+});
+
+describe("MTN KYC POST /customers sandbox", () => {
+  it("wraps customer array as bvns[] and returns mock matches", async () => {
+    const res = await verifyCustomersKycPost({
+      transactionId: "txn-post-1",
+      targetSystem: "NIBSS",
+      requestType: "FACE_MATCH",
+      customers: [
+        {
+          msisdn: "2348012345678",
+          firstName: "Joe",
+          lastName: "Doe",
+          faceImage: "aGVsbG8=",
+        },
+      ],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.body.customers?.[0].firstName).toBe("Joe");
+    expect(res.body.customers?.[0].matchStatus).toBe("BIOMETRIC_MATCH");
+  });
+});
+
+describe("MTN KYC remaining swagger endpoints sandbox", () => {
+  it("verify single customer (POST /customers/{id})", async () => {
+    const res = await verifyCustomerSingle({
+      transactionId: "txn-single-1",
+      customerId: "2348064816499",
+      isConsentVerified: true,
+      body: { firstName: "Joe", lastName: "Doe" },
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.body.data).toMatchObject({ customerId: "2348064816499" });
+  });
+
+  it("check MSISDN active (GET /customers/{id})", async () => {
+    const res = await checkMsisdnActive({
+      transactionId: "txn-check-1",
+      customerId: "2348064816499",
+      verificationType: "BANK",
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.body.data).toMatchObject({ verificationStatus: "Active" });
+    }
+  });
+
+  it("score endpoints return 100% matches", async () => {
+    for (const fn of [verifyKycScore, verifyNameScore, verifyAddressScore]) {
+      const res = await fn({
+        transactionId: "txn-score-1",
+        customerId: "2348064816499",
+        body: { firstName: "Joe" },
+      });
+      expect(res.ok).toBe(true);
+      if (res.ok) expect((res.body.data as { score: number }).score).toBe(100);
+    }
+  });
+
+  it("biometric verify returns MATCH_FOUND", async () => {
+    const res = await verifyBiometric({
+      transactionId: "txn-bio-1",
+      customerId: "2348064816499",
+      body: { binaryAttachment: [{ content: "aGVsbG8=" }] },
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect((res.body.data as { matchDescription: string }).matchDescription).toBe("MATCH_FOUND");
+    }
+  });
+
+  it("identity status returns enrollment status", async () => {
+    const res = await getIdentityStatus({
+      transactionId: "txn-id-1",
+      body: { customerId: "8606165224086", agentId: "AG-1", channelId: "WEB" },
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.body.data).toMatchObject({ customerId: "8606165224086" });
+    }
   });
 });

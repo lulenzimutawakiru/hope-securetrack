@@ -58,7 +58,7 @@ CREATE POLICY intg_mtn_kyc_insert ON public.intg_mtn_kyc_verifications
 
 -- Seed connector catalog row if missing
 INSERT INTO public.intg_connectors (
-  connector_code, name, category, vendor, protocol, auth_type, description, icon
+  connector_code, name, category, provider, protocol, auth_type, description, icon
 )
 SELECT
   'MTN_KYC',

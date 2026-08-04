@@ -5,15 +5,54 @@
 
 export type MtnKycIdentifierKind = "msisdn" | "bvn";
 
+/** MADAPI requestType when targetSystem is NIBSS (POST /customers) */
+export type MtnKycRequestType =
+  | "FACE_MATCH"
+  | "FINGERPRINT"
+  | "BVN"
+  | "MSISDN"
+  | string;
+
+export type MtnKycCustomerInput = {
+  msisdn?: string;
+  bvn?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  /** Base64 face image for FACE_MATCH */
+  faceImage?: string;
+  /** Base64 fingerprint for FINGERPRINT */
+  fingerprintImage?: string;
+  [key: string]: unknown;
+};
+
 export type MtnKycVerifyInput = {
   /** Unique tracker (UUID recommended) */
   transactionId: string;
   /** e.g. NIBSS */
   targetSystem?: string;
-  /** Bank Verification Numbers */
+  /** Bank Verification Numbers (GET) */
   bvns?: string[];
-  /** Mobile numbers (MSISDN) */
+  /** Mobile numbers MSISDN (GET) */
   msisdns?: string[];
+};
+
+/** POST /customers — array of customer records + optional biometrics */
+export type MtnKycVerifyBodyInput = {
+  transactionId: string;
+  targetSystem?: string;
+  /**
+   * Face match or fingerprint verification when targetSystem is NIBSS.
+   * Swagger: query param requestType
+   */
+  requestType?: MtnKycRequestType;
+  /** FINGERPRINT | FINGERPRINT_DOB when targetSystem is NIBSS */
+  verificationType?: string;
+  /** Optional device identifier (CustomerKYCVerificationMultipleRequest.deviceId) */
+  deviceId?: string;
+  customers: MtnKycCustomerInput[];
 };
 
 /** Flexible customer row — MTN payload fields vary by market */
@@ -96,4 +135,59 @@ export type MtnKycAuditRow = {
   error_message: string | null;
   created_by: string | null;
   created_at: string;
+};
+
+/** POST /customers/{customerId} - single-customer KYC verification (BasicKYCRequestData). */
+export type MtnKycVerifySingleInput = {
+  transactionId: string;
+  /** MSISDN (E.123), email, or other customer identifier */
+  customerId: string;
+  targetSystem?: string;
+  /** Required query flag: partner has acquired customer consent */
+  isConsentVerified: boolean;
+  /** BasicKYCRequestData fields (id, firstName, lastName, otherNames, ...) */
+  body: Record<string, unknown>;
+};
+
+/** GET /customers/{customerId} - confirm MSISDN is active on bank/MTN + hashed MSISDN. */
+export type MtnKycCheckMsisdnInput = {
+  transactionId: string;
+  customerId: string;
+  targetSystem?: string;
+  /** BANK | HASHCODE | EVALIDATOR | WinBack | VALENTINE_PROMO */
+  verificationType?: string;
+  /** Bank short code */
+  externalCode?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+/** POST /customers/{customerId}/kycScore|nameScore|addressScore */
+export type MtnKycScoreInput = {
+  transactionId: string;
+  customerId: string;
+  body: Record<string, unknown>;
+};
+
+/** POST /customers/{customerId}/biometric/verify - FaceMatchingRequest */
+export type MtnKycBiometricInput = {
+  transactionId: string;
+  customerId: string;
+  targetSystem?: string;
+  /** FINGERPRINT_MATCH when targetSystem is NIBSS */
+  requestType?: string;
+  /** FINGERPRINT_PHONENUMBER when targetSystem is NIBSS */
+  verificationType?: string;
+  /** FaceMatchingRequest (email, binaryAttachment[], uploadId, description, deviceId, serialNumber, correlationId) */
+  body: Record<string, unknown>;
+};
+
+/** POST /biometric-roc/customers/identityStatus - ROC enroll identity status */
+export type MtnKycIdentityStatusInput = {
+  transactionId: string;
+  body: {
+    customerId: string;
+    agentId?: string;
+    channelId?: string;
+  };
 };

@@ -27,7 +27,7 @@ export type MadapiCodeInfo = {
  *   405 → 3000  Method Not Allowed
  *   406 → 3000  Not Acceptable
  *   415 → 3000  Unsupported Media Type
- *   500 → (server; default 5000 family if unspecified)
+ *   500 → 3000  Internal Server Error (swagger example)
  */
 export const MADAPI_STATUS_CODES: Record<string, MadapiCodeInfo> = {
   "0000": {
@@ -55,9 +55,9 @@ export const MADAPI_STATUS_CODES: Record<string, MadapiCodeInfo> = {
     code: "3000",
     httpHint: 405,
     severity: "client",
-    label: "Not Allowed / Not Acceptable",
+    label: "Not Allowed / Not Acceptable / Server",
     description:
-      "Method not allowed, not acceptable, or unsupported media type (HTTP 405/406/415)",
+      "Method not allowed, not acceptable, unsupported media type, or internal error (HTTP 405/406/415/500 — swagger examples use 3000)",
   },
   "4000": {
     code: "4000",
@@ -106,9 +106,9 @@ export const HTTP_TO_DEFAULT_MADAPI: Record<number, string> = {
   405: "3000",
   406: "3000",
   415: "3000",
-  500: "5000",
-  502: "5000",
-  503: "5000",
+  500: "3000",
+  502: "3000",
+  503: "3000",
 };
 
 export function normalizeMadapiCode(code: unknown): string {
