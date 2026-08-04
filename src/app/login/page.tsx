@@ -1,15 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { TurnstileWidget } from "@/components/security/turnstile";
+
+type SsoProvider = {
+  id: string;
+  provider_code: string;
+  name: string;
+  protocol: string;
+  mode: "oidc" | "platform_oauth";
+  company_id?: string;
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +36,54 @@ export default function LoginPage() {
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaSiteKey, setCaptchaSiteKey] = useState<string | null>(null);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
+  const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
+  const [ssoLoading, setSsoLoading] = useState(false);
+
+  useEffect(() => {
+    // Surface SSO errors from callback
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err) {
+      toast.error(
+        params.get("message") ||
+          params.get("error_description") ||
+          `SSO error: ${err}`
+      );
+    }
+
+    // Load SSO options (domain from email later; initial load all platform + global)
+    fetch("/api/auth/sso/providers")
+      .then((r) => r.json())
+      .then((json) => {
+        const data = json?.data || json;
+        const list: SsoProvider[] = [
+          ...((data?.platform as SsoProvider[]) || []),
+          ...((data?.providers as SsoProvider[]) || []),
+        ];
+        setSsoProviders(list);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  // When user types email domain, try tenant-scoped providers
+  useEffect(() => {
+    const domain = email.includes("@") ? email.split("@")[1]?.toLowerCase() : "";
+    if (!domain || domain.length < 3) return;
+    const t = setTimeout(() => {
+      fetch(`/api/auth/sso/providers?domain=${encodeURIComponent(domain)}`)
+        .then((r) => r.json())
+        .then((json) => {
+          const data = json?.data || json;
+          const list: SsoProvider[] = [
+            ...((data?.platform as SsoProvider[]) || []),
+            ...((data?.providers as SsoProvider[]) || []),
+          ];
+          if (list.length) setSsoProviders(list);
+        })
+        .catch(() => undefined);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [email]);
 
   const callLoginGuard = async (
     event: "check" | "fail" | "success",
@@ -49,6 +113,43 @@ export default function LoginPage() {
     }
   };
 
+  const startSso = async (p: SsoProvider) => {
+    setSsoLoading(true);
+    try {
+      if (p.mode === "platform_oauth") {
+        const supabase = createClient();
+        const provider =
+          p.provider_code === "azure" || p.provider_code === "entra"
+            ? "azure"
+            : p.provider_code === "google"
+              ? "google"
+              : null;
+        if (!provider) {
+          toast.error("Unsupported platform SSO provider");
+          return;
+        }
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: `${window.location.origin}/dashboard`,
+            scopes: provider === "azure" ? "email openid profile" : undefined,
+          },
+        });
+        if (error) toast.error(error.message);
+        return;
+      }
+      // Company OIDC
+      const url = new URL("/api/auth/sso/start", window.location.origin);
+      url.searchParams.set("provider_id", p.id);
+      if (p.company_id) url.searchParams.set("company_id", p.company_id);
+      url.searchParams.set("return_to", "/dashboard");
+      window.location.href = url.toString();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "SSO failed");
+      setSsoLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -63,9 +164,9 @@ export default function LoginPage() {
         toast.error(guard.reason || "Too many attempts");
         return;
       }
+      if (guard?.siteKey) setCaptchaSiteKey(guard.siteKey);
       if (guard?.captchaRequired) {
         setCaptchaRequired(true);
-        if (guard.siteKey) setCaptchaSiteKey(guard.siteKey);
         if (guard.captchaConfigured && !captchaToken) {
           toast.error("Complete CAPTCHA to continue");
           return;
@@ -163,13 +264,34 @@ export default function LoginPage() {
           <CardDescription>Secure · Intelligent · Connected</CardDescription>
         </CardHeader>
         <CardContent>
+          {ssoProviders.length > 0 && (
+            <div className="mb-6 space-y-2">
+              {ssoProviders.map((p) => (
+                <Button
+                  key={p.id}
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={ssoLoading || loading}
+                  onClick={() => startSso(p)}
+                >
+                  Continue with {p.name}
+                </Button>
+              ))}
+              <div className="relative py-2 text-center text-xs text-muted-foreground">
+                <span className="bg-card px-2 relative z-10">or email</span>
+                <div className="absolute inset-x-0 top-1/2 border-t" />
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="name@hopedesign.co.ke"
+                placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -189,25 +311,28 @@ export default function LoginPage() {
             </div>
             {captchaRequired && (
               <div className="space-y-2 rounded-md border p-3 bg-muted/40">
-                <Label htmlFor="captcha">Security check</Label>
+                <Label>Security check</Label>
                 {captchaSiteKey ? (
-                  <p className="text-xs text-muted-foreground">
-                    CAPTCHA provider configured (site key present). Embed widget
-                    in production branding; paste token for staging:
-                  </p>
+                  <TurnstileWidget
+                    siteKey={captchaSiteKey}
+                    onToken={setCaptchaToken}
+                  />
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Multiple failed attempts detected. Wait or complete
-                    verification if prompted by your administrator.
+                    Multiple failed attempts detected. Wait or contact your
+                    administrator.
                   </p>
                 )}
-                <Input
-                  id="captcha"
-                  placeholder="CAPTCHA token (if required)"
-                  value={captchaToken}
-                  onChange={(e) => setCaptchaToken(e.target.value)}
-                  autoComplete="off"
-                />
+                {/* Fallback for staging without widget */}
+                {!captchaSiteKey && (
+                  <Input
+                    id="captcha"
+                    placeholder="CAPTCHA token (if required)"
+                    value={captchaToken}
+                    onChange={(e) => setCaptchaToken(e.target.value)}
+                    autoComplete="off"
+                  />
+                )}
               </div>
             )}
             {lockMessage && (
@@ -237,7 +362,7 @@ export default function LoginPage() {
               href="/verify"
               className="block text-sm text-muted-foreground hover:text-primary"
             >
-              Verify a product without signing in
+              Product verification
             </Link>
           </div>
         </CardContent>

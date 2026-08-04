@@ -392,6 +392,7 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
     // Queue non-email external channels (except company Slack — handled once below)
     for (const ch of activeChannels) {
       if (ch === "in_app" || ch === "email" || ch === "slack") continue;
+      // Recipient resolved to phone later by deliverExternalChannel via user_id
       await admin.from("bi_notification_queue").insert({
         company_id: input.companyId,
         channel: ch,
@@ -399,7 +400,11 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
         subject: input.title,
         body: input.message || "",
         status: "queued",
-        payload: { notification_id: notificationId, channel: ch },
+        payload: {
+          notification_id: notificationId,
+          channel: ch,
+          user_id: userId,
+        },
       });
       await admin.from("notification_deliveries").insert({
         company_id: input.companyId,
@@ -407,7 +412,14 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
         user_id: userId,
         channel: ch,
         status: "pending",
-        provider: "queue",
+        provider:
+          ch === "sms"
+            ? "africastalking"
+            : ch === "whatsapp"
+              ? "whatsapp"
+              : ch === "push"
+                ? "fcm"
+                : "queue",
       });
     }
   }

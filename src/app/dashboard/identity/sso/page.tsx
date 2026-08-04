@@ -128,12 +128,34 @@ export default function SsoPage() {
       </div>
 
       <Card className="mt-6">
-        <CardHeader className="pb-2"><CardTitle className="text-base">SSO integration notes</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-base">SSO go-live</CardTitle></CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p><strong>Entra / Google / OAuth:</strong> Store client ID + issuer; connect secrets via Integration Hub or env vars (never store raw secrets in browser).</p>
-          <p><strong>SAML:</strong> Paste IdP metadata URL; map NameID → email for auto-provision.</p>
-          <p><strong>AD / LDAP:</strong> Configure host + base DN; schedule sync jobs from Integration Hub.</p>
-          <p>Login page can route to enabled providers when callback URLs are registered with the IdP.</p>
+          <p><strong>Redirect URI</strong> (register with Entra / Google / Okta):</p>
+          <code className="block text-xs bg-muted p-2 rounded break-all">
+            {typeof window !== "undefined"
+              ? `${window.location.origin}/api/auth/sso/callback`
+              : "{APP_URL}/api/auth/sso/callback"}
+          </code>
+          <p><strong>Start URL:</strong> <code className="text-xs">/api/auth/sso/start?provider_id=…</code></p>
+          <p><strong>Secrets:</strong> set <code className="text-xs">client_secret_ref</code> to <code className="text-xs">ENV:SSO_ENTRA_CLIENT_SECRET</code> (or <code className="text-xs">SSO_ENTRA_CLIENT_SECRET</code> env).</p>
+          <p><strong>SCIM push:</strong> <code className="text-xs">POST /api/v2/scim/v2/Users</code> with <code className="text-xs">Authorization: Bearer $SCIM_BEARER_TOKEN</code>.</p>
+          <p>Login page lists active providers automatically (platform Azure/Google + company OIDC).</p>
+          <div className="flex flex-wrap gap-2 pt-2">
+            {rows
+              .filter((r) => r.is_active)
+              .map((r) => (
+                <Button
+                  key={String(r.id)}
+                  size="sm"
+                  variant="outline"
+                  asChild
+                >
+                  <a href={`/api/auth/sso/start?provider_id=${r.id}`}>
+                    Test {String(r.name)}
+                  </a>
+                </Button>
+              ))}
+          </div>
         </CardContent>
       </Card>
     </div>

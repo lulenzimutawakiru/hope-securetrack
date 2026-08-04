@@ -37,7 +37,11 @@ export async function createPaymentIntent(
     currency?: string;
     gateway_code: string;
     phone_msisdn?: string;
+    email?: string | null;
     base_url?: string;
+    description?: string;
+    /** When true (default), call live/sandbox payment provider APIs */
+    initiate_provider?: boolean;
   }
 ) {
   const intent_number = await nextBillNumber(
@@ -49,8 +53,63 @@ export async function createPaymentIntent(
   const external_ref = `PI-${Date.now().toString(36).toUpperCase()}`;
   const origin =
     input.base_url ||
+    process.env.NEXT_PUBLIC_APP_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
-  const payment_link = `${origin}/portal/pay/${external_ref}`;
+  let payment_link = origin
+    ? `${origin.replace(/\/$/, "")}/portal/pay/${external_ref}`
+    : `/portal/pay/${external_ref}`;
+  let checkout_url = payment_link;
+  let provider_payload: Record<string, unknown> = {
+    provider: input.gateway_code,
+    created_via: "securetrack_erp",
+  };
+  let provider_ref: string | null = null;
+
+  // Initiate collection with external payment provider (server-side only)
+  if (input.initiate_provider !== false && typeof window === "undefined") {
+    try {
+      const { collectPayment } = await import("@/lib/providers/payments/router");
+      const callbackUrl = origin
+        ? `${origin.replace(/\/$/, "")}/api/public/billing/webhooks/generic`
+        : undefined;
+      const result = await collectPayment(input.gateway_code, {
+        companyId: input.company_id,
+        amount: input.amount,
+        currency: input.currency || "UGX",
+        externalRef: external_ref,
+        phone: input.phone_msisdn,
+        email: input.email,
+        description: input.description || `Payment ${intent_number}`,
+        callbackUrl,
+        returnUrl: payment_link,
+        metadata: {
+          invoice_id: input.invoice_id,
+          company_id: input.company_id,
+        },
+      });
+      provider_payload = {
+        ...provider_payload,
+        collect: {
+          ok: result.ok,
+          provider: result.provider,
+          sandbox: result.sandbox,
+          externalId: result.externalId,
+          error: result.error,
+          data: result.data,
+        },
+      };
+      if (result.ok) {
+        provider_ref = result.externalId || result.data?.providerRef || null;
+        if (result.data?.checkoutUrl) {
+          checkout_url = result.data.checkoutUrl;
+          payment_link = result.data.checkoutUrl;
+        }
+      }
+    } catch (e) {
+      provider_payload.collect_error =
+        e instanceof Error ? e.message : "provider init failed";
+    }
+  }
 
   const expires = new Date();
   expires.setHours(expires.getHours() + 48);
@@ -67,14 +126,14 @@ export async function createPaymentIntent(
       currency: input.currency || "UGX",
       status: "pending",
       external_ref,
-      checkout_url: payment_link,
+      checkout_url,
       payment_link,
       phone_msisdn: input.phone_msisdn || null,
       expires_at: expires.toISOString(),
       notify_customer: true,
       provider_payload: {
-        provider: input.gateway_code,
-        created_via: "securetrack_erp",
+        ...provider_payload,
+        ...(provider_ref ? { provider_ref } : {}),
       },
     })
     .select()

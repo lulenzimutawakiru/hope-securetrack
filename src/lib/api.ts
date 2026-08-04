@@ -14,7 +14,9 @@ export type ApiErrorCode =
   | "VALIDATION"
   | "RATE_LIMIT"
   | "CONFIG"
-  | "INTERNAL";
+  | "INTERNAL"
+  | "PROVIDER_ERROR"
+  | "CAPTCHA_FAILED";
 
 export function apiOk<T>(data: T, init?: ResponseInit) {
   return NextResponse.json({ ok: true, data }, { status: 200, ...init });

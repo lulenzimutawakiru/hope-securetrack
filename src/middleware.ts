@@ -53,29 +53,42 @@ function buildCSP() {
     "object-src 'none'",
   ];
 
-  if (process.env.NODE_ENV === 'production') {
-    // Production: no inline scripts/styles allowed — if inline runtime scripts are required, move them to external files
+  // Turnstile CAPTCHA + Mapbox tiles need external script/frame/connect sources
+  const captchaScript =
+    "https://challenges.cloudflare.com https://js.hcaptcha.com";
+  const captchaFrame =
+    "https://challenges.cloudflare.com https://newassets.hcaptcha.com";
+
+  if (process.env.NODE_ENV === "production") {
     return [
-      ...base.slice(0, 1), // keep default-src first
-      "script-src 'self'",
-      "style-src 'self'",
-      ...base.slice(1),
-    ].join('; ');
+      "default-src 'self'",
+      `script-src 'self' ${captchaScript}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https: wss:",
+      `frame-src 'self' ${captchaFrame}`,
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; ");
   }
 
   // Development: allow some inline usage for developer ergonomics
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${captchaScript}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self' https: wss:",
+    `frame-src 'self' ${captchaFrame}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
-  ].join('; ');
+  ].join("; ");
 }
 
 function applySecurityHeaders(res: NextResponse) {

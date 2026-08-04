@@ -71,12 +71,79 @@ export async function deliverWebhooks(
     let success = false;
     let status_code = 0;
     let error_message: string | null = null;
-    // Simulated delivery (real deploy would fetch target_url)
+    let response_body: string | null = null;
     try {
-      // Browser-safe: mark as delivered with mock 200 for internal URLs;
-      // production workers POST with HMAC signature using sub.secret
-      status_code = 200;
-      success = true;
+      const target = String(sub.target_url || sub.url || "");
+      if (!target.startsWith("https://") && !target.startsWith("http://localhost")) {
+        // Invalid target — record failure
+        status_code = 0;
+        error_message = "Invalid webhook target_url (https required)";
+      } else if (typeof window !== "undefined") {
+        // Browser cannot deliver external webhooks; mark pending for worker
+        status_code = 0;
+        error_message = "Deferred to worker";
+        await supabase.from("job_queue").insert({
+          company_id: companyId,
+          job_type: "webhook.deliver",
+          status: "pending",
+          payload: {
+            url: target,
+            event: event.event_type,
+            body: {
+              event_id: eventId,
+              event_type: event.event_type,
+              entity_type: event.entity_type,
+              entity_id: event.entity_id,
+              payload: event.payload,
+            },
+            subscription_id: sub.id,
+            secret: sub.secret || null,
+          },
+          attempts: 0,
+          max_attempts: 5,
+          run_after: new Date().toISOString(),
+        });
+        // Treat as accepted for browser path
+        success = true;
+        status_code = 202;
+        response_body = '{"queued":true}';
+      } else {
+        const { createHmac } = await import("crypto");
+        const body = JSON.stringify({
+          id: eventId,
+          type: event.event_type,
+          company_id: companyId,
+          entity_type: event.entity_type,
+          entity_id: event.entity_id,
+          payload: event.payload || {},
+          created_at: event.created_at || new Date().toISOString(),
+        });
+        const secret = String(sub.secret || "");
+        const sig = secret
+          ? createHmac("sha256", secret).update(body).digest("hex")
+          : "";
+        const res = await fetch(target, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-SecureTrack-Event": String(event.event_type),
+            "X-SecureTrack-Delivery": String(eventId),
+            ...(sig
+              ? {
+                  "X-SecureTrack-Signature": `sha256=${sig}`,
+                  "X-Hub-Signature-256": `sha256=${sig}`,
+                }
+              : {}),
+          },
+          body,
+        });
+        status_code = res.status;
+        success = res.ok;
+        response_body = (await res.text()).slice(0, 2000);
+        if (!success) {
+          error_message = `HTTP ${res.status}`;
+        }
+      }
     } catch (e) {
       error_message = e instanceof Error ? e.message : "Delivery failed";
       status_code = 0;
@@ -93,7 +160,7 @@ export async function deliverWebhooks(
         success,
         error_message,
         duration_ms,
-        response_body: success ? '{"ok":true}' : null,
+        response_body: response_body || (success ? '{"ok":true}' : null),
       })
       .select()
       .single();

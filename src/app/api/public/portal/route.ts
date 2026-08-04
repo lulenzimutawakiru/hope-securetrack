@@ -105,6 +105,9 @@ const paySchema = z.object({
   token: z.string().min(16).max(200),
   invoice_id: z.string().uuid(),
   gateway_code: z.string().min(2).max(20).default("MTN"),
+  /** MSISDN for MoMo / Airtel collections */
+  phone_msisdn: z.string().min(9).max(20).optional().nullable(),
+  email: z.string().email().optional().nullable(),
   /** Only honored when PAYMENT_SANDBOX=true */
   complete_sandbox: z.boolean().optional(),
 });
@@ -198,7 +201,11 @@ export async function POST(req: NextRequest) {
       amount: balance,
       currency: String(inv.currency || "UGX"),
       gateway_code: parsed.data.gateway_code,
+      phone_msisdn: parsed.data.phone_msisdn || undefined,
+      email: parsed.data.email || undefined,
       base_url: origin,
+      description: `Invoice payment`,
+      initiate_provider: true,
     });
 
     let completed = false;
@@ -222,20 +229,28 @@ export async function POST(req: NextRequest) {
       completed = true;
     }
 
+    const payload =
+      intent.provider_payload && typeof intent.provider_payload === "object"
+        ? (intent.provider_payload as Record<string, unknown>)
+        : {};
+
     return NextResponse.json({
       ok: true,
       intent: {
         intent_number: intent.intent_number,
         external_ref: intent.external_ref,
         payment_link: intent.payment_link,
+        checkout_url: intent.checkout_url || intent.payment_link,
         status: completed ? "succeeded" : intent.status,
         amount: intent.amount,
         currency: intent.currency,
+        gateway_code: intent.gateway_code,
+        provider: payload.collect || null,
       },
       completed_sandbox: completed,
       message: completed
         ? "Sandbox payment completed (PAYMENT_SANDBOX=true only)"
-        : "Payment intent created. Complete via gateway / webhook — not auto-settled in production.",
+        : "Payment intent created. Approve MoMo prompt or open checkout_url; webhooks complete settlement.",
     });
   } catch (e) {
     return NextResponse.json(

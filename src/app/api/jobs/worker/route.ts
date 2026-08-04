@@ -165,7 +165,65 @@ async function drainNotificationQueue(
       continue;
     }
 
-    // sms / push / whatsapp: no provider configured in this deployment.
+    // sms / push / whatsapp — deliver via integrated providers
+    if (["sms", "whatsapp", "push"].includes(channel)) {
+      try {
+        const { deliverExternalChannel } = await import(
+          "@/lib/providers/comms/deliver"
+        );
+        const payload = (row.payload || {}) as Record<string, unknown>;
+        const result = await deliverExternalChannel({
+          companyId: companyId || "",
+          channel,
+          recipient: String(row.recipient || ""),
+          subject: row.subject as string | null,
+          body: row.body as string | null,
+          notificationId: (payload.notification_id as string) || null,
+          userId: (payload.user_id as string) || null,
+          payload,
+        });
+        await admin
+          .from("bi_notification_queue")
+          .update({
+            status: result.ok ? "sent" : "failed",
+            error_message: result.ok ? null : result.error || "delivery failed",
+            sent_at: now,
+            tenant_id:
+              (row.tenant_id as string | null) ||
+              (companyId ? tenantByCompany.get(companyId) : null) ||
+              null,
+          })
+          .eq("id", row.id);
+        if (result.ok) {
+          enqueued += 1;
+          if (payload.notification_id) {
+            await admin.from("notification_deliveries").insert({
+              company_id: companyId,
+              notification_id: payload.notification_id,
+              channel,
+              status: "sent",
+              provider: result.provider,
+              provider_message_id: result.externalId || null,
+              sent_at: now,
+            });
+          }
+        } else {
+          failed += 1;
+        }
+      } catch (e) {
+        await admin
+          .from("bi_notification_queue")
+          .update({
+            status: "failed",
+            error_message: e instanceof Error ? e.message : "channel error",
+            sent_at: now,
+          })
+          .eq("id", row.id);
+        failed += 1;
+      }
+      continue;
+    }
+
     await admin
       .from("bi_notification_queue")
       .update({
@@ -222,6 +280,27 @@ export async function POST(req: NextRequest) {
   const swept = await resweepOutboxEmails(admin);
   const queueStats = await drainNotificationQueue(admin);
 
+  // Flush SIEM outbox over HTTPS when connectors are configured
+  let siemStats: { sent: number; failed?: number } = { sent: 0 };
+  try {
+    const { flushSiemOutbox } = await import("@/lib/audit/siem");
+    siemStats = await flushSiemOutbox("");
+  } catch {
+    /* non-fatal */
+  }
+
+  // Optional QStash self-schedule next worker tick
+  if (process.env.QSTASH_AUTO_PING === "true") {
+    try {
+      const { scheduleWorkerPing } = await import(
+        "@/lib/providers/queue/qstash"
+      );
+      await scheduleWorkerPing();
+    } catch {
+      /* ignore */
+    }
+  }
+
   const jobs = await claimJobs(admin, { limit, workerId });
   const stats = await processClaimedJobs(admin, jobs, handlers);
 
@@ -230,6 +309,7 @@ export async function POST(req: NextRequest) {
     claimed: jobs.length,
     swept_emails: swept,
     notification_queue: queueStats,
+    siem: siemStats,
     ...stats,
   });
 }

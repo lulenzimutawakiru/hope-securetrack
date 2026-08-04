@@ -43,10 +43,23 @@ Permissions: `intg.view`, `intg.manage`, `intg.api`, `intg.webhooks`, `intg.work
 
 ## Libraries
 
-`src/lib/integration/` — event pipeline, webhooks, workflows, sync, API key generation
+`src/lib/integration/` — event pipeline, webhooks, workflows, sync, API key generation  
+`src/lib/providers/` — external payment, SMS, WhatsApp, maps, CAPTCHA, OCR, QStash, SIEM delivery
+
+## External providers (live)
+
+See **[EXTERNAL_PROVIDERS.md](./EXTERNAL_PROVIDERS.md)** for full env, webhooks, and test UI.
+
+| Surface | Path |
+|---------|------|
+| Providers UI | `/dashboard/integrations/providers` |
+| Status / test API | `/api/v2/integrations/providers` |
+| Maps | `/api/v2/integrations/maps` |
+| Payment webhooks | `/api/public/billing/webhooks/*` |
 
 ## Apply migration
 
 Run in Supabase SQL Editor:
 
-`supabase/migrations/20260101000027_enterprise_integration_hub.sql`
+`supabase/migrations/20260101000027_enterprise_integration_hub.sql`  
+`supabase/migrations/20260814000001_external_providers_hub.sql`

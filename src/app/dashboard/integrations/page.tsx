@@ -29,6 +29,7 @@ const MODULES = [
   { title: "Hardware", href: "/dashboard/integrations/hardware", icon: Printer, desc: "Printers · RFID · scanners" },
   { title: "GPS & Fleet", href: "/dashboard/integrations/gps", icon: MapPin, desc: "Trackers · routes · fuel" },
   { title: "Payments", href: "/dashboard/integrations/payments", icon: MessageSquare, desc: "MoMo · Stripe · banks" },
+  { title: "External Providers", href: "/dashboard/integrations/providers", icon: Cloud, desc: "MoMo · SMS · WhatsApp · Maps · OCR · QStash" },
   { title: "Slack · SecureChat", href: "/dashboard/integrations/slack", icon: MessageSquare, desc: "Workspace · tickets · alerts" },
   { title: "MTN KYC", href: "/dashboard/integrations/mtn-kyc", icon: Shield, desc: "BVN · MSISDN · MADAPI verify" },
   { title: "MTN MADAPI OAuth", href: "/dashboard/integrations/mtn-oauth", icon: Key, desc: "Access token · client_credentials · MADAPI" },

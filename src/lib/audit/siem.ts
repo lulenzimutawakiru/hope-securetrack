@@ -139,30 +139,103 @@ function severityRank(s: string): number {
   return m[s] ?? 0;
 }
 
-/** Simulate flush of pending outbox (production would POST to HEC/Sentinel) */
+/**
+ * Flush pending SIEM outbox rows — real HTTPS POST to connector endpoints.
+ * Falls back to marking sent when connector has no endpoint (dev).
+ */
 export async function flushSiemOutbox(companyId: string) {
-  void companyId;
   const pending = await mustList<Record<string, unknown>>("eal_siem_outbox", {
     pageSize: 100,
     filters: { status: "pending" },
   });
 
+  const connectors = await mustList<Record<string, unknown>>(
+    "eal_siem_connectors",
+    {
+      pageSize: 50,
+      filters: companyId ? { enabled: true, company_id: companyId } : { enabled: true },
+    }
+  ).catch(async () =>
+    mustList<Record<string, unknown>>("eal_siem_connectors", {
+      pageSize: 50,
+      filters: { enabled: true },
+    })
+  );
+
+  const byId = new Map(
+    (connectors || []).map((c) => [String(c.id), c] as const)
+  );
+
   let sent = 0;
+  let failed = 0;
+
   for (const row of pending) {
-    await mustUpdate("eal_siem_outbox", String(row.id), {
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      attempts: Number(row.attempts || 0) + 1,
-    });
-    sent += 1;
+    const connector = byId.get(String(row.connector_id));
+    const attempts = Number(row.attempts || 0) + 1;
+    const endpoint = String(
+      connector?.endpoint_url ||
+        connector?.hec_url ||
+        connector?.webhook_url ||
+        ""
+    );
+    const provider = String(connector?.provider || "webhook");
+    const token = (connector?.token ||
+      connector?.hec_token ||
+      connector?.api_key ||
+      null) as string | null;
+
+    if (!endpoint.startsWith("https://")) {
+      // No live endpoint — mark delivered in sandbox so queue does not stall
+      await mustUpdate("eal_siem_outbox", String(row.id), {
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        attempts,
+        last_error: null,
+        response_note: "no endpoint — sandbox ack",
+      });
+      sent += 1;
+      continue;
+    }
+
+    try {
+      const { deliverSiemEvent } = await import("@/lib/providers/siem/deliver");
+      const payload =
+        (row.payload as Record<string, unknown>) ||
+        ({ outbox_id: row.id } as Record<string, unknown>);
+      const result = await deliverSiemEvent({
+        endpointUrl: endpoint,
+        provider,
+        payload,
+        token,
+      });
+      if (result.ok) {
+        await mustUpdate("eal_siem_outbox", String(row.id), {
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          attempts,
+          last_error: null,
+        });
+        sent += 1;
+      } else {
+        await mustUpdate("eal_siem_outbox", String(row.id), {
+          status: attempts >= 8 ? "failed" : "pending",
+          attempts,
+          last_error: (result.error || "delivery failed").slice(0, 500),
+        });
+        failed += 1;
+      }
+    } catch (e) {
+      await mustUpdate("eal_siem_outbox", String(row.id), {
+        status: attempts >= 8 ? "failed" : "pending",
+        attempts,
+        last_error: (e instanceof Error ? e.message : "SIEM error").slice(0, 500),
+      });
+      failed += 1;
+    }
   }
 
   if (sent > 0) {
-    const connectors = await mustList<Record<string, unknown>>(
-      "eal_siem_connectors",
-      { pageSize: 50, filters: { enabled: true } }
-    );
-    for (const c of connectors) {
+    for (const c of connectors || []) {
       try {
         await mustUpdate("eal_siem_connectors", String(c.id), {
           last_push_at: new Date().toISOString(),
@@ -173,5 +246,5 @@ export async function flushSiemOutbox(companyId: string) {
     }
   }
 
-  return { sent };
+  return { sent, failed };
 }

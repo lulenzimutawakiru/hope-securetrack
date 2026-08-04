@@ -85,8 +85,10 @@ export function checkLoginGuardMemory(email: string, ip: string): LoginGuardResu
 export function captchaConfigured(): boolean {
   return Boolean(
     process.env.TURNSTILE_SECRET_KEY ||
+      process.env.CAPTCHA_SECRET_KEY ||
       process.env.HCAPTCHA_SECRET_KEY ||
       process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+      process.env.NEXT_PUBLIC_CAPTCHA_SITE_KEY ||
       process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY
   );
 }
@@ -99,7 +101,8 @@ export async function verifyCaptchaToken(
   if (!captchaConfigured()) return { ok: true }; // not required
   if (!token) return { ok: false, error: "CAPTCHA required" };
 
-  const turnstile = process.env.TURNSTILE_SECRET_KEY;
+  const turnstile =
+    process.env.TURNSTILE_SECRET_KEY || process.env.CAPTCHA_SECRET_KEY;
   if (turnstile) {
     try {
       const res = await fetch(

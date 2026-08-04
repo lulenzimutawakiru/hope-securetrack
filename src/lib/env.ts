@@ -124,6 +124,50 @@ export const env = {
       process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
     ),
   },
+  /** External provider integrations — see src/lib/providers/config.ts for full detail */
+  providers: {
+    paymentsSandbox:
+      process.env.PAYMENT_SANDBOX === "true" ||
+      process.env.PAYMENT_SANDBOX === "1" ||
+      process.env.PROVIDERS_SANDBOX === "true",
+    mtnMomo: Boolean(
+      process.env.MTN_MOMO_SUBSCRIPTION_KEY?.trim() &&
+        process.env.MTN_MOMO_API_USER?.trim() &&
+        process.env.MTN_MOMO_API_KEY?.trim()
+    ),
+    airtelMoney: Boolean(
+      process.env.AIRTEL_MONEY_CLIENT_ID?.trim() &&
+        process.env.AIRTEL_MONEY_CLIENT_SECRET?.trim()
+    ),
+    flutterwave: Boolean(process.env.FLUTTERWAVE_SECRET_KEY?.trim()),
+    pesapal: Boolean(
+      process.env.PESAPAL_CONSUMER_KEY?.trim() &&
+        process.env.PESAPAL_CONSUMER_SECRET?.trim()
+    ),
+    stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
+    africastalking: Boolean(
+      process.env.AFRICASTALKING_API_KEY?.trim() &&
+        process.env.AFRICASTALKING_USERNAME?.trim()
+    ),
+    whatsapp: Boolean(
+      process.env.WHATSAPP_ACCESS_TOKEN?.trim() &&
+        process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()
+    ),
+    mapbox: Boolean(
+      process.env.MAPBOX_ACCESS_TOKEN?.trim() ||
+        process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim()
+    ),
+    qstash: Boolean(process.env.QSTASH_TOKEN?.trim()),
+    captcha: Boolean(
+      (process.env.TURNSTILE_SECRET_KEY || process.env.CAPTCHA_SECRET_KEY || "")
+        .trim()
+    ),
+    fcm: Boolean(process.env.FCM_SERVER_KEY?.trim()),
+    onesignal: Boolean(
+      process.env.ONESIGNAL_APP_ID?.trim() &&
+        process.env.ONESIGNAL_API_KEY?.trim()
+    ),
+  },
 };
 
 export function assertServerEnv(): { ok: boolean; missing: string[] } {

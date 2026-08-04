@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     captchaConfigured: captchaConfigured(),
     siteKey:
       process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+      process.env.NEXT_PUBLIC_CAPTCHA_SITE_KEY ||
       process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ||
       null,
   });
