@@ -12,6 +12,7 @@ export type JobType =
   | "siem.forward"
   | "payroll.async_process"
   | "servicedesk.sla_scan"
+  | "report.run"
   | "domain_event.consume"
   | "import.batch"
   | "generic";
@@ -539,6 +540,147 @@ export function defaultJobHandlers(deps: {
         return {
           ok: false,
           error: e instanceof Error ? e.message : "domain event consume failed",
+        };
+      }
+    },
+    "report.run": async (job) => {
+      try {
+        const p = job.payload || {};
+        const companyId = String(
+          job.company_id || p._company_id || p.company_id || ""
+        );
+        const tenantId =
+          String(job.tenant_id || p._tenant_id || p.tenant_id || "") || null;
+        if (!companyId || !tenantId) {
+          return {
+            ok: false,
+            error: "report.run requires company_id and tenant_id",
+          };
+        }
+        const scheduleId = (p.schedule_id as string) || null;
+        const reportId = (p.report_id as string) || null;
+        if (!reportId) {
+          return { ok: true }; // dashboard-only schedules: nothing to execute yet
+        }
+
+        const { data: report } = await deps.admin
+          .from("bi_report_definitions")
+          .select("*")
+          .eq("id", reportId)
+          .eq("company_id", companyId)
+          .maybeSingle();
+        if (!report) {
+          return { ok: false, error: "report definition not found in scope" };
+        }
+
+        const { runReport, recordReportRun } = await import(
+          "@/lib/reporting/engine"
+        );
+        const result = await runReport({
+          admin: deps.admin,
+          scope: {
+            tenantId,
+            companyId,
+            userId: String(p.actor_id || job.id || "system"),
+            isPlatformAdmin: false,
+            isElevated: false,
+          },
+          definition: report,
+          parameters: (p.parameters as Record<string, unknown>) || {},
+          format: String(p.format || "pdf"),
+          actorId: (p.actor_id as string | null) || null,
+        });
+
+        await recordReportRun({
+          admin: deps.admin,
+          scope: {
+            tenantId,
+            companyId,
+            userId: String(p.actor_id || job.id || "system"),
+            isPlatformAdmin: false,
+            isElevated: false,
+          },
+          definition: report,
+          result,
+          format: String(p.format || "pdf"),
+          actorId: (p.actor_id as string | null) || null,
+        });
+
+        if (scheduleId) {
+          if (result.status === "failed") {
+            await deps.admin
+              .from("bi_report_schedules")
+              .update({
+                last_error: result.error || result.note || "report run failed",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", scheduleId)
+              .eq("company_id", companyId);
+          } else {
+            await deps.admin
+              .from("bi_report_schedules")
+              .update({
+                last_error: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", scheduleId)
+              .eq("company_id", companyId);
+          }
+        }
+
+        // Queue notifications for each recipient x delivery channel.
+        const recipients = Array.isArray(p.recipients) ? p.recipients : [];
+        const channels = Array.isArray(p.delivery_channels)
+          ? (p.delivery_channels as string[])
+          : ["email"];
+        const subject = `SecureTrack report: ${String(
+          p.name || report.name || report.report_code || "Report"
+        )}`;
+        const body = [
+          `Report ${String(report.name || report.report_code || "report")} generated.`,
+          result.status === "completed"
+            ? `${result.rowCount} rows in ${result.durationMs}ms.`
+            : `Status: ${result.status}.`,
+          result.note ? result.note : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        for (const rawRecipient of recipients) {
+          const recipient =
+            typeof rawRecipient === "string"
+              ? rawRecipient
+              : String((rawRecipient as { to?: string }).to || rawRecipient || "");
+          if (!recipient) continue;
+          for (const channel of channels) {
+            try {
+              await deps.admin.from("bi_notification_queue").insert({
+                company_id: companyId,
+                tenant_id: tenantId,
+                channel,
+                recipient,
+                subject,
+                body,
+                payload: {
+                  notification_id: null,
+                  report_id: reportId,
+                  schedule_id: scheduleId,
+                  format: String(p.format || "pdf"),
+                  row_count: result.rowCount,
+                },
+                related_type: scheduleId ? "schedule" : "report",
+                related_id: scheduleId || reportId,
+              });
+            } catch {
+              /* non-blocking per channel */
+            }
+          }
+        }
+        return { ok: true };
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : "report run failed",
         };
       }
     },

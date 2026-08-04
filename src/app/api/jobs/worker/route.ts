@@ -289,6 +289,19 @@ export async function POST(req: NextRequest) {
     /* non-fatal */
   }
 
+
+  // Scan for due report schedules and enqueue report.run jobs
+  let scheduleStats: { due: number; enqueued: number; failed: number } = {
+    due: 0,
+    enqueued: 0,
+    failed: 0,
+  };
+  try {
+    const { scanDueSchedules } = await import("@/lib/reporting/schedule");
+    scheduleStats = await scanDueSchedules(admin, { limit: 40 });
+  } catch {
+    /* non-fatal: schedules rescan next tick */
+  }
   // Optional QStash self-schedule next worker tick
   if (process.env.QSTASH_AUTO_PING === "true") {
     try {
@@ -310,6 +323,7 @@ export async function POST(req: NextRequest) {
     swept_emails: swept,
     notification_queue: queueStats,
     siem: siemStats,
+    schedules: scheduleStats,
     ...stats,
   });
 }
