@@ -25,11 +25,15 @@ GET /v1/kycVerification/customers
 
 ### Responses
 
-| Code | Schema |
-|------|--------|
-| 200 | `CustomerVerificationKYCMultiResponse` |
-| 400 | ErrorPayload + statusCode (e.g. MADAPI codes) |
-| 401 | Unauthorized |
+| HTTP | MADAPI `statusCode` (example) | Meaning |
+|------|-------------------------------|---------|
+| 200 | `0000` | Success (`CustomerVerificationKYCMultiResponse`) |
+| 400 | `5000` | Bad Request + `ErrorPayload` |
+| 401 | `4000` | Unauthorized + `ErrorPayload` |
+| 403 | `4001` | Forbidden + `ErrorPayload` |
+| 404 | `4004` | Not Found + `ErrorPayload` |
+
+SecureTrack maps these in `src/lib/mtn-kyc/madapi-codes.ts` and returns `madapi_code` on API errors.
 
 ## SecureTrack integration
 

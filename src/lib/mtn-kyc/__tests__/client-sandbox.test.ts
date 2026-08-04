@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { verifyCustomersKyc } from "../client";
+import {
+  describeMadapiError,
+  isMadapiSuccessCode,
+  resolveMadapiCode,
+} from "../madapi-codes";
 
 describe("MTN KYC client sandbox", () => {
   const prev = { ...process.env };
@@ -23,16 +28,50 @@ describe("MTN KYC client sandbox", () => {
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
+    expect(res.madapiCode).toBe("0000");
     expect(res.body.transactionId).toBe("txn-test-1");
     expect(res.body.customers?.length).toBe(2);
     expect(res.body.customers?.[0].bvn).toBe("BVN123455");
   });
 
-  it("rejects empty identifiers", async () => {
+  it("rejects empty identifiers with MADAPI 5000", async () => {
     const res = await verifyCustomersKyc({
       transactionId: "txn-empty",
       bvns: [],
     });
     expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.madapiCode).toBe("5000");
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("MADAPI status codes (swagger)", () => {
+  it("maps HTTP 400 → 5000, 401 → 4000, 403 → 4001, 404 → 4004", () => {
+    expect(resolveMadapiCode(400, null)).toBe("5000");
+    expect(resolveMadapiCode(401, null)).toBe("4000");
+    expect(resolveMadapiCode(403, null)).toBe("4001");
+    expect(resolveMadapiCode(404, null)).toBe("4004");
+  });
+
+  it("prefers body statusCode from ErrorPayload", () => {
+    expect(resolveMadapiCode(403, { statusCode: "4001" })).toBe("4001");
+    expect(resolveMadapiCode(400, { statusCode: "5000" })).toBe("5000");
+  });
+
+  it("describes Forbidden 4001", () => {
+    const d = describeMadapiError(403, {
+      statusCode: "4001",
+      statusMessage: "Access denied",
+    });
+    expect(d.code).toBe("4001");
+    expect(d.severity).toBe("auth");
+    expect(d.message).toMatch(/4001|Forbidden|Access denied/i);
+  });
+
+  it("treats 0000 as success", () => {
+    expect(isMadapiSuccessCode("0000")).toBe(true);
+    expect(isMadapiSuccessCode("4000")).toBe(false);
+    expect(isMadapiSuccessCode("5000")).toBe(false);
   });
 });

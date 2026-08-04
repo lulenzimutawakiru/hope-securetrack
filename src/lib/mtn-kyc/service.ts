@@ -74,15 +74,14 @@ export async function runCompanyKycVerification(input: {
         identifier_kind: kind,
         identifiers,
         http_status: result.status || null,
-        status_code: result.ok
-          ? String(result.body.statusCode || "OK")
-          : String(
-              (result.body as { statusCode?: string } | undefined)?.statusCode ||
-                "ERROR"
-            ),
+        status_code: result.madapiCode || (result.ok ? "0000" : "ERROR"),
         success: result.ok,
-        response_summary: summary,
-        response_payload: result.ok ? result.body : result.body || { error: result.error },
+        response_summary: summary
+          ? { ...summary, madapiCode: result.madapiCode }
+          : { madapiCode: result.madapiCode },
+        response_payload: result.ok
+          ? result.body
+          : result.body || { error: result.error, statusCode: result.madapiCode },
         error_message: result.ok ? null : result.error,
         created_by: input.userId || null,
       })

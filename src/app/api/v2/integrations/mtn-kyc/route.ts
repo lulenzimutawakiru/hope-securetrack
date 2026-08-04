@@ -124,19 +124,25 @@ export const POST = createApiHandler(
       });
 
       if (!out.result.ok) {
-        return apiError(
-          out.result.status === 401 || out.result.status === 403
+        const http = out.result.status;
+        const code =
+          http === 401 || http === 403
             ? "FORBIDDEN"
-            : out.result.status === 400
-              ? "VALIDATION"
-              : "INTERNAL",
+            : http === 404
+              ? "NOT_FOUND"
+              : http === 400
+                ? "VALIDATION"
+                : "INTERNAL";
+        return apiError(
+          code,
           out.result.error,
-          out.result.status && out.result.status >= 400
-            ? out.result.status
-            : 502,
+          http && http >= 400 ? http : 502,
           {
             transaction_id: out.transactionId,
             audit_id: out.auditId,
+            madapi_code: out.result.madapiCode,
+            severity: out.result.severity,
+            /** MADAPI ErrorPayload (statusCode 4000/4001/5000/…) */
             mtn: out.result.body || null,
           }
         );
@@ -147,6 +153,7 @@ export const POST = createApiHandler(
         audit_id: out.auditId,
         sandbox: out.sandbox,
         http_status: out.result.status,
+        madapi_code: out.result.madapiCode,
         data: out.result.body,
       });
     } catch (e) {

@@ -2,12 +2,23 @@
  * HTTP client for MTN Customer KYC Verification API.
  * Spec: GET /customers with transactionId + targetSystem headers;
  * bvns (and/or msisdns) as array query/header identifiers.
+ *
+ * Error responses (swagger):
+ *   400 + statusCode 5000  Bad Request
+ *   401 + statusCode 4000  Unauthorized
+ *   403 + statusCode 4001  Forbidden
+ *   404 + statusCode 4004  Not Found
  */
 
 import {
   mtnKycBasicAuthHeader,
   mtnKycConfig,
 } from "./config";
+import {
+  describeMadapiError,
+  isMadapiSuccessCode,
+  resolveMadapiCode,
+} from "./madapi-codes";
 import type { MtnKycCallResult, MtnKycMultiResponse, MtnKycVerifyInput } from "./types";
 
 function normalizeIds(ids: string[] | undefined): string[] {
@@ -38,14 +49,18 @@ export async function verifyCustomersKyc(
     return {
       ok: false,
       status: 400,
-      error: "Provide at least one BVN or MSISDN",
+      madapiCode: "5000",
+      severity: "client",
+      error: "Provide at least one BVN or MSISDN (MADAPI 5000 Bad Request)",
     };
   }
   if (!input.transactionId?.trim()) {
     return {
       ok: false,
       status: 400,
-      error: "transactionId is required",
+      madapiCode: "5000",
+      severity: "client",
+      error: "transactionId is required (MADAPI 5000 Bad Request)",
     };
   }
 
@@ -57,6 +72,8 @@ export async function verifyCustomersKyc(
     return {
       ok: false,
       status: 503,
+      madapiCode: "5000",
+      severity: "server",
       error:
         "MTN KYC not configured. Set MTN_KYC_API_KEY, MTN_KYC_BASIC_USER, MTN_KYC_BASIC_PASSWORD",
     };
@@ -102,21 +119,36 @@ export async function verifyCustomersKyc(
       raw = { raw: text.slice(0, 2000) };
     }
 
+    const body = (raw || {}) as Record<string, unknown>;
+    const madapiCode = resolveMadapiCode(res.status, body);
+
+    // HTTP error envelope (400/401/403/404 + ErrorPayload)
     if (!res.ok) {
-      const body = (raw || {}) as Record<string, unknown>;
+      const described = describeMadapiError(res.status, body);
       return {
         ok: false,
         status: res.status,
-        error:
-          String(
-            body.statusMessage ||
-              body.message ||
-              body.error ||
-              `MTN KYC HTTP ${res.status}`
-          ),
-        body: body as MtnKycCallResult extends { ok: false; body?: infer B }
-          ? B
-          : never,
+        madapiCode: described.code,
+        severity: described.severity,
+        error: described.message,
+        body: body as { statusCode?: string; statusMessage?: string },
+        raw,
+      };
+    }
+
+    // HTTP 200 but MADAPI business failure in body statusCode
+    if (
+      body.statusCode != null &&
+      !isMadapiSuccessCode(body.statusCode)
+    ) {
+      const described = describeMadapiError(res.status, body);
+      return {
+        ok: false,
+        status: res.status,
+        madapiCode: described.code,
+        severity: described.severity,
+        error: described.message,
+        body: body as { statusCode?: string; statusMessage?: string },
         raw,
       };
     }
@@ -124,13 +156,16 @@ export async function verifyCustomersKyc(
     return {
       ok: true,
       status: res.status,
-      body: (raw || {}) as MtnKycMultiResponse,
+      madapiCode,
+      body: body as MtnKycMultiResponse,
       raw,
     };
   } catch (e) {
     return {
       ok: false,
       status: 0,
+      madapiCode: "5000",
+      severity: "server",
       error: e instanceof Error ? e.message : "Network error calling MTN KYC",
     };
   }
@@ -164,6 +199,7 @@ function sandboxResponse(
   return {
     ok: true,
     status: 200,
+    madapiCode: "0000",
     body: {
       statusCode: "0000",
       statusMessage: "Success (sandbox)",

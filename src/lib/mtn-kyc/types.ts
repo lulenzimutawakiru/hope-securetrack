@@ -50,17 +50,32 @@ export type MtnKycErrorPayload = {
   [key: string]: unknown;
 };
 
+/** MADAPI statusCode on error bodies (swagger examples) */
+export type MadapiStatusCode =
+  | "0000" // success
+  | "4000" // 401 Unauthorized
+  | "4001" // 403 Forbidden
+  | "4004" // 404 Not Found
+  | "5000" // 400 Bad Request
+  | "5001" // validation
+  | string;
+
 export type MtnKycCallResult =
   | {
       ok: true;
       status: number;
+      /** MADAPI statusCode when present (e.g. 0000) */
+      madapiCode: string;
       body: MtnKycMultiResponse;
       raw: unknown;
     }
   | {
       ok: false;
       status: number;
+      madapiCode: string;
       error: string;
+      /** auth | client | not_found | server | unknown */
+      severity?: string;
       body?: MtnKycErrorPayload | null;
       raw?: unknown;
     };
