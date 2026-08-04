@@ -2670,6 +2670,16 @@ defineEntity("intg_slack_delivery_log", "intg_slack_delivery_log", "intg", {
   searchable: ["event_type", "status"],
 });
 
+defineEntity("intg_mtn_kyc_verifications", "intg_mtn_kyc_verifications", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.admin",
+}, {
+  softDelete: false,
+  searchable: ["transaction_id", "target_system", "status_code"],
+});
+
 defineEntity("intg_connectors", "intg_connectors", "intg", {
   view: "intg.view",
   create: "intg.manage",

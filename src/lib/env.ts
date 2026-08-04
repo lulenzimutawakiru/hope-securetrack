@@ -88,6 +88,20 @@ export const env = {
         process.env.SLACK_SIGNING_SECRET?.trim()
     ),
   },
+  /** MTN MADAPI Customer KYC Verification (server-only) */
+  mtnKyc: {
+    baseUrl:
+      process.env.MTN_KYC_BASE_URL ||
+      "https://api.mtn.com/v1/kycVerification",
+    configured: Boolean(
+      process.env.MTN_KYC_API_KEY?.trim() &&
+        process.env.MTN_KYC_BASIC_USER?.trim() &&
+        process.env.MTN_KYC_BASIC_PASSWORD?.trim()
+    ),
+    sandbox:
+      process.env.MTN_KYC_SANDBOX === "true" ||
+      process.env.MTN_KYC_SANDBOX === "1",
+  },
 
   redis: {
     upstashUrl: process.env.UPSTASH_REDIS_REST_URL || "",
