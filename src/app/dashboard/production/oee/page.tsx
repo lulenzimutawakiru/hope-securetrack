@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";

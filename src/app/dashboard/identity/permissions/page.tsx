@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 export default function IdentityPermissionsPage() {
   const [rows, setRows] = useState<

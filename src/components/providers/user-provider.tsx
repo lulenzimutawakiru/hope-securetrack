@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { enrichPermissions } from "@/lib/auth/permissions";
 import type { UserProfile, Role } from "@/types/database";
 import type { User } from "@supabase/supabase-js";

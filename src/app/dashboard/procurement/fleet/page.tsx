@@ -18,7 +18,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { crudCreate } from "@/lib/api/crud-client";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";

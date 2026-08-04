@@ -21,7 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { DocumentActions } from "@/components/documents/document-actions";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";

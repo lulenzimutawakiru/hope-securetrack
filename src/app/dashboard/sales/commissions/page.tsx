@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import { crudUpdate } from "@/lib/api/crud-client";

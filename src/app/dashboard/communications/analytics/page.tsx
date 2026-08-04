@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { getCommStats, listMessages } from "@/lib/communications";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 export default function CommAnalyticsPage() {
   const { auth } = useUser();

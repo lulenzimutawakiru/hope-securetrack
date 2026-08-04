@@ -20,7 +20,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DocumentActions } from "@/components/documents/document-actions";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { apiPost } from "@/lib/api-client";
 import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";

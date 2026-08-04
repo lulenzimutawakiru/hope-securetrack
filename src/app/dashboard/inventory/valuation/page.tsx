@@ -13,7 +13,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { useEntityAll } from "@/hooks/use-entity-all";
 import { entityKeys } from "@/lib/api/query-keys";

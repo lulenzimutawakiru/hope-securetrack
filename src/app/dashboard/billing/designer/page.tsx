@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { crudCreate, crudUpdate } from "@/lib/api/crud-client";

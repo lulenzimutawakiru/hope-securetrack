@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 
 const LIFECYCLE = [
@@ -76,60 +76,45 @@ export default function HrHubPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const [
-        emp,
-        jobs,
-        apps,
-        leave,
-        payroll,
-        exits,
-        { data: ins },
-      ] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "active"),
-        supabase
-          .from("job_requisitions")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "open"),
-        supabase
-          .from("job_applicants")
-          .select("*", { count: "exact", head: true })
-          .not("stage", "in", '("hired","rejected","withdrawn")'),
-        supabase
-          .from("leave_requests")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending"),
-        supabase
-          .from("payroll_runs")
-          .select("net_total")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("employee_exits")
-          .select("*", { count: "exact", head: true })
-          .neq("status", "completed"),
-        supabase
-          .from("hr_insights")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
-
-      setStats({
-        headcount: emp.count ?? 0,
-        openJobs: jobs.count ?? 0,
-        applicants: apps.count ?? 0,
-        pendingLeave: leave.count ?? 0,
-        payrollNet: Number(payroll.data?.net_total || 0),
-        openExits: exits.count ?? 0,
-      });
-      setInsights((ins as Insight[]) ?? []);
-      setLoading(false);
+      try {
+        const [emp, jobs, apps, leave, exits, payrollRes, insRes] =
+          await Promise.all([
+            crudCount("employees", { status: "active" }),
+            crudCount("job_requisitions", { status: "open" }),
+            crudCount("job_applicants", {
+              stage: { not_in: ["hired", "rejected", "withdrawn"] },
+            }),
+            crudCount("leave_requests", { status: "pending" }),
+            crudCount("employee_exits", { status: { neq: "completed" } }),
+            crudList<Record<string, unknown>>("payroll_runs", {
+              page: 1,
+              pageSize: 1,
+              sort: "created_at",
+              order: "desc",
+            }),
+            crudList<Insight>("hr_insights", {
+              page: 1,
+              pageSize: 5,
+              sort: "created_at",
+              order: "desc",
+              filters: { status: "open" },
+            }),
+          ]);
+        const payroll = payrollRes.ok ? payrollRes.data.data[0] : null;
+        setStats({
+          headcount: emp,
+          openJobs: jobs,
+          applicants: apps,
+          pendingLeave: leave,
+          payrollNet: Number(payroll?.net_total || 0),
+          openExits: exits,
+        });
+        setInsights(insRes.ok ? insRes.data.data : []);
+      } catch {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

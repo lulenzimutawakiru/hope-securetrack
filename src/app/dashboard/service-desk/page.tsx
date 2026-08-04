@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { SERVICE_DESK_LIFECYCLE } from "@/lib/service-desk";
 
@@ -69,62 +69,71 @@ export default function ServiceDeskHubPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
       const now = new Date().toISOString();
-      const [
-        total, open, resolved, breached, articles, catalog, problems, changes,
-        { data: csatRows }, { data: recentTickets },
-      ] = await Promise.all([
-        supabase.from("support_tickets").select("*", { count: "exact", head: true }).is("deleted_at", null),
-        supabase
-          .from("support_tickets")
-          .select("*", { count: "exact", head: true })
-          .is("deleted_at", null)
-          .not("status", "in", '("closed","resolved","archived")'),
-        supabase
-          .from("support_tickets")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["resolved", "closed"]),
-        supabase
-          .from("support_tickets")
-          .select("*", { count: "exact", head: true })
-          .is("deleted_at", null)
-          .lt("sla_resolve_due", now)
-          .not("status", "in", '("closed","resolved","archived")'),
-        supabase.from("sd_knowledge_articles").select("*", { count: "exact", head: true }).eq("status", "published"),
-        supabase.from("sd_catalog_items").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("sd_problems").select("*", { count: "exact", head: true }).neq("status", "closed"),
-        supabase.from("sd_changes").select("*", { count: "exact", head: true }).not("status", "in", '("closed","implemented")'),
-        supabase.from("sd_csat_responses").select("score").limit(200),
-        supabase
-          .from("support_tickets")
-          .select("id,ticket_number,subject,status,priority,created_at")
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(8),
-      ]);
+      const closed = ["closed", "resolved", "archived"];
+      try {
+        const [
+          total,
+          open,
+          resolved,
+          breached,
+          articles,
+          catalog,
+          problems,
+          changes,
+          csatRes,
+          recentRes,
+        ] = await Promise.all([
+          crudCount("support_tickets"),
+          crudCount("support_tickets", { status: { not_in: closed } }),
+          crudCount("support_tickets", { status: ["resolved", "closed"] }),
+          crudCount("support_tickets", {
+            status: { not_in: closed },
+            sla_resolve_due: { lt: now },
+          }),
+          crudCount("sd_knowledge_articles", { status: "published" }),
+          crudCount("sd_catalog_items", { is_active: true }),
+          crudCount("sd_problems", { status: { neq: "closed" } }),
+          crudCount("sd_changes", {
+            status: { not_in: ["closed", "implemented"] },
+          }),
+          crudList<Record<string, unknown>>("sd_csat_responses", {
+            page: 1,
+            pageSize: 200,
+          }),
+          crudList<Record<string, unknown>>("support_tickets", {
+            page: 1,
+            pageSize: 8,
+            sort: "created_at",
+            order: "desc",
+          }),
+        ]);
 
-      const scores = csatRows || [];
-      const avgCsat =
-        scores.length > 0
-          ? scores.reduce((s, r) => s + Number(r.score || 0), 0) / scores.length
-          : 0;
+        const scores = csatRes.ok ? csatRes.data.data : [];
+        const avgCsat =
+          scores.length > 0
+            ? scores.reduce((s, r) => s + Number(r.score || 0), 0) / scores.length
+            : 0;
 
-      setStats({
-        open: open.count ?? 0,
-        total: total.count ?? 0,
-        breached: breached.count ?? 0,
-        resolved: resolved.count ?? 0,
-        articles: articles.count ?? 0,
-        catalog: catalog.count ?? 0,
-        problems: problems.count ?? 0,
-        changes: changes.count ?? 0,
-        csat: Math.round(avgCsat * 10) / 10,
-      });
-      setRecent((recentTickets as Array<Record<string, unknown>>) || []);
-      setLoading(false);
+        setStats({
+          open,
+          total,
+          breached,
+          resolved,
+          articles,
+          catalog,
+          problems,
+          changes,
+          csat: Math.round(avgCsat * 10) / 10,
+        });
+        setRecent(recentRes.ok ? recentRes.data.data : []);
+      } catch {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
     }
-    load().catch(() => setLoading(false));
+    load();
   }, []);
 
   if (loading) return <LoadingState message="Loading Enterprise Service Desk…" />;

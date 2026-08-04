@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { toast } from "sonner";
 import { crudUpdate } from "@/lib/api/crud-client";
 import { formatIdentityNumber } from "@/lib/workforce-id";

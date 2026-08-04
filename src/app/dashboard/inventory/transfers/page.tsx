@@ -20,7 +20,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatDate } from "@/lib/utils";
 import { apiPost } from "@/lib/api-client";
 import { useEntityAll } from "@/hooks/use-entity-all";

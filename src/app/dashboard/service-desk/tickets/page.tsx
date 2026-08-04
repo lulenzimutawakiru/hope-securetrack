@@ -23,7 +23,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useEntityAll } from "@/hooks/use-entity-all";
 import { apiGet } from "@/lib/api-client";
 import { useUser } from "@/hooks/use-user";

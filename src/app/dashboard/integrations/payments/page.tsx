@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 const PAYMENT_CONNECTORS = [
   "MTN_MOMO", "AIRTEL_MONEY", "PESAPAL", "STRIPE", "FLUTTERWAVE", "PAYPAL", "BANK_API",

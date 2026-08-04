@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { LabelCard } from "@/components/labels/label-card";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { crudCreate, crudUpdate } from "@/lib/api/crud-client";

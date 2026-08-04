@@ -7,7 +7,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { getFleetDashboardStats } from "@/lib/fleet";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import { BarChart3, Fuel, Truck, Wrench } from "lucide-react";
 

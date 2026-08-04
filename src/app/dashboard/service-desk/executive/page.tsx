@@ -16,7 +16,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import {
   buildExecutiveInsights,

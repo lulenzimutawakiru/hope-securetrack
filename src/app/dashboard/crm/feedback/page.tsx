@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { listCustomers, submitFeedback } from "@/lib/crm";
 import { toast } from "sonner";
 

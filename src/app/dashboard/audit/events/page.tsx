@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatDateTime } from "@/lib/utils";
 import { AUDIT_MODULES, AUDIT_SEVERITIES, formatFieldChanges } from "@/lib/audit";
 

@@ -317,7 +317,9 @@ function buildListQuery(
         "gt" in value ||
         "lt" in value ||
         "neq" in value ||
-        "is" in value)
+        "is" in value ||
+        "not_in" in value ||
+        "nin" in value)
     ) {
       // Range / inequality operators for KPI hubs (e.g. { gte: "2026-01-01" })
       const v = value as Record<string, unknown>;
@@ -327,6 +329,18 @@ function buildListQuery(
       if (v.lt != null) query = query.lt(key, v.lt);
       if (v.neq != null) query = query.neq(key, v.neq);
       if (v.is === null) query = query.is(key, null);
+      const notIn = (v.not_in ?? v.nin) as unknown;
+      if (Array.isArray(notIn) && notIn.length > 0) {
+        // PostgREST not.in — values as parenthesized list
+        const list = notIn
+          .map((x) => {
+            if (typeof x === "number" || typeof x === "boolean") return String(x);
+            const s = String(x).replace(/"/g, "");
+            return `"${s}"`;
+          })
+          .join(",");
+        query = query.not(key, "in", `(${list})`);
+      }
     } else if (value !== undefined && value !== null && value !== "") {
       query = query.eq(key, value);
     }
@@ -356,7 +370,8 @@ export async function listEntities<T = Record<string, unknown>>(
   const def = withEntity(scope, entity, "view");
   const sb = deps.sb ?? (await createClient());
   const page = Math.max(1, opts.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, opts.pageSize ?? 25));
+  // Cap at 500 so hub aggregations can page without unbounded responses
+  const pageSize = Math.min(500, Math.max(1, opts.pageSize ?? 25));
   const query = buildListQuery(sb, scope, def, opts).range(
     (page - 1) * pageSize,
     page * pageSize - 1

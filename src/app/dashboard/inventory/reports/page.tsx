@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useQuery } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useEntityAll } from "@/hooks/use-entity-all";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";

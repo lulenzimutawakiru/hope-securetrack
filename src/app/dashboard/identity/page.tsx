@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { IDM_LIFECYCLE } from "@/lib/idm";
 
@@ -69,44 +69,57 @@ export default function IdentityHubPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
       const dayAgo = new Date(Date.now() - 86400000).toISOString();
-      const [
-        users, active, locked, roles, alertsC, failed, provisionOpen,
-        { data: alertRows },
-      ] = await Promise.all([
-        supabase.from("user_profiles").select("*", { count: "exact", head: true }).is("deleted_at", null),
-        supabase.from("user_profiles").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("user_profiles").select("*", { count: "exact", head: true }).eq("account_status", "locked"),
-        supabase.from("roles").select("*", { count: "exact", head: true }).is("deleted_at", null),
-        supabase.from("security_alerts").select("*", { count: "exact", head: true }).eq("status", "open"),
-        supabase.from("login_history").select("*", { count: "exact", head: true }).eq("success", false).gte("created_at", dayAgo),
-        supabase
-          .from("idm_provision_requests")
-          .select("*", { count: "exact", head: true })
-          .not("status", "in", '("activated","rejected","cancelled")'),
-        supabase
-          .from("security_alerts")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
+      try {
+        const [
+          users,
+          active,
+          locked,
+          roles,
+          alertsC,
+          failed,
+          provisionOpen,
+          alertRes,
+        ] = await Promise.all([
+          crudCount("user_profiles"),
+          crudCount("user_profiles", { is_active: true }),
+          crudCount("user_profiles", { account_status: "locked" }),
+          crudCount("roles"),
+          crudCount("security_alerts", { status: "open" }),
+          crudCount("login_history", {
+            success: false,
+            created_at: { gte: dayAgo },
+          }),
+          crudCount("idm_provision_requests", {
+            status: { not_in: ["activated", "rejected", "cancelled"] },
+          }),
+          crudList<Record<string, unknown>>("security_alerts", {
+            page: 1,
+            pageSize: 5,
+            sort: "created_at",
+            order: "desc",
+            filters: { status: "open" },
+          }),
+        ]);
 
-      setStats({
-        users: users.count ?? 0,
-        active: active.count ?? 0,
-        pending: provisionOpen.count ?? 0,
-        locked: locked.count ?? 0,
-        roles: roles.count ?? 0,
-        openAlerts: alertsC.count ?? 0,
-        failedLogins: failed.count ?? 0,
-        provisionOpen: provisionOpen.count ?? 0,
-      });
-      setAlerts(alertRows ?? []);
-      setLoading(false);
+        setStats({
+          users,
+          active,
+          pending: provisionOpen,
+          locked,
+          roles,
+          openAlerts: alertsC,
+          failedLogins: failed,
+          provisionOpen,
+        });
+        setAlerts(alertRes.ok ? alertRes.data.data : []);
+      } catch {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
     }
-    load().catch(() => setLoading(false));
+    load();
   }, []);
 
   if (loading) return <LoadingState message="Loading identity platform…" />;

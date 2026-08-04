@@ -131,10 +131,22 @@ class QueryBuilder {
       return this;
     }
     if (op === "in") {
+      // Accept arrays or PostgREST list strings: '("a","b")' / '(a,b)'
+      let list: unknown[];
+      if (Array.isArray(val)) {
+        list = val;
+      } else if (typeof val === "string") {
+        const inner = val.replace(/^\(/, "").replace(/\)$/, "").trim();
+        list = inner
+          ? inner.split(",").map((s) => s.trim().replace(/^"|"$/g, ""))
+          : [];
+      } else {
+        list = [val];
+      }
       this.filters.push({
         type: "not_in",
         col,
-        val: Array.isArray(val) ? val : [val],
+        val: list,
       });
       return this;
     }
@@ -153,13 +165,13 @@ class QueryBuilder {
   }
 
   limit(n: number) {
-    this.limitN = Math.min(100, Math.max(1, n));
+    this.limitN = Math.min(500, Math.max(1, n));
     return this;
   }
 
   range(from: number, to: number) {
     const size = to - from + 1;
-    this.limitN = Math.min(100, Math.max(1, size));
+    this.limitN = Math.min(500, Math.max(1, size));
     this.page = Math.floor(from / this.limitN) + 1;
     return this;
   }
@@ -179,7 +191,19 @@ class QueryBuilder {
     for (const f of this.filters) {
       if (f.type === "eq") out[f.col] = f.val;
       else if (f.type === "in") out[f.col] = f.val;
-      else if (f.type === "gte" || f.type === "lte" || f.type === "gt" || f.type === "lt") {
+      else if (f.type === "not_in") {
+        const prev =
+          typeof out[f.col] === "object" && out[f.col] !== null
+            ? (out[f.col] as Record<string, unknown>)
+            : {};
+        out[f.col] = { ...prev, not_in: f.val };
+      } else if (f.type === "neq") {
+        const prev =
+          typeof out[f.col] === "object" && out[f.col] !== null
+            ? (out[f.col] as Record<string, unknown>)
+            : {};
+        out[f.col] = { ...prev, neq: f.val };
+      } else if (f.type === "gte" || f.type === "lte" || f.type === "gt" || f.type === "lt") {
         const prev =
           typeof out[f.col] === "object" && out[f.col] !== null
             ? (out[f.col] as Record<string, unknown>)

@@ -29,7 +29,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { SALES_MENU, getSalesDashboardStats } from "@/lib/sales";
 import { formatNumber } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 const LIFECYCLE = [
   "Lead",

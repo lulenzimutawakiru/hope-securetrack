@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { crudCreate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";

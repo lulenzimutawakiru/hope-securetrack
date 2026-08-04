@@ -14,7 +14,7 @@ import {
   EnterpriseDataGrid,
   type DataGridColumn,
 } from "@/components/enterprise/data-grid";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useEntityAll } from "@/hooks/use-entity-all";

@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { toast } from "sonner";
 import { crudCreate, crudDelete } from "@/lib/api/crud-client";
 import { LOGO_TYPES } from "@/lib/branding";

@@ -15,7 +15,7 @@ import {
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { crudCreate } from "@/lib/api/crud-client";
 import { listSegments, campaignTargetHint } from "@/lib/crm";
 import { toast } from "sonner";

@@ -28,7 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { REVENUE_LIFECYCLE, agingBucket } from "@/lib/billing";
 
@@ -75,50 +75,61 @@ export default function BillingHubPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
       const startMonth = new Date();
       startMonth.setDate(1);
       const startIso = startMonth.toISOString().slice(0, 10);
+      const closed = ["paid", "void", "cancelled"];
 
-      const [invCount, customers, recurring, payments, { data: openInvs }, { data: paidPays }] =
-        await Promise.all([
-          supabase.from("invoices").select("*", { count: "exact", head: true }),
-          supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_active", true),
-          supabase.from("bill_recurring_schedules").select("*", { count: "exact", head: true }).eq("status", "active"),
-          supabase.from("invoice_payments").select("*", { count: "exact", head: true }),
-          supabase
-            .from("invoices")
-            .select("total_amount,amount_paid,due_date,status")
-            .not("status", "in", '("paid","void","cancelled")')
-            .limit(2000),
-          supabase
-            .from("invoice_payments")
-            .select("amount")
-            .gte("payment_date", startIso),
-        ]);
+      try {
+        const [invoices, customers, recurring, payments, openRes, paidRes, draft] =
+          await Promise.all([
+            crudCount("invoices"),
+            crudCount("customers", { is_active: true }),
+            crudCount("bill_recurring_schedules", { status: "active" }),
+            crudCount("invoice_payments"),
+            crudList<Record<string, unknown>>("invoices", {
+              page: 1,
+              pageSize: 500,
+              filters: { status: { not_in: closed } },
+            }),
+            crudList<Record<string, unknown>>("invoice_payments", {
+              page: 1,
+              pageSize: 500,
+              filters: { payment_date: { gte: startIso } },
+            }),
+            crudCount("invoices", { status: "draft" }),
+          ]);
 
-      const list = openInvs || [];
-      const openAr = list.reduce(
-        (s, i) => s + (Number(i.total_amount) - Number(i.amount_paid || 0)),
-        0
-      );
-      const overdue = list.filter((i) => agingBucket(i.due_date, String(i.status)) !== "current" && agingBucket(i.due_date, String(i.status)) !== "paid").length;
-      const draft = list.filter((i) => i.status === "draft").length;
-      const paidMtd = (paidPays || []).reduce((s, p) => s + Number(p.amount || 0), 0);
+        const list = openRes.ok ? openRes.data.data : [];
+        const paidPays = paidRes.ok ? paidRes.data.data : [];
+        const openAr = list.reduce(
+          (s, i) => s + (Number(i.total_amount) - Number(i.amount_paid || 0)),
+          0
+        );
+        const overdue = list.filter(
+          (i) =>
+            agingBucket(String(i.due_date ?? ""), String(i.status)) !== "current" &&
+            agingBucket(String(i.due_date ?? ""), String(i.status)) !== "paid"
+        ).length;
+        const paidMtd = paidPays.reduce((s, p) => s + Number(p.amount || 0), 0);
 
-      setStats({
-        invoices: invCount.count ?? 0,
-        openAr,
-        overdue,
-        paidMtd,
-        draft,
-        customers: customers.count ?? 0,
-        recurring: recurring.count ?? 0,
-        payments: payments.count ?? 0,
-      });
-      setLoading(false);
+        setStats({
+          invoices,
+          openAr,
+          overdue,
+          paidMtd,
+          draft,
+          customers,
+          recurring,
+          payments,
+        });
+      } catch {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
     }
-    load().catch(() => setLoading(false));
+    load();
   }, []);
 
   if (loading) return <LoadingState message="Loading enterprise billing platform…" />;

@@ -11,7 +11,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { KanbanBoard, type KanbanCard, type KanbanColumn } from "@/components/enterprise/kanban-board";
 import { Scheduler, type ScheduleEvent } from "@/components/enterprise/scheduler";
 import { SplitPanel } from "@/components/enterprise/split-panel";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
 import { crudUpdate } from "@/lib/api/crud-client";

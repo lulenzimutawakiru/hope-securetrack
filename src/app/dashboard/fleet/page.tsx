@@ -16,7 +16,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { FLEET_MENU, getFleetDashboardStats } from "@/lib/fleet";
 import { formatNumber } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 export default function FleetDashboardPage() {
   const { auth } = useUser();

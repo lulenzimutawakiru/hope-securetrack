@@ -22,7 +22,7 @@ import { useRealtimeTables } from "@/hooks/use-realtime";
 import { usePresence } from "@/hooks/use-presence";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useOfflineQueue } from "@/hooks/use-offline-queue";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import { enqueueOfflineMutation } from "@/lib/offline/sync";
 import { toast } from "sonner";

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { Button } from "@/components/ui/button";
 
 const PRIVILEGED = new Set([

@@ -10,7 +10,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
 import { listDocumentJobs } from "@/lib/communications";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatDate } from "@/lib/utils";
 
 export default function DocumentDeliveryPage() {

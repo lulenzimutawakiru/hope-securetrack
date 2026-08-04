@@ -7,7 +7,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { getPpmDashboardStats } from "@/lib/ppm";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import { BarChart3, DollarSign, FolderKanban, Gauge } from "lucide-react";
 

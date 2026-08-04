@@ -73,8 +73,7 @@ const already = new Set(
 
 const lines = [
   "",
-  "// ── Bulk registrations for remaining domain modules (auto) ──",
-  "const BULK_STD = { view: \"settings.view\", create: \"settings.manage\", update: \"settings.manage\", delete: \"settings.admin\" } as const;",
+  "// ── Bulk registrations (auto — softDelete enabled) ──",
   "",
 ];
 

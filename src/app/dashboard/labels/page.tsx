@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { LBL_MENU, getLabelsDashboardStats } from "@/lib/lbl";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 const QUICK = [
   { title: "Auth QR Sheet", href: "/dashboard/labels/auth-sheet", icon: Tag, desc: "Batch verification labels" },

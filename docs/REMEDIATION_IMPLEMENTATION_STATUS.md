@@ -96,18 +96,37 @@ All modules above are listed in `scripts/check-browser-writes.mjs` → any reint
 
 ---
 
-## Remaining (product / ops — not browser-write debt)
+## UI read migration (2026-08-04 next)
 
-These are **out of scope** of the write-ban migration; track separately:
+| Item | Status | Notes |
+|------|--------|--------|
+| Bulk dashboard → `crud-compat` | Done | **372** pages/components swapped off browser client |
+| Top hubs → `crudCount` / `crudList` | Done | billing, HR, service-desk, identity, inventory (+ prior main/assets/attendance) |
+| Engine `not_in` / `neq` filters | Done | KPI filters like open tickets / open AR |
+| List pageSize cap | 500 | Supports hub aggregations without unbounded responses |
+| Extra entity registrations | +48 | BI, billing, HR, pay, SD, SCM tables used by UI |
 
-1. **UI read migration** — many dashboard pages still import the browser client for **reads** only (writes are banned). Optional hardening: move reads to `crudList` / `crudCount`.
-2. **Live RLS CI** — `rls-live.test.ts` needs integration secrets; enable nightly with two tenants.
-3. **SSO / SAML** — enterprise IAM product work.
-4. **Reporting read models / multi-region / load certify** — tooling exists (`test:load`); schedule in staging.
-5. **Generate real `database.types.ts`** — `npm run db:generate-types` when Supabase is local.
-6. **`REQUIRE_TENANT_ON_ROWS=true`** — enable only after full `tenant_id` backfill.
-7. **`RATE_LIMIT_REQUIRE_REDIS=true`** — multi-instance production with Upstash.
-8. **Tighten bulk entity permissions** — bulk registrations use module-default view/manage; refine per-table where product requires finer RBAC.
+**Still on browser client (intentional):**
+
+| Path | Reason |
+|------|--------|
+| `chat/page.tsx` | Realtime channels |
+| `chat/notifications/page.tsx` | Allowlist self-service |
+| `identity/self-service`, `identity/sessions` | Allowlist |
+| `settings/profile` | Allowlist |
+| `inventory/grn`, `inventory/reservations` | RPC |
+| `packing`, `qr-codes` | Auth helpers |
+
+## Remaining (product / ops)
+
+1. **Live RLS CI** — `rls-live.test.ts` needs integration secrets; enable nightly with two tenants.
+2. **SSO / SAML** — enterprise IAM product work.
+3. **Reporting read models / multi-region / load certify** — tooling exists (`test:load`); schedule in staging.
+4. **Generate real `database.types.ts`** — `npm run db:generate-types` when Supabase is local.
+5. **`REQUIRE_TENANT_ON_ROWS=true`** — enable only after full `tenant_id` backfill.
+6. **`RATE_LIMIT_REQUIRE_REDIS=true`** — multi-instance production with Upstash.
+7. **Tighten bulk entity permissions** — bulk registrations use module-default view/manage; refine per-table where product requires finer RBAC.
+8. **Migrate RPC/auth special pages** — GRN/reservations RPC + packing/qr-codes auth off browser client when dedicated APIs exist.
 
 ---
 

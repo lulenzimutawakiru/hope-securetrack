@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useEntityAll } from "@/hooks/use-entity-all";
@@ -76,11 +76,7 @@ interface BalanceValueRow {
 
 export default function InventoryHubPage() {
   // Reads flow through the hardened CRUD API: tenant/company are derived
-  // server-side, every row is permission-checked and dual-key (tenant +
-  // company) scoped. Products and purchase requisitions are cross-module
-  // references whose CRUD read gates (products.view / procurement.view) the
-  // warehouse roles driving this hub do not hold, so those head-count reads
-  // stay on the RLS-bound browser client (company-scoped policies).
+  // server-side; every row is permission-checked and dual-key scoped.
   const warehousesQ = useEntityList<{ id: string }>("warehouses", {
     pageSize: 1,
     filters: { is_active: true },
@@ -113,26 +109,14 @@ export default function InventoryHubPage() {
   });
   const productsQ = useQuery({
     queryKey: ["inventory-hub", "products-count"],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { count, error } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true });
-      if (error) throw error;
-      return count ?? 0;
-    },
+    queryFn: () => crudCount("products"),
   });
   const prQ = useQuery({
     queryKey: ["inventory-hub", "pr-count"],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { count, error } = await supabase
-        .from("purchase_requisitions")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["draft", "submitted", "approved"]);
-      if (error) throw error;
-      return count ?? 0;
-    },
+    queryFn: () =>
+      crudCount("purchase_requisitions", {
+        status: ["draft", "submitted", "approved"],
+      }),
   });
 
   const balances = balancesQ.data ?? [];

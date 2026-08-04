@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
