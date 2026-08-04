@@ -34,6 +34,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
+import { useUser } from "@/hooks/use-user";
+import { canAccessRoute } from "@/lib/auth/rbac";
 
 const PILLARS = [
   "Data",
@@ -157,6 +159,7 @@ const MODULES = [
 ];
 
 export default function ReportsBiHubPage() {
+  const { auth, isPlatformAdmin } = useUser();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     reports: 0,
@@ -277,7 +280,7 @@ export default function ReportsBiHubPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-8">
-        {MODULES.map((m) => (
+        {MODULES.filter((m) => canAccessRoute(auth?.permissions, m.href, { isPlatformAdmin })).map((m) => (
           <Link key={m.href} href={m.href}>
             <Card className="h-full hover:border-hope-teal transition-colors cursor-pointer">
               <CardHeader className="pb-2">

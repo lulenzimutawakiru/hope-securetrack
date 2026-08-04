@@ -38,6 +38,130 @@ const OVERRIDES: RbacRule[] = [
     prefix: "/dashboard/notifications",
     anyOf: ["notifications.view", "notifications.manage", "dashboard.view"],
   },
+
+  // ── SecureChat (hc.*) — base is hc.view; privileged sub-dashboards ──────
+  {
+    prefix: "/dashboard/chat/executive",
+    anyOf: ["hc.admin", "hc.manage"],
+  },
+  {
+    prefix: "/dashboard/chat/analytics",
+    anyOf: ["hc.admin", "hc.manage", "reports.dashboards"],
+  },
+  {
+    prefix: "/dashboard/chat/settings",
+    anyOf: ["hc.admin", "hc.manage", "settings.manage"],
+  },
+  {
+    prefix: "/dashboard/chat/ai-agent",
+    anyOf: ["hc.ai", "hc.admin", "hc.manage"],
+  },
+  {
+    prefix: "/dashboard/chat/ai",
+    anyOf: ["hc.ai", "hc.admin", "hc.manage"],
+  },
+  {
+    prefix: "/dashboard/chat/announcements",
+    anyOf: ["hc.announce", "hc.admin", "hc.manage"],
+  },
+  {
+    prefix: "/dashboard/chat/meetings",
+    anyOf: ["hc.meetings", "hc.admin", "hc.manage"],
+  },
+  {
+    prefix: "/dashboard/chat/calls",
+    anyOf: ["hc.meetings", "hc.admin", "hc.manage"],
+  },
+
+  // ── Communications (comm.*) — base is comm.view; privileged areas ───────
+  {
+    prefix: "/dashboard/communications/analytics",
+    anyOf: ["comm.manage", "comm.admin", "reports.dashboards"],
+  },
+  {
+    prefix: "/dashboard/communications/audit",
+    anyOf: ["comm.admin", "comm.manage", "audit.view"],
+  },
+  {
+    prefix: "/dashboard/communications/providers",
+    anyOf: ["comm.admin", "comm.manage", "settings.integrations"],
+  },
+  {
+    prefix: "/dashboard/communications/rules",
+    anyOf: ["comm.manage", "comm.admin"],
+  },
+  {
+    prefix: "/dashboard/communications/templates",
+    anyOf: ["comm.templates", "comm.manage", "comm.admin"],
+  },
+  {
+    prefix: "/dashboard/communications/broadcasts",
+    anyOf: ["comm.broadcast", "comm.manage", "comm.admin"],
+  },
+  {
+    prefix: "/dashboard/communications/ai",
+    anyOf: ["comm.ai", "comm.manage", "comm.admin"],
+  },
+  {
+    prefix: "/dashboard/communications/approvals",
+    anyOf: ["comm.manage", "comm.admin"],
+  },
+
+  // ── Reports (reports.*) — base is reports.view; advanced areas ──────────
+  {
+    prefix: "/dashboard/reports/executive",
+    anyOf: ["reports.dashboards", "reports.manage", "reports.kpis"],
+  },
+  {
+    prefix: "/dashboard/reports/analytics",
+    anyOf: ["reports.dashboards", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/dashboards",
+    anyOf: ["reports.dashboards", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/kpis",
+    anyOf: ["reports.kpis", "reports.manage", "reports.dashboards"],
+  },
+  {
+    prefix: "/dashboard/reports/ai",
+    anyOf: ["reports.ai", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/assistant",
+    anyOf: ["reports.assistant", "reports.ai", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/intelligence",
+    anyOf: ["reports.intelligence", "reports.manage", "reports.ai"],
+  },
+  {
+    prefix: "/dashboard/reports/export",
+    anyOf: ["reports.export", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/documents",
+    anyOf: ["reports.documents", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/schedules",
+    anyOf: ["reports.schedule", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/regulatory",
+    anyOf: ["reports.regulatory", "reports.manage"],
+  },
+  {
+    prefix: "/dashboard/reports/warehouse",
+    anyOf: ["reports.dwh", "reports.manage"],
+  },
+
+  // ── Service Desk — admin console only for desk admins / managers ────────
+  {
+    prefix: "/dashboard/service-desk/admin",
+    anyOf: ["sd.admin", "sd.manage"],
+  },
 ];
 
 function rulesFromNav(): RbacRule[] {

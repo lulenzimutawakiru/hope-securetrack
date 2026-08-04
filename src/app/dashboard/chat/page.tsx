@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
+import { canAccessRoute } from "@/lib/auth/rbac";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { usePresence } from "@/hooks/use-presence";
 import { toast } from "sonner";
@@ -90,7 +91,7 @@ function HighlightedText({ text }: { text: string }) {
 }
 
 export default function SecureChatPage() {
-  const { auth } = useUser();
+  const { auth, isPlatformAdmin } = useUser();
   const [channels, setChannels] = useState<Array<ChatRow>>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Array<ChatRow>>([]);
@@ -508,7 +509,7 @@ export default function SecureChatPage() {
       <div className="flex flex-1 min-h-0">
         {/* Icon rail */}
         <nav className="hidden md:flex w-14 flex-col items-center gap-1 border-r py-2 bg-muted/30">
-          {SIDE_LINKS.map((l) => (
+          {SIDE_LINKS.filter((l) => canAccessRoute(auth?.permissions, l.href, { isPlatformAdmin })).map((l) => (
             <Link
               key={l.href + l.label}
               href={l.href}

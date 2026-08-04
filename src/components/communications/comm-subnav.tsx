@@ -9,6 +9,8 @@ import {
   BarChart3, Activity, ListOrdered,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/hooks/use-user";
+import { canAccessRoute } from "@/lib/auth/rbac";
 
 const DRILL = [
   { title: "Hub", href: "/dashboard/communications", icon: LayoutDashboard, exact: true },
@@ -36,6 +38,7 @@ const DRILL = [
 
 export function CommSubnav() {
   const pathname = usePathname() || "";
+  const { auth, isPlatformAdmin } = useUser();
 
   return (
     <div className="mb-5 -mx-1">
@@ -46,7 +49,7 @@ export function CommSubnav() {
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="flex gap-1.5 overflow-x-auto pb-1 px-1 scrollbar-thin">
-        {DRILL.map((item) => {
+        {DRILL.filter((item) => canAccessRoute(auth?.permissions, item.href, { isPlatformAdmin })).map((item) => {
           const exact = "exact" in item && item.exact;
           const active = exact
             ? pathname === item.href
