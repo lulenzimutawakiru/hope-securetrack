@@ -11,21 +11,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { crudUpdate } from "@/lib/api/crud-client";
+import { crudList, crudUpdate } from "@/lib/api/crud-client";
 
 export default function AssetAlertsPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const { data } = await createClient()
-      .from("ast_alerts")
-      .select("*, ast_assets(asset_tag, name)")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setRows((data as Array<Record<string, unknown>>) || []);
+    const res = await crudList<Record<string, unknown>>("ast_alerts", {
+      page: 1,
+      pageSize: 100,
+      sort: "created_at",
+      order: "desc",
+    });
+    setRows(res.ok ? res.data.data : []);
     setLoading(false);
   };
 

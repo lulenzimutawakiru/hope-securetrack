@@ -14,9 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { previewTagHtml, buildTagLabelHtml } from "@/lib/assets";
+import { crudList } from "@/lib/api/crud-client";
 
 export default function AssetTagsPage() {
   const [assets, setAssets] = useState<Array<Record<string, unknown>>>([]);
@@ -27,14 +27,25 @@ export default function AssetTagsPage() {
 
   useEffect(() => {
     async function load() {
-      const sb = createClient();
-      const [{ data: a }, { data: t }] = await Promise.all([
-        sb.from("ast_assets").select("id, asset_tag, name, department, serial_number, status").is("deleted_at", null).order("asset_tag").limit(300),
-        sb.from("ast_tag_templates").select("*").order("template_code"),
+      const [aRes, tRes] = await Promise.all([
+        crudList<Record<string, unknown>>("ast_assets", {
+          page: 1,
+          pageSize: 100,
+          sort: "asset_tag",
+          order: "asc",
+        }),
+        crudList<Record<string, unknown>>("ast_tag_templates", {
+          page: 1,
+          pageSize: 50,
+          sort: "template_code",
+          order: "asc",
+        }),
       ]);
-      setAssets((a as Array<Record<string, unknown>>) || []);
-      setTemplates((t as Array<Record<string, unknown>>) || []);
-      if (t?.[0]) setTemplateId(String(t[0].id));
+      const a = aRes.ok ? aRes.data.data : [];
+      const t = tRes.ok ? tRes.data.data : [];
+      setAssets(a);
+      setTemplates(t);
+      if (t[0]) setTemplateId(String(t[0].id));
       setLoading(false);
     }
     load().catch(() => setLoading(false));

@@ -24,12 +24,11 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
 import { useLiveGps } from "@/hooks/use-live-gps";
-import { createClient } from "@/lib/supabase/client";
 import {
   attCreate, attUpdate, attSoftDelete, attNextNumber, distanceMeters,
 } from "@/lib/attendance";
 import { toast } from "sonner";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { crudCreate, crudList, crudUpdate } from "@/lib/api/crud-client";
 
 type Loc = Record<string, unknown> & {
   id: string;
@@ -95,14 +94,14 @@ export default function AttendanceLocationsLivePage() {
       return;
     }
     try {
-      const { data, error } = await createClient()
-        .from("att_locations")
-        .select("*")
-        .eq("company_id", companyId)
-        .is("deleted_at", null)
-        .order("name");
-      if (error) throw error;
-      setRows((data as Loc[]) || []);
+      const res = await crudList<Loc>("att_locations", {
+        page: 1,
+        pageSize: 100,
+        sort: "name",
+        order: "asc",
+      });
+      if (!res.ok) throw new Error(res.error);
+      setRows(res.data.data);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -636,18 +635,15 @@ async function syncGeofence(
     actorId?: string;
   }
 ) {
-  const sb = createClient();
+  void companyId;
   const fenceCode = `GF-${input.locationCode}`.slice(0, 50);
-  const { data: existing } = await sb
-    .from("att_geofences")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("fence_code", fenceCode)
-    .is("deleted_at", null)
-    .maybeSingle();
+  const existingRes = await crudList<Record<string, unknown>>("att_geofences", {
+    pageSize: 1,
+    filters: { fence_code: fenceCode },
+  });
+  const existing = existingRes.ok ? existingRes.data.data[0] : null;
 
   const payload = {
-    company_id: companyId,
     fence_code: fenceCode,
     name: `${input.name} Fence`,
     location_id: input.locationId,
@@ -659,8 +655,8 @@ async function syncGeofence(
   };
 
   if (existing?.id) {
-    const crudRes2 = await crudUpdate("att_geofences", existing.id, payload);
+    await crudUpdate("att_geofences", String(existing.id), payload);
   } else {
-    const crudRes = await crudCreate("att_geofences", payload);
+    await crudCreate("att_geofences", payload);
   }
 }

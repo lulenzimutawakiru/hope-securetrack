@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import type { TaDashboardStats } from "./types";
 
 export async function getTalentDashboardStats(companyId: string): Promise<TaDashboardStats> {

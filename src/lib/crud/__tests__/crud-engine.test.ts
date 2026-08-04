@@ -72,20 +72,40 @@ function makeFake(opts: {
       calls.push({ method: "eq", args, table: currentTable });
       return builder;
     },
-    ilike(...args: unknown[]) {
-      calls.push({ method: "ilike", args, table: currentTable });
+    gte(...args: unknown[]) {
+      calls.push({ method: "gte", args, table: currentTable });
       return builder;
     },
-    or(...args: unknown[]) {
-      calls.push({ method: "or", args, table: currentTable });
+    lte(...args: unknown[]) {
+      calls.push({ method: "lte", args, table: currentTable });
+      return builder;
+    },
+    gt(...args: unknown[]) {
+      calls.push({ method: "gt", args, table: currentTable });
+      return builder;
+    },
+    lt(...args: unknown[]) {
+      calls.push({ method: "lt", args, table: currentTable });
+      return builder;
+    },
+    neq(...args: unknown[]) {
+      calls.push({ method: "neq", args, table: currentTable });
+      return builder;
+    },
+    in(...args: unknown[]) {
+      calls.push({ method: "in", args, table: currentTable });
       return builder;
     },
     is(...args: unknown[]) {
       calls.push({ method: "is", args, table: currentTable });
       return builder;
     },
-    in(...args: unknown[]) {
-      calls.push({ method: "in", args, table: currentTable });
+    ilike(...args: unknown[]) {
+      calls.push({ method: "ilike", args, table: currentTable });
+      return builder;
+    },
+    or(...args: unknown[]) {
+      calls.push({ method: "or", args, table: currentTable });
       return builder;
     },
     order(...args: unknown[]) {
@@ -234,6 +254,28 @@ describe("crud engine ? tenant scoping", () => {
     );
     expect(out.data).toEqual([]);
     expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it("applies gte/lte range filters and in-list filters", async () => {
+    const { sb, calls } = makeFake({ data: [], count: 0 });
+    await listEntities(
+      scope,
+      "employees",
+      {
+        filters: {
+          created_at: { gte: "2026-01-01", lte: "2026-12-31" },
+          status: ["active", "on_leave"],
+        },
+      },
+      { sb }
+    );
+    const gte = calls.find((c) => c.method === "gte");
+    const lte = calls.find((c) => c.method === "lte");
+    const inn = calls.find((c) => c.method === "in");
+    expect(gte?.args).toEqual(["created_at", "2026-01-01"]);
+    expect(lte?.args).toEqual(["created_at", "2026-12-31"]);
+    expect(inn?.args?.[0]).toBe("status");
+    expect(inn?.args?.[1]).toEqual(["active", "on_leave"]);
   });
 
   it("fetches a single row scoped by tenant and company", async () => {

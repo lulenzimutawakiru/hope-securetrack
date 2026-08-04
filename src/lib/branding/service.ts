@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { enrichColor } from "./colors";
 import { applyTemplate, buildDocumentHtml, defaultLayoutJson } from "./templates";
 import { scanAssetsExpiry, scanTemplatesForCompliance } from "./compliance";

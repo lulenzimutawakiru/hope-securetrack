@@ -87,3 +87,33 @@ export async function crudList<T = Record<string, unknown>>(
   const qs = q.toString();
   return apiGet(`${crudPath(entity)}${qs ? `?${qs}` : ""}`);
 }
+
+/** Exact total for an entity (+ optional eq/in/range filters) without loading rows. */
+export async function crudCount(
+  entity: string,
+  filters?: Record<string, unknown>
+): Promise<number> {
+  const res = await crudList(entity, {
+    page: 1,
+    pageSize: 1,
+    filters,
+  });
+  if (!res.ok) throw new Error(res.error);
+  return res.data.total ?? 0;
+}
+
+/** First matching row by id, or null when not found. */
+export async function crudGetOne<T = Record<string, unknown>>(
+  entity: string,
+  id: string
+): Promise<T | null> {
+  const { apiGet } = await import("@/lib/api-client");
+  const res = await apiGet<T>(
+    `${crudPath(entity)}?id=${encodeURIComponent(id)}`
+  );
+  if (!res.ok) {
+    if (String(res.error || "").toLowerCase().includes("not found")) return null;
+    throw new Error(res.error);
+  }
+  return res.data;
+}

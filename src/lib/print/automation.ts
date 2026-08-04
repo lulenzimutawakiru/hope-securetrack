@@ -1,6 +1,6 @@
 /** ERP event → print automation */
 
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { enqueuePrint, nextPrtCode } from "./service";
 
 export const AUTOMATION_EVENTS = [

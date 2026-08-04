@@ -19,11 +19,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { crudUpdate } from "@/lib/api/crud-client";
+import { crudList, crudUpdate } from "@/lib/api/crud-client";
 import {
   ASSET_DOMAINS,
   registerAsset,
@@ -57,15 +56,15 @@ export default function AssetRegisterPage() {
   const userId = auth?.profile?.id as string | undefined;
 
   const load = async () => {
-    let query = createClient()
-      .from("ast_assets")
-      .select("*")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (statusFilter !== "all") query = query.eq("status", statusFilter);
-    const { data } = await query;
-    setRows((data as Array<Record<string, unknown>>) || []);
+    const res = await crudList<Record<string, unknown>>("ast_assets", {
+      page: 1,
+      pageSize: 100,
+      sort: "created_at",
+      order: "desc",
+      filters:
+        statusFilter !== "all" ? { status: statusFilter } : undefined,
+    });
+    setRows(res.ok ? res.data.data : []);
     setLoading(false);
   };
 

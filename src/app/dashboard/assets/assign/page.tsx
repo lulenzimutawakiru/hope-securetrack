@@ -19,9 +19,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { crudList } from "@/lib/api/crud-client";
 import { assignAsset, unassignAsset, ASSIGNMENT_TYPES } from "@/lib/assets";
 
 export default function AssetAssignPage() {
@@ -42,13 +42,22 @@ export default function AssetAssignPage() {
   const userId = auth?.profile?.id as string | undefined;
 
   const load = async () => {
-    const sb = createClient();
-    const [{ data: assigns }, { data: ast }] = await Promise.all([
-      sb.from("ast_assignments").select("*, ast_assets(asset_tag, name)").order("assigned_at", { ascending: false }).limit(200),
-      sb.from("ast_assets").select("id, asset_tag, name, status").is("deleted_at", null).order("asset_tag").limit(300),
+    const [assignsRes, astRes] = await Promise.all([
+      crudList<Record<string, unknown>>("ast_assignments", {
+        page: 1,
+        pageSize: 100,
+        sort: "assigned_at",
+        order: "desc",
+      }),
+      crudList<Record<string, unknown>>("ast_assets", {
+        page: 1,
+        pageSize: 100,
+        sort: "asset_tag",
+        order: "asc",
+      }),
     ]);
-    setRows((assigns as Array<Record<string, unknown>>) || []);
-    setAssets((ast as Array<Record<string, unknown>>) || []);
+    setRows(assignsRes.ok ? assignsRes.data.data : []);
+    setAssets(astRes.ok ? astRes.data.data : []);
     setLoading(false);
   };
 

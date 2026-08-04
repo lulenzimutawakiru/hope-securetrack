@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/client";
+/**
+ * Enterprise audit logging service — all I/O via /api/v2/crud (no browser client).
+ */
+
 import {
   computeEventHash,
   diffFields,
@@ -7,29 +10,27 @@ import {
 } from "./integrity";
 import { scoreEventRisk } from "./ai";
 import type { AuditEventInput } from "./types";
-
-function sb() {
-  return createClient();
-}
+import {
+  crudCount,
+  crudGetOne,
+  mustCreate,
+  mustList,
+  mustUpdate,
+} from "@/lib/crud/domain-helpers";
 
 function nextAuditId(seq: number): string {
   return `EAL-${String(seq).padStart(6, "0")}`;
 }
 
 export async function logAuditEvent(input: AuditEventInput) {
-  const client = sb();
-
-  // Next chain index + prev hash
-  const { data: last } = await client
-    .from("eal_events")
-    .select("chain_index, integrity_hash")
-    .eq("company_id", input.company_id)
-    .order("chain_index", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
+  const lastRows = await mustList<Record<string, unknown>>("eal_events", {
+    pageSize: 1,
+    sort: "chain_index",
+    order: "desc",
+  });
+  const last = lastRows[0];
   const chainIndex = Number(last?.chain_index || 0) + 1;
-  const prevHash = last?.integrity_hash || "GENESIS";
+  const prevHash = (last?.integrity_hash as string) || "GENESIS";
   const auditId = nextAuditId(chainIndex);
   const now = new Date().toISOString();
   const changed = diffFields(input.before_state, input.after_state);
@@ -56,7 +57,6 @@ export async function logAuditEvent(input: AuditEventInput) {
   });
 
   const row = {
-    company_id: input.company_id,
     audit_id: auditId,
     event_id: input.event_type,
     correlation_id: input.correlation_id || `corr-${Date.now().toString(36)}`,
@@ -101,16 +101,12 @@ export async function logAuditEvent(input: AuditEventInput) {
     chain_index: chainIndex,
     risk_score: risk,
     metadata: input.metadata || {},
-    created_at: now,
   };
 
-  const { data, error } = await client.from("eal_events").insert(row).select("*").single();
-  if (error) throw error;
+  const data = await mustCreate<Record<string, unknown>>("eal_events", row);
 
-  // Mirror into legacy audit_logs (best-effort)
   try {
-    await client.from("audit_logs").insert({
-      company_id: input.company_id,
+    await mustCreate("audit_logs", {
       user_id: input.user_id,
       user_email: input.user_email,
       user_role: input.user_role,
@@ -136,10 +132,9 @@ export async function logAuditEvent(input: AuditEventInput) {
       metadata: { eal_id: data.id, audit_id: auditId },
     });
   } catch {
-    // legacy insert may fail if columns not migrated yet
+    /* legacy table may lag */
   }
 
-  // Auto-alert on high risk
   if (risk >= 70) {
     await createSecurityAlert({
       company_id: input.company_id,
@@ -152,7 +147,7 @@ export async function logAuditEvent(input: AuditEventInput) {
       title: input.title || input.action,
       detail: input.details,
       user_id: input.user_id,
-      event_id: data.id,
+      event_id: String(data.id),
       risk_score: risk,
     });
   }
@@ -170,30 +165,20 @@ export async function createSecurityAlert(input: {
   event_id?: string | null;
   risk_score?: number;
 }) {
-  const { count } = await sb()
-    .from("eal_alerts")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", input.company_id);
-  const alert_number = `ALT-${String((count ?? 0) + 1).padStart(5, "0")}`;
+  const count = await crudCount("eal_alerts");
+  const alert_number = `ALT-${String(count + 1).padStart(5, "0")}`;
 
-  const { data, error } = await sb()
-    .from("eal_alerts")
-    .insert({
-      company_id: input.company_id,
-      alert_number,
-      alert_type: input.alert_type,
-      severity: input.severity || "medium",
-      title: input.title,
-      detail: input.detail,
-      user_id: input.user_id,
-      event_id: input.event_id,
-      risk_score: input.risk_score || 50,
-      status: "open",
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("eal_alerts", {
+    alert_number,
+    alert_type: input.alert_type,
+    severity: input.severity || "medium",
+    title: input.title,
+    detail: input.detail,
+    user_id: input.user_id,
+    event_id: input.event_id,
+    risk_score: input.risk_score || 50,
+    status: "open",
+  });
 }
 
 export async function createIncidentFromAlert(input: {
@@ -203,64 +188,52 @@ export async function createIncidentFromAlert(input: {
   title?: string;
   description?: string;
 }) {
-  const { data: alert } = await sb()
-    .from("eal_alerts")
-    .select("*")
-    .eq("id", input.alert_id)
-    .single();
+  const alert = await crudGetOne<Record<string, unknown>>(
+    "eal_alerts",
+    input.alert_id
+  );
   if (!alert) throw new Error("Alert not found");
 
-  const { count } = await sb()
-    .from("eal_incidents")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", input.company_id);
-  const incident_number = `INC-${String((count ?? 0) + 1).padStart(5, "0")}`;
+  const count = await crudCount("eal_incidents");
+  const incident_number = `INC-${String(count + 1).padStart(5, "0")}`;
 
-  const { data, error } = await sb()
-    .from("eal_incidents")
-    .insert({
-      company_id: input.company_id,
-      incident_number,
-      title: input.title || alert.title,
-      description: input.description || alert.detail,
-      category: "security",
-      severity: alert.severity,
-      status: "open",
-      source_alert_id: alert.id,
-      created_by: input.created_by,
-      evidence: [{ type: "alert", id: alert.id, number: alert.alert_number }],
-      timeline: [
-        {
-          at: new Date().toISOString(),
-          event: "incident_created",
-          from_alert: alert.alert_number,
-        },
-      ],
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
+  const data = await mustCreate<Record<string, unknown>>("eal_incidents", {
+    incident_number,
+    title: input.title || alert.title,
+    description: input.description || alert.detail,
+    category: "security",
+    severity: alert.severity,
+    status: "open",
+    source_alert_id: alert.id,
+    evidence: [{ type: "alert", id: alert.id, number: alert.alert_number }],
+    timeline: [
+      {
+        at: new Date().toISOString(),
+        event: "incident_created",
+        from_alert: alert.alert_number,
+      },
+    ],
+  });
 
-  await sb()
-    .from("eal_alerts")
-    .update({ status: "investigating" })
-    .eq("id", alert.id);
+  await mustUpdate("eal_alerts", String(alert.id), {
+    status: "investigating",
+  });
 
-  // Best-effort Service Desk ticket
   try {
-    await sb().from("support_tickets").insert({
-      company_id: input.company_id,
+    await mustCreate("support_tickets", {
       subject: `[Security] ${data.title}`,
       description: data.description,
       priority: data.severity === "critical" ? "critical" : "high",
       status: "open",
       category: "security",
       source: "audit_platform",
-      created_by: input.created_by,
-      metadata: { eal_incident: data.id, incident_number: data.incident_number },
+      metadata: {
+        eal_incident: data.id,
+        incident_number: data.incident_number,
+      },
     });
   } catch {
-    // service desk schema may differ
+    /* service desk optional */
   }
 
   return data;
@@ -283,40 +256,33 @@ export async function recordApproval(input: {
   previous_approver?: string;
   next_approver?: string;
 }) {
-  const { data, error } = await sb()
-    .from("eal_approvals")
-    .insert({
-      company_id: input.company_id,
-      approval_chain_id: input.approval_chain_id,
-      sequence_no: input.sequence_no || 1,
+  return mustCreate("eal_approvals", {
+    approval_chain_id: input.approval_chain_id,
+    sequence_no: input.sequence_no || 1,
+    module: input.module,
+    entity_type: input.entity_type,
+    entity_id: input.entity_id,
+    entity_reference: input.entity_reference,
+    requestor_id: input.requestor_id,
+    requestor_name: input.requestor_name,
+    approver_id: input.approver_id,
+    approver_name: input.approver_name,
+    decision: input.decision,
+    comments: input.comments,
+    digital_signature: computeEventHash({
+      prevHash: input.approval_chain_id,
+      auditId: input.entity_reference || "",
+      eventId: input.decision,
+      action: "approve",
       module: input.module,
-      entity_type: input.entity_type,
-      entity_id: input.entity_id,
-      entity_reference: input.entity_reference,
-      requestor_id: input.requestor_id,
-      requestor_name: input.requestor_name,
-      approver_id: input.approver_id,
-      approver_name: input.approver_name,
-      decision: input.decision,
-      comments: input.comments,
-      digital_signature: computeEventHash({
-        prevHash: input.approval_chain_id,
-        auditId: input.entity_reference || "",
-        eventId: input.decision,
-        action: "approve",
-        module: input.module,
-        userEmail: input.approver_name,
-        timestamp: new Date().toISOString(),
-        chainIndex: input.sequence_no || 1,
-      }).slice(0, 48),
-      previous_approver: input.previous_approver,
-      next_approver: input.next_approver,
-      decided_at: new Date().toISOString(),
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+      userEmail: input.approver_name,
+      timestamp: new Date().toISOString(),
+      chainIndex: input.sequence_no || 1,
+    }).slice(0, 48),
+    previous_approver: input.previous_approver,
+    next_approver: input.next_approver,
+    decided_at: new Date().toISOString(),
+  });
 }
 
 export async function logExport(input: {
@@ -338,26 +304,20 @@ export async function logExport(input: {
   if (after_hours) risk += 25;
   if ((input.record_count || 0) > 5000) risk += 20;
 
-  const { data, error } = await sb()
-    .from("eal_exports")
-    .insert({
-      company_id: input.company_id,
-      user_id: input.user_id,
-      username: input.username,
-      export_format: input.export_format,
-      module: input.module,
-      entity_type: input.entity_type,
-      record_count: input.record_count || 0,
-      file_size_bytes: input.file_size_bytes || 0,
-      contains_sensitive: input.contains_sensitive || false,
-      after_hours,
-      risk_score: risk,
-      destination: input.destination || "download",
-      status: "completed",
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
+  const data = await mustCreate("eal_exports", {
+    user_id: input.user_id,
+    username: input.username,
+    export_format: input.export_format,
+    module: input.module,
+    entity_type: input.entity_type,
+    record_count: input.record_count || 0,
+    file_size_bytes: input.file_size_bytes || 0,
+    contains_sensitive: input.contains_sensitive || false,
+    after_hours,
+    risk_score: risk,
+    destination: input.destination || "download",
+    status: "completed",
+  });
 
   if (risk >= 50) {
     await createSecurityAlert({
@@ -386,24 +346,17 @@ export async function logApiCall(input: {
   error_message?: string;
   api_key_hint?: string;
 }) {
-  const { data, error } = await sb()
-    .from("eal_api_calls")
-    .insert({
-      company_id: input.company_id,
-      method: input.method,
-      path: input.path,
-      status_code: input.status_code,
-      duration_ms: input.duration_ms,
-      user_id: input.user_id,
-      ip_address: input.ip_address || null,
-      rate_limited: input.rate_limited || false,
-      error_message: input.error_message,
-      api_key_hint: input.api_key_hint,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("eal_api_calls", {
+    method: input.method,
+    path: input.path,
+    status_code: input.status_code,
+    duration_ms: input.duration_ms,
+    user_id: input.user_id,
+    ip_address: input.ip_address || null,
+    rate_limited: input.rate_limited || false,
+    error_message: input.error_message,
+    api_key_hint: input.api_key_hint,
+  });
 }
 
 export async function logPrintAudit(input: {
@@ -417,23 +370,16 @@ export async function logPrintAudit(input: {
   outcome?: string;
   watermark_applied?: boolean;
 }) {
-  const { data, error } = await sb()
-    .from("eal_print_audit")
-    .insert({
-      company_id: input.company_id,
-      user_id: input.user_id,
-      username: input.username,
-      document_name: input.document_name,
-      document_type: input.document_type,
-      printer_name: input.printer_name,
-      copies: input.copies || 1,
-      outcome: input.outcome || "success",
-      watermark_applied: input.watermark_applied || false,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("eal_print_audit", {
+    user_id: input.user_id,
+    username: input.username,
+    document_name: input.document_name,
+    document_type: input.document_type,
+    printer_name: input.printer_name,
+    copies: input.copies || 1,
+    outcome: input.outcome || "success",
+    watermark_applied: input.watermark_applied || false,
+  });
 }
 
 export async function logFileAudit(input: {
@@ -448,61 +394,56 @@ export async function logFileAudit(input: {
   entity_id?: string | null;
   ip_address?: string;
 }) {
-  const { data, error } = await sb()
-    .from("eal_file_audit")
-    .insert({
-      company_id: input.company_id,
-      user_id: input.user_id,
-      username: input.username,
-      file_name: input.file_name,
-      file_type: input.file_type,
-      action: input.action,
-      version_no: input.version_no || 1,
-      module: input.module,
-      entity_id: input.entity_id,
-      ip_address: input.ip_address || null,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("eal_file_audit", {
+    user_id: input.user_id,
+    username: input.username,
+    file_name: input.file_name,
+    file_type: input.file_type,
+    action: input.action,
+    version_no: input.version_no || 1,
+    module: input.module,
+    entity_id: input.entity_id,
+    ip_address: input.ip_address || null,
+  });
 }
 
 export async function verifyIntegrityChain(companyId: string, limit = 200) {
-  const { data } = await sb()
-    .from("eal_events")
-    .select(
-      "chain_index, prev_hash, integrity_hash, audit_id, event_id, action, module, user_email, entity_id, before_state, after_state, created_at"
-    )
-    .eq("company_id", companyId)
-    .order("chain_index", { ascending: true })
-    .limit(limit);
+  void companyId;
+  const events = await mustList<Record<string, unknown>>("eal_events", {
+    pageSize: Math.min(100, limit),
+    sort: "chain_index",
+    order: "asc",
+  });
+  // Walk more pages if needed
+  let all = events;
+  if (limit > 100) {
+    const more = await mustList<Record<string, unknown>>("eal_events", {
+      page: 2,
+      pageSize: Math.min(100, limit - 100),
+      sort: "chain_index",
+      order: "asc",
+    });
+    all = all.concat(more);
+  }
 
-  const events = data || [];
-  const result = verifyChainSegment(events);
-
-  const { count } = await sb()
-    .from("eal_integrity_checkpoints")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId);
-
+  const result = verifyChainSegment(all);
+  const count = await crudCount("eal_integrity_checkpoints");
   const root =
-    events.length > 0
-      ? events[events.length - 1].integrity_hash
+    all.length > 0
+      ? all[all.length - 1].integrity_hash
       : "GENESIS";
 
-  await sb().from("eal_integrity_checkpoints").insert({
-    company_id: companyId,
-    checkpoint_number: `CP-${String((count ?? 0) + 1).padStart(5, "0")}`,
-    from_chain_index: events[0]?.chain_index ?? 0,
-    to_chain_index: events[events.length - 1]?.chain_index ?? 0,
-    events_count: events.length,
+  await mustCreate("eal_integrity_checkpoints", {
+    checkpoint_number: `CP-${String(count + 1).padStart(5, "0")}`,
+    from_chain_index: all[0]?.chain_index ?? 0,
+    to_chain_index: all[all.length - 1]?.chain_index ?? 0,
+    events_count: all.length,
     root_hash: root || "EMPTY",
     status: result.valid ? "valid" : "broken",
     notes: result.message,
   });
 
-  return { ...result, events_checked: events.length, root_hash: root };
+  return { ...result, events_checked: all.length, root_hash: root };
 }
 
 export async function createAuditPackage(input: {
@@ -513,42 +454,30 @@ export async function createAuditPackage(input: {
   period_end?: string;
   created_by?: string | null;
 }) {
-  const { count } = await sb()
-    .from("eal_audit_packages")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", input.company_id);
+  const count = await crudCount("eal_audit_packages");
+  const filters: Record<string, unknown> = {};
+  if (input.period_start || input.period_end) {
+    filters.created_at = {
+      ...(input.period_start ? { gte: input.period_start } : {}),
+      ...(input.period_end ? { lte: input.period_end + "T23:59:59" } : {}),
+    };
+  }
+  const eventCount = await crudCount(
+    "eal_events",
+    Object.keys(filters).length ? filters : undefined
+  );
+  const controlCount = await crudCount("eal_controls");
 
-  let eq = sb()
-    .from("eal_events")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", input.company_id);
-  if (input.period_start) eq = eq.gte("created_at", input.period_start);
-  if (input.period_end) eq = eq.lte("created_at", input.period_end + "T23:59:59");
-  const { count: eventCount } = await eq;
-
-  const { count: controlCount } = await sb()
-    .from("eal_controls")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", input.company_id);
-
-  const { data, error } = await sb()
-    .from("eal_audit_packages")
-    .insert({
-      company_id: input.company_id,
-      package_number: `PKG-${String((count ?? 0) + 1).padStart(5, "0")}`,
-      name: input.name,
-      framework_code: input.framework_code,
-      period_start: input.period_start || null,
-      period_end: input.period_end || null,
-      status: "ready",
-      event_count: eventCount ?? 0,
-      control_count: controlCount ?? 0,
-      created_by: input.created_by,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("eal_audit_packages", {
+    package_number: `PKG-${String(count + 1).padStart(5, "0")}`,
+    name: input.name,
+    framework_code: input.framework_code,
+    period_start: input.period_start || null,
+    period_end: input.period_end || null,
+    status: "ready",
+    event_count: eventCount,
+    control_count: controlCount,
+  });
 }
 
 export { formatFieldChanges, verifyChainSegment };

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 
 export async function getPpmDashboardStats(companyId: string) {
   const sb = createClient();

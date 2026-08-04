@@ -1,10 +1,15 @@
-import { createClient } from "@/lib/supabase/client";
+/**
+ * Finance domain service — all I/O via /api/v2/crud (no browser Supabase client).
+ */
+
 import { computePaperCosts } from "./ai";
 import type { ApprovalInput, CostRollInput, JournalInput } from "./types";
-
-function sb() {
-  return createClient();
-}
+import {
+  crudCount,
+  mustCreate,
+  mustList,
+  mustUpdate,
+} from "@/lib/crud/domain-helpers";
 
 function genCode(prefix: string) {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
@@ -18,89 +23,112 @@ export async function logFinAudit(input: {
   entity_id?: string;
   details?: string;
 }) {
-  await sb().from("fin_audit_log").insert({
-    company_id: input.company_id,
-    actor_id: input.actor_id,
-    action: input.action,
-    entity_type: input.entity_type,
-    entity_id: input.entity_id,
-    details: input.details,
-  });
+  try {
+    await mustCreate("fin_audit_log", {
+      action: input.action,
+      entity_type: input.entity_type,
+      entity_id: input.entity_id,
+      details: input.details,
+      actor_id: input.actor_id,
+    });
+  } catch {
+    /* best-effort */
+  }
 }
 
 // ─── Dashboard ───────────────────────────────────────────────
 
 export async function getFinanceDashboard() {
   const [
-    coa,
+    accounts,
     journals,
-    ap,
-    ar,
-    bank,
-    assets,
-    budgets,
-    cashPos,
-    kpi,
+    apRows,
+    arRows,
+    bankRows,
+    assetRows,
+    budgetRows,
+    cashRows,
+    kpiRows,
     insights,
-    approvals,
+    pendingApprovals,
   ] = await Promise.all([
-    sb().from("chart_of_accounts").select("*", { count: "exact", head: true }).is("deleted_at", null),
-    sb().from("gl_journals").select("*", { count: "exact", head: true }).is("deleted_at", null),
-    sb()
-      .from("ap_invoices")
-      .select("total_amount, amount_paid, status")
-      .is("deleted_at", null)
-      .not("status", "in", '("paid","void")'),
-    sb()
-      .from("invoices")
-      .select("total_amount, amount_paid, status")
-      .not("status", "in", '("paid","void","cancelled")'),
-    sb().from("bank_accounts").select("current_balance").eq("is_active", true).is("deleted_at", null),
-    sb().from("fixed_assets").select("book_value").eq("status", "active").is("deleted_at", null),
-    sb().from("budgets").select("total_amount, actual_amount, status").eq("status", "approved"),
-    sb()
-      .from("fin_cash_positions")
-      .select("*")
-      .order("position_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    sb()
-      .from("fin_kpi_snapshots")
-      .select("*")
-      .order("snapshot_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    sb()
-      .from("finance_insights")
-      .select("*")
-      .eq("status", "open")
-      .order("created_at", { ascending: false })
-      .limit(8),
-    sb()
-      .from("fin_approvals")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
+    crudCount("chart_of_accounts"),
+    crudCount("gl_journals"),
+    mustList<Record<string, unknown>>("ap_invoices", { pageSize: 500 }),
+    mustList<Record<string, unknown>>("invoices", { pageSize: 500 }),
+    mustList<Record<string, unknown>>("bank_accounts", {
+      pageSize: 200,
+      filters: { is_active: true },
+    }),
+    mustList<Record<string, unknown>>("fixed_assets", {
+      pageSize: 500,
+      filters: { status: "active" },
+    }),
+    mustList<Record<string, unknown>>("budgets", {
+      pageSize: 200,
+      filters: { status: "approved" },
+    }),
+    mustList<Record<string, unknown>>("fin_cash_positions", {
+      pageSize: 1,
+      sort: "position_date",
+      order: "desc",
+    }),
+    mustList<Record<string, unknown>>("fin_kpi_snapshots", {
+      pageSize: 1,
+      sort: "snapshot_date",
+      order: "desc",
+    }),
+    mustList("finance_insights", {
+      pageSize: 8,
+      sort: "created_at",
+      order: "desc",
+      filters: { status: "open" },
+    }),
+    crudCount("fin_approvals", { status: "pending" }),
   ]);
 
-  const apOpen = (ap.data || []).reduce(
-    (s, r) => s + (Number(r.total_amount || 0) - Number(r.amount_paid || 0)),
+  const apOpen = apRows
+    .filter((r) => r.status !== "paid" && r.status !== "void")
+    .reduce(
+      (s, r) =>
+        s + (Number(r.total_amount || 0) - Number(r.amount_paid || 0)),
+      0
+    );
+  const arOpen = arRows
+    .filter(
+      (r) =>
+        r.status !== "paid" &&
+        r.status !== "void" &&
+        r.status !== "cancelled"
+    )
+    .reduce(
+      (s, r) =>
+        s + (Number(r.total_amount || 0) - Number(r.amount_paid || 0)),
+      0
+    );
+  const bankBal = bankRows.reduce(
+    (s, r) => s + Number(r.current_balance || 0),
     0
   );
-  const arOpen = (ar.data || []).reduce(
-    (s, r) => s + (Number(r.total_amount || 0) - Number(r.amount_paid || 0)),
+  const assetVal = assetRows.reduce(
+    (s, r) => s + Number(r.book_value || 0),
     0
   );
-  const bankBal = (bank.data || []).reduce((s, r) => s + Number(r.current_balance || 0), 0);
-  const assetVal = (assets.data || []).reduce((s, r) => s + Number(r.book_value || 0), 0);
-  const budgetTotal = (budgets.data || []).reduce((s, r) => s + Number(r.total_amount || 0), 0);
-  const budgetActual = (budgets.data || []).reduce((s, r) => s + Number(r.actual_amount || 0), 0);
+  const budgetTotal = budgetRows.reduce(
+    (s, r) => s + Number(r.total_amount || 0),
+    0
+  );
+  const budgetActual = budgetRows.reduce(
+    (s, r) => s + Number(r.actual_amount || 0),
+    0
+  );
 
-  const cash = cashPos.data;
-  const k = kpi.data;
+  const cash = cashRows[0] || null;
+  const k = kpiRows[0] || null;
 
   return {
-    accounts: coa.count ?? 0,
-    journals: journals.count ?? 0,
+    accounts,
+    journals,
     openAp: apOpen,
     openAr: arOpen,
     bankBalances: bankBal || Number(cash?.bank_balance || 0),
@@ -108,84 +136,82 @@ export async function getFinanceDashboard() {
     assetBookValue: assetVal,
     budgetTotal,
     budgetActual,
-    budgetUtil: budgetTotal > 0 ? Math.round((budgetActual / budgetTotal) * 1000) / 10 : 0,
-    pendingApprovals: approvals.count ?? 0,
-    kpi: k || null,
-    insights: insights.data || [],
-    cashPositionRow: cash || null,
+    budgetUtil:
+      budgetTotal > 0
+        ? Math.round((budgetActual / budgetTotal) * 1000) / 10
+        : 0,
+    pendingApprovals,
+    kpi: k,
+    insights,
+    cashPositionRow: cash,
   };
 }
 
 // ─── COA ─────────────────────────────────────────────────────
 
-export async function listAccounts(opts?: { account_type?: string; limit?: number }) {
-  let q = sb()
-    .from("chart_of_accounts")
-    .select("*")
-    .is("deleted_at", null)
-    .order("account_code")
-    .limit(opts?.limit ?? 500);
-  if (opts?.account_type) q = q.eq("account_type", opts.account_type);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
+export async function listAccounts(opts?: {
+  account_type?: string;
+  limit?: number;
+}) {
+  return mustList("chart_of_accounts", {
+    pageSize: opts?.limit ?? 500,
+    sort: "account_code",
+    order: "asc",
+    filters: opts?.account_type
+      ? { account_type: opts.account_type }
+      : undefined,
+  });
 }
 
 // ─── Journals ────────────────────────────────────────────────
 
-export async function listJournals(opts?: { status?: string; limit?: number }) {
-  let q = sb()
-    .from("gl_journals")
-    .select("*")
-    .is("deleted_at", null)
-    .order("journal_date", { ascending: false })
-    .limit(opts?.limit ?? 100);
-  if (opts?.status) q = q.eq("status", opts.status);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
+export async function listJournals(opts?: {
+  status?: string;
+  limit?: number;
+}) {
+  return mustList("gl_journals", {
+    pageSize: opts?.limit ?? 100,
+    sort: "journal_date",
+    order: "desc",
+    filters: opts?.status ? { status: opts.status } : undefined,
+  });
 }
 
 export async function createJournal(input: JournalInput) {
   const debits = input.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
   const credits = input.lines.reduce((s, l) => s + Number(l.credit || 0), 0);
   if (Math.abs(debits - credits) > 0.01) {
-    throw new Error(`Journal not balanced: debit ${debits} ≠ credit ${credits}`);
+    throw new Error(
+      `Journal not balanced: debit ${debits} ≠ credit ${credits}`
+    );
   }
 
   const journal_number = genCode("JRN");
-  const { data: header, error } = await sb()
-    .from("gl_journals")
-    .insert({
-      company_id: input.company_id,
-      journal_number,
-      journal_type: input.journal_type || "general",
-      journal_date: input.journal_date || new Date().toISOString().slice(0, 10),
-      description: input.description,
-      currency: input.currency || "UGX",
-      status: "draft",
-      source_module: input.source_module || null,
-      source_ref: input.source_ref || null,
-      created_by: input.created_by || null,
-      total_debit: debits,
-      total_credit: credits,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
+  const header = await mustCreate<Record<string, unknown>>("gl_journals", {
+    journal_number,
+    journal_type: input.journal_type || "general",
+    journal_date:
+      input.journal_date || new Date().toISOString().slice(0, 10),
+    description: input.description,
+    currency: input.currency || "UGX",
+    status: "draft",
+    source_module: input.source_module || null,
+    source_ref: input.source_ref || null,
+    total_debit: debits,
+    total_credit: credits,
+  });
 
-  if (input.lines.length) {
-    const lines = input.lines.map((l, i) => ({
+  for (let i = 0; i < input.lines.length; i++) {
+    const l = input.lines[i];
+    await mustCreate("gl_journal_lines", {
       journal_id: header.id,
-      company_id: input.company_id,
       line_number: i + 1,
       account_id: l.account_id || null,
       description: l.description || input.description,
       debit: Number(l.debit || 0),
       credit: Number(l.credit || 0),
       cost_center_id: l.cost_center_id || null,
-    }));
-    await sb().from("gl_journal_lines").insert(lines);
+    });
   }
 
   await logFinAudit({
@@ -193,7 +219,7 @@ export async function createJournal(input: JournalInput) {
     actor_id: input.created_by,
     action: "journal.create",
     entity_type: "journal",
-    entity_id: header.id,
+    entity_id: String(header.id),
     details: journal_number,
   });
 
@@ -201,59 +227,43 @@ export async function createJournal(input: JournalInput) {
 }
 
 export async function postJournal(id: string, actorId?: string | null) {
-  const { data, error } = await sb()
-    .from("gl_journals")
-    .update({
-      status: "posted",
-      posted_at: new Date().toISOString(),
-      posted_by: actorId || null,
-    })
-    .eq("id", id)
-    .select("*")
-    .single();
-  if (error) throw error;
-  if (data?.company_id) {
-    await logFinAudit({
-      company_id: data.company_id as string,
-      actor_id: actorId,
-      action: "journal.post",
-      entity_type: "journal",
-      entity_id: id,
-    });
-  }
+  const data = await mustUpdate<Record<string, unknown>>("gl_journals", id, {
+    status: "posted",
+    posted_at: new Date().toISOString(),
+    posted_by: actorId || null,
+  });
+  await logFinAudit({
+    company_id: String(data.company_id || ""),
+    actor_id: actorId,
+    action: "journal.post",
+    entity_type: "journal",
+    entity_id: id,
+  });
   return data;
 }
 
 export async function reverseJournal(id: string, actorId?: string | null) {
-  const { data, error } = await sb()
-    .from("gl_journals")
-    .update({ status: "reversed" })
-    .eq("id", id)
-    .select("*")
-    .single();
-  if (error) throw error;
-  if (data?.company_id) {
-    await logFinAudit({
-      company_id: data.company_id as string,
-      actor_id: actorId,
-      action: "journal.reverse",
-      entity_type: "journal",
-      entity_id: id,
-    });
-  }
+  const data = await mustUpdate<Record<string, unknown>>("gl_journals", id, {
+    status: "reversed",
+  });
+  await logFinAudit({
+    company_id: String(data.company_id || ""),
+    actor_id: actorId,
+    action: "journal.reverse",
+    entity_type: "journal",
+    entity_id: id,
+  });
   return data;
 }
 
 // ─── Cost rolls ──────────────────────────────────────────────
 
 export async function listCostRolls() {
-  const { data, error } = await sb()
-    .from("fin_cost_rolls")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_cost_rolls", {
+    pageSize: 100,
+    sort: "created_at",
+    order: "desc",
+  });
 }
 
 export async function createCostRoll(input: CostRollInput) {
@@ -282,101 +292,81 @@ export async function createCostRoll(input: CostRollInput) {
   const standard = Number(input.standard_cost || 0);
   const now = new Date();
 
-  const { data, error } = await sb()
-    .from("fin_cost_rolls")
-    .insert({
-      company_id: input.company_id,
-      roll_number,
-      production_order_ref: input.production_order_ref || null,
-      product_name: input.product_name,
-      product_line: input.product_line || "bond",
-      batch_qty: input.batch_qty ?? reams,
-      unit_label: input.unit_label || "ream",
-      direct_materials: input.direct_materials ?? 0,
-      direct_labor: input.direct_labor ?? 0,
-      factory_overhead: input.factory_overhead ?? 0,
-      machine_cost: input.machine_cost ?? 0,
-      utility_cost: input.utility_cost ?? 0,
-      packaging_cost: input.packaging_cost ?? 0,
-      transport_cost: input.transport_cost ?? 0,
-      scrap_cost: input.scrap_cost ?? 0,
-      ...costs,
-      standard_cost: standard,
-      variance_amount: total - standard,
-      period_year: now.getFullYear(),
-      period_month: now.getMonth() + 1,
-      created_by: input.created_by || null,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("fin_cost_rolls", {
+    roll_number,
+    production_order_ref: input.production_order_ref || null,
+    product_name: input.product_name,
+    product_line: input.product_line || "bond",
+    batch_qty: input.batch_qty ?? reams,
+    unit_label: input.unit_label || "ream",
+    direct_materials: input.direct_materials ?? 0,
+    direct_labor: input.direct_labor ?? 0,
+    factory_overhead: input.factory_overhead ?? 0,
+    machine_cost: input.machine_cost ?? 0,
+    utility_cost: input.utility_cost ?? 0,
+    packaging_cost: input.packaging_cost ?? 0,
+    transport_cost: input.transport_cost ?? 0,
+    scrap_cost: input.scrap_cost ?? 0,
+    ...costs,
+    standard_cost: standard,
+    variance_amount: total - standard,
+    period_year: now.getFullYear(),
+    period_month: now.getMonth() + 1,
+  });
 }
 
 export async function listWip() {
-  const { data, error } = await sb()
-    .from("fin_wip")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_wip", {
+    pageSize: 50,
+    sort: "created_at",
+    order: "desc",
+  });
 }
 
 // ─── CFO KPIs ────────────────────────────────────────────────
 
 export async function getLatestKpis() {
-  const { data, error } = await sb()
-    .from("fin_kpi_snapshots")
-    .select("*")
-    .order("snapshot_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  const rows = await mustList("fin_kpi_snapshots", {
+    pageSize: 1,
+    sort: "snapshot_date",
+    order: "desc",
+  });
+  return rows[0] || null;
 }
 
 export async function listKpiHistory(limit = 12) {
-  const { data, error } = await sb()
-    .from("fin_kpi_snapshots")
-    .select("*")
-    .order("snapshot_date", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_kpi_snapshots", {
+    pageSize: limit,
+    sort: "snapshot_date",
+    order: "desc",
+  });
 }
 
 // ─── Cash ────────────────────────────────────────────────────
 
 export async function getCashPosition() {
-  const { data, error } = await sb()
-    .from("fin_cash_positions")
-    .select("*")
-    .order("position_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  const rows = await mustList("fin_cash_positions", {
+    pageSize: 1,
+    sort: "position_date",
+    order: "desc",
+  });
+  return rows[0] || null;
 }
 
 export async function listCashForecasts() {
-  const { data, error } = await sb()
-    .from("fin_cash_forecasts")
-    .select("*")
-    .order("forecast_date", { ascending: true })
-    .limit(30);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_cash_forecasts", {
+    pageSize: 30,
+    sort: "forecast_date",
+    order: "asc",
+  });
 }
 
 export async function listPettyCash() {
-  const { data, error } = await sb()
-    .from("fin_petty_cash")
-    .select("*")
-    .order("txn_date", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_petty_cash", {
+    pageSize: 50,
+    sort: "txn_date",
+    order: "desc",
+  });
 }
 
 export async function createPettyCash(input: {
@@ -386,66 +376,45 @@ export async function createPettyCash(input: {
   amount: number;
   created_by?: string | null;
 }) {
-  const voucher_number = genCode("PC");
-  const { data, error } = await sb()
-    .from("fin_petty_cash")
-    .insert({
-      company_id: input.company_id,
-      voucher_number,
-      payee: input.payee,
-      purpose: input.purpose,
-      amount: input.amount,
-      status: "posted",
-      created_by: input.created_by || null,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("fin_petty_cash", {
+    voucher_number: genCode("PC"),
+    payee: input.payee,
+    purpose: input.purpose,
+    amount: input.amount,
+    status: "posted",
+  });
 }
 
 export async function listMobileMoney() {
-  const { data, error } = await sb()
-    .from("fin_mobile_money_txns")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_mobile_money_txns", {
+    pageSize: 50,
+    sort: "created_at",
+    order: "desc",
+  });
 }
 
 // ─── Approvals ───────────────────────────────────────────────
 
 export async function listApprovals(opts?: { status?: string }) {
-  let q = sb()
-    .from("fin_approvals")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (opts?.status) q = q.eq("status", opts.status);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_approvals", {
+    pageSize: 100,
+    sort: "created_at",
+    order: "desc",
+    filters: opts?.status ? { status: opts.status } : undefined,
+  });
 }
 
 export async function createApproval(input: ApprovalInput) {
-  const { data, error } = await sb()
-    .from("fin_approvals")
-    .insert({
-      company_id: input.company_id,
-      entity_type: input.entity_type,
-      entity_ref: input.entity_ref,
-      amount: input.amount ?? 0,
-      currency: input.currency || "UGX",
-      requested_by: input.requested_by || null,
-      status: "pending",
-      level_required: input.level_required ?? 1,
-      comments: input.comments || null,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("fin_approvals", {
+    entity_type: input.entity_type,
+    entity_ref: input.entity_ref,
+    amount: input.amount ?? 0,
+    currency: input.currency || "UGX",
+    requested_by: input.requested_by || null,
+    status: "pending",
+    level_required: input.level_required ?? 1,
+    comments: input.comments || null,
+  });
 }
 
 export async function decideApproval(
@@ -454,67 +423,54 @@ export async function decideApproval(
   approverId?: string | null,
   comments?: string
 ) {
-  const { data, error } = await sb()
-    .from("fin_approvals")
-    .update({
-      status: decision,
-      approver_id: approverId || null,
-      decided_at: new Date().toISOString(),
-      comments: comments || null,
-      level_current: decision === "approved" ? 1 : 0,
-      digital_signature: approverId ? `sig:${approverId}:${Date.now()}` : null,
-    })
-    .eq("id", id)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustUpdate("fin_approvals", id, {
+    status: decision,
+    approver_id: approverId || null,
+    decided_at: new Date().toISOString(),
+    comments: comments || null,
+    level_current: decision === "approved" ? 1 : 0,
+    digital_signature: approverId
+      ? `sig:${approverId}:${Date.now()}`
+      : null,
+  });
 }
 
 // ─── Tax returns ─────────────────────────────────────────────
 
 export async function listTaxReturns() {
-  const { data, error } = await sb()
-    .from("fin_tax_returns")
-    .select("*")
-    .order("period_year", { ascending: false })
-    .order("period_month", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_tax_returns", {
+    pageSize: 50,
+    sort: "period_year",
+    order: "desc",
+  });
 }
 
 // ─── Insights ────────────────────────────────────────────────
 
 export async function listFinanceInsights() {
-  const { data, error } = await sb()
-    .from("finance_insights")
-    .select("*")
-    .eq("status", "open")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  return data || [];
+  return mustList("finance_insights", {
+    pageSize: 50,
+    sort: "created_at",
+    order: "desc",
+    filters: { status: "open" },
+  });
 }
 
 export async function dismissInsight(id: string) {
-  const { error } = await sb()
-    .from("finance_insights")
-    .update({ status: "dismissed", dismissed_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw error;
+  await mustUpdate("finance_insights", id, {
+    status: "dismissed",
+    dismissed_at: new Date().toISOString(),
+  });
 }
 
 // ─── Intercompany ────────────────────────────────────────────
 
 export async function listIntercompany() {
-  const { data, error } = await sb()
-    .from("fin_intercompany_txns")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  return data || [];
+  return mustList("fin_intercompany_txns", {
+    pageSize: 50,
+    sort: "created_at",
+    order: "desc",
+  });
 }
 
 export async function createIntercompany(input: {
@@ -525,36 +481,34 @@ export async function createIntercompany(input: {
   description?: string;
   created_by?: string | null;
 }) {
-  const txn_number = genCode("IC");
-  const { data, error } = await sb()
-    .from("fin_intercompany_txns")
-    .insert({
-      company_id: input.company_id,
-      txn_number,
-      from_entity: input.from_entity,
-      to_entity: input.to_entity,
-      amount: input.amount,
-      description: input.description || null,
-      status: "draft",
-      created_by: input.created_by || null,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return mustCreate("fin_intercompany_txns", {
+    txn_number: genCode("IC"),
+    from_entity: input.from_entity,
+    to_entity: input.to_entity,
+    amount: input.amount,
+    description: input.description || null,
+    status: "draft",
+  });
 }
 
 // ─── Reports helpers ─────────────────────────────────────────
 
 export async function getTrialBalanceSummary() {
-  // Aggregate from journal lines if available; fallback empty
-  const { data: lines } = await sb()
-    .from("gl_journal_lines")
-    .select("account_id, debit, credit")
-    .limit(2000);
+  const lines = await mustList<Record<string, unknown>>("gl_journal_lines", {
+    pageSize: 500,
+  });
+  // Cap via multiple pages if needed
+  const more =
+    lines.length >= 500
+      ? await mustList<Record<string, unknown>>("gl_journal_lines", {
+          page: 2,
+          pageSize: 500,
+        })
+      : [];
+  const all = [...lines, ...more];
 
   const map = new Map<string, { debit: number; credit: number }>();
-  for (const l of lines || []) {
+  for (const l of all) {
     const k = String(l.account_id || "unassigned");
     const cur = map.get(k) || { debit: 0, credit: 0 };
     cur.debit += Number(l.debit || 0);

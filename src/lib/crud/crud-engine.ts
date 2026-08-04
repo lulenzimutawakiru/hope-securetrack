@@ -308,6 +308,25 @@ function buildListQuery(
     if (RESERVED_FILTER_KEYS.has(key)) continue;
     if (Array.isArray(value)) {
       query = query.in(key, value as string[]);
+    } else if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      ("gte" in value ||
+        "lte" in value ||
+        "gt" in value ||
+        "lt" in value ||
+        "neq" in value ||
+        "is" in value)
+    ) {
+      // Range / inequality operators for KPI hubs (e.g. { gte: "2026-01-01" })
+      const v = value as Record<string, unknown>;
+      if (v.gte != null) query = query.gte(key, v.gte);
+      if (v.lte != null) query = query.lte(key, v.lte);
+      if (v.gt != null) query = query.gt(key, v.gt);
+      if (v.lt != null) query = query.lt(key, v.lt);
+      if (v.neq != null) query = query.neq(key, v.neq);
+      if (v.is === null) query = query.is(key, null);
     } else if (value !== undefined && value !== null && value !== "") {
       query = query.eq(key, value);
     }

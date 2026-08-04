@@ -8,7 +8,7 @@
  * another company). Fails safe to the un-branded document on any error.
  */
 
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import {
   resolveCompanyBranding,
   type ResolvedBrand,

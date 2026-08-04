@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import type { ComposeInput, PublishEventInput } from "./types";
 
 function sb() {

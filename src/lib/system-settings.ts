@@ -1,4 +1,12 @@
-import { createClient } from "@/lib/supabase/client";
+/**
+ * System settings — CRUD-backed (no browser Supabase client).
+ */
+
+import {
+  mustCreate,
+  mustList,
+  mustUpdate,
+} from "@/lib/crud/domain-helpers";
 
 /** Normalize JSONB system_settings value to a display string */
 export function settingToString(value: unknown): string {
@@ -16,7 +24,6 @@ export function parseSettingValue(raw: string): unknown {
   if (t !== "" && !Number.isNaN(Number(t)) && /^-?\d+(\.\d+)?$/.test(t)) {
     return Number(t);
   }
-  // Keep as JSON string
   return t;
 }
 
@@ -24,14 +31,16 @@ export async function loadSettingsMap(
   companyId: string,
   keys?: string[]
 ): Promise<Record<string, string>> {
-  const supabase = createClient();
-  let q = supabase.from("system_settings").select("key, value").eq("company_id", companyId);
-  if (keys?.length) q = q.in("key", keys);
-  const { data } = await q;
-  const map: Record<string, string> = {};
-  data?.forEach((s) => {
-    map[s.key] = settingToString(s.value);
+  void companyId;
+  const rows = await mustList<Record<string, unknown>>("system_settings", {
+    pageSize: 200,
   });
+  const map: Record<string, string> = {};
+  for (const s of rows) {
+    const key = String(s.key || "");
+    if (keys?.length && !keys.includes(key)) continue;
+    map[key] = settingToString(s.value);
+  }
   return map;
 }
 
@@ -41,59 +50,45 @@ export async function upsertSettings(
   updates: Record<string, string>,
   descriptions?: Record<string, string>
 ): Promise<{ error: string | null }> {
-  const supabase = createClient();
-  for (const [key, raw] of Object.entries(updates)) {
-    const value = parseSettingValue(raw);
-    const { data: existing } = await supabase
-      .from("system_settings")
-      .select("id, value")
-      .eq("company_id", companyId)
-      .eq("key", key)
-      .maybeSingle();
+  void descriptions;
+  try {
+    const existing = await mustList<Record<string, unknown>>("system_settings", {
+      pageSize: 200,
+    });
+    const byKey = new Map(existing.map((r) => [String(r.key), r]));
 
-    if (existing) {
-      const { error } = await supabase
-        .from("system_settings")
-        .update({
+    for (const [key, raw] of Object.entries(updates)) {
+      const value = parseSettingValue(raw);
+      const prev = byKey.get(key);
+      if (prev?.id) {
+        await mustUpdate("system_settings", String(prev.id), {
           value,
           updated_by: userId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-      if (error) return { error: error.message };
-      await supabase.from("config_change_log").insert({
-        company_id: companyId,
-        entity_type: "system_setting",
-        entity_id: existing.id,
-        action: "update",
-        field_name: key,
-        old_value: settingToString(existing.value),
-        new_value: raw,
-        changed_by: userId,
-      });
-    } else {
-      const { data: created, error } = await supabase
-        .from("system_settings")
-        .insert({
-          company_id: companyId,
+        });
+        try {
+          await mustCreate("config_change_log", {
+            entity_type: "system_setting",
+            entity_id: prev.id,
+            action: "update",
+            field_name: key,
+            old_value: settingToString(prev.value),
+            new_value: raw,
+            changed_by: userId,
+          });
+        } catch {
+          /* optional */
+        }
+      } else {
+        await mustCreate("system_settings", {
           key,
           value,
-          description: descriptions?.[key] ?? null,
+          description: descriptions?.[key] || null,
           updated_by: userId,
-        })
-        .select("id")
-        .single();
-      if (error) return { error: error.message };
-      await supabase.from("config_change_log").insert({
-        company_id: companyId,
-        entity_type: "system_setting",
-        entity_id: created?.id,
-        action: "create",
-        field_name: key,
-        new_value: raw,
-        changed_by: userId,
-      });
+        });
+      }
     }
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Settings update failed" };
   }
-  return { error: null };
 }

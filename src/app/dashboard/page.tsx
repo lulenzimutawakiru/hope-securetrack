@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { KpiMetric } from "@/components/enterprise/kpi-metric";
 import { ModuleTile } from "@/components/enterprise/module-tile";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import type { DashboardStats, ProductionBatch, FraudAlert, VerificationLog } from "@/types/database";
@@ -62,88 +62,96 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
       const today = new Date().toISOString().slice(0, 10);
+      const todayStart = `${today}T00:00:00`;
 
-      const [
-        batchesToday,
-        batchesInProgress,
-        qrGenerated,
-        qrPrinted,
-        verificationsToday,
-        openFraudAlerts,
-        inventoryReams,
-        inventoryCartons,
-        pendingPrintJobs,
-        batches,
-        alerts,
-        verifications,
-      ] = await Promise.all([
-        supabase
-          .from("production_batches")
-          .select("*", { count: "exact", head: true })
-          .gte("created_at", `${today}T00:00:00`),
-        supabase
-          .from("production_batches")
-          .select("*", { count: "exact", head: true })
-          .in("production_status", ["in_progress", "qc_pending"]),
-        supabase.from("qr_codes").select("*", { count: "exact", head: true }),
-        supabase
-          .from("qr_codes")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["printed", "verified", "packed", "dispatched", "sold"]),
-        supabase
-          .from("verification_logs")
-          .select("*", { count: "exact", head: true })
-          .gte("verified_at", `${today}T00:00:00`),
-        supabase
-          .from("fraud_alerts")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["open", "investigating"]),
-        supabase
-          .from("reams")
-          .select("*", { count: "exact", head: true })
-          .eq("inventory_status", "in_warehouse"),
-        supabase
-          .from("cartons")
-          .select("*", { count: "exact", head: true })
-          .eq("inventory_status", "in_warehouse"),
-        supabase
-          .from("print_jobs")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["pending", "queued", "printing"]),
-        supabase
-          .from("production_batches")
-          .select("*, products(name)")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("fraud_alerts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("verification_logs")
-          .select("*")
-          .order("verified_at", { ascending: false })
-          .limit(5),
-      ]);
+      try {
+        const [
+          batchesToday,
+          batchesInProgress,
+          qrGenerated,
+          qrPrinted,
+          verificationsToday,
+          openFraudAlerts,
+          inventoryReams,
+          inventoryCartons,
+          pendingPrintJobs,
+          batchesRes,
+          alertsRes,
+          verificationsRes,
+        ] = await Promise.all([
+          crudCount("production_batches", {
+            created_at: { gte: todayStart },
+          }),
+          crudCount("production_batches", {
+            production_status: ["in_progress", "qc_pending"],
+          }),
+          crudCount("qr_codes"),
+          crudCount("qr_codes", {
+            status: ["printed", "verified", "packed", "dispatched", "sold"],
+          }),
+          crudCount("verification_logs", {
+            verified_at: { gte: todayStart },
+          }),
+          crudCount("fraud_alerts", {
+            status: ["open", "investigating"],
+          }),
+          crudCount("reams", { inventory_status: "in_warehouse" }),
+          crudCount("cartons", { inventory_status: "in_warehouse" }),
+          crudCount("print_jobs", {
+            status: ["pending", "queued", "printing"],
+          }),
+          crudList<ProductionBatch>("production_batches", {
+            page: 1,
+            pageSize: 5,
+            sort: "created_at",
+            order: "desc",
+          }),
+          crudList<FraudAlert>("fraud_alerts", {
+            page: 1,
+            pageSize: 5,
+            sort: "created_at",
+            order: "desc",
+          }),
+          crudList<VerificationLog>("verification_logs", {
+            page: 1,
+            pageSize: 5,
+            sort: "verified_at",
+            order: "desc",
+          }),
+        ]);
 
-      setStats({
-        batchesToday: batchesToday.count ?? 0,
-        batchesInProgress: batchesInProgress.count ?? 0,
-        qrGenerated: qrGenerated.count ?? 0,
-        qrPrinted: qrPrinted.count ?? 0,
-        verificationsToday: verificationsToday.count ?? 0,
-        openFraudAlerts: openFraudAlerts.count ?? 0,
-        inventoryReams: inventoryReams.count ?? 0,
-        inventoryCartons: inventoryCartons.count ?? 0,
-        pendingPrintJobs: pendingPrintJobs.count ?? 0,
-      });
-      setRecentBatches((batches.data as ProductionBatch[]) ?? []);
-      setRecentAlerts((alerts.data as FraudAlert[]) ?? []);
-      setRecentVerifications((verifications.data as VerificationLog[]) ?? []);
-      setLoading(false);
+        setStats({
+          batchesToday,
+          batchesInProgress,
+          qrGenerated,
+          qrPrinted,
+          verificationsToday,
+          openFraudAlerts,
+          inventoryReams,
+          inventoryCartons,
+          pendingPrintJobs,
+        });
+        setRecentBatches(batchesRes.ok ? batchesRes.data.data : []);
+        setRecentAlerts(alertsRes.ok ? alertsRes.data.data : []);
+        setRecentVerifications(
+          verificationsRes.ok ? verificationsRes.data.data : []
+        );
+      } catch {
+        setStats({
+          batchesToday: 0,
+          batchesInProgress: 0,
+          qrGenerated: 0,
+          qrPrinted: 0,
+          verificationsToday: 0,
+          openFraudAlerts: 0,
+          inventoryReams: 0,
+          inventoryCartons: 0,
+          pendingPrintJobs: 0,
+        });
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();

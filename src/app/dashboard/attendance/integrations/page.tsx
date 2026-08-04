@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 
 export default function AttendanceIntegrationsHub() {
@@ -32,28 +32,19 @@ export default function AttendanceIntegrationsHub() {
         setLoading(false);
         return;
       }
-      const sb = createClient();
-      const [integ, dev, punches] = await Promise.all([
-        sb
-          .from("att_device_integrations")
-          .select("*")
-          .eq("company_id", cid)
-          .is("deleted_at", null),
-        sb
-          .from("att_devices")
-          .select("id,device_code,name,vendor,status,last_heartbeat_at,ip_address")
-          .eq("company_id", cid)
-          .in("vendor", ["zkteco", "hikvision"])
-          .is("deleted_at", null),
-        sb
-          .from("att_device_punches")
-          .select("*", { count: "exact", head: true })
-          .eq("company_id", cid)
-          .eq("process_status", "pending"),
+      const [integRes, devRes, pendingCount] = await Promise.all([
+        crudList<Record<string, unknown>>("att_device_integrations", {
+          pageSize: 50,
+        }),
+        crudList<Record<string, unknown>>("att_devices", {
+          pageSize: 50,
+          filters: { vendor: ["zkteco", "hikvision"] },
+        }),
+        crudCount("att_device_punches", { process_status: "pending" }),
       ]);
-      setIntegrations((integ.data as Array<Record<string, unknown>>) || []);
-      setDevices((dev.data as Array<Record<string, unknown>>) || []);
-      setPending(punches.count ?? 0);
+      setIntegrations(integRes.ok ? integRes.data.data : []);
+      setDevices(devRes.ok ? devRes.data.data : []);
+      setPending(pendingCount);
       setLoading(false);
     }
     load();

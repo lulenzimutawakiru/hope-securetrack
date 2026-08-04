@@ -1,11 +1,18 @@
 {
-  "generatedAt": "2026-08-04T01:19:09.564Z",
-  "violationCount": 0,
-  "violations": [],
+  "generatedAt": "2026-08-04T04:22:24.427Z",
+  "uiViolations": 0,
+  "libEnforcedViolations": 0,
+  "libDebtViolations": 0,
+  "ui": [],
+  "libEnforced": [],
+  "libDebt": [],
   "allowlist": [
     "src/app/dashboard/settings/profile/page.tsx",
     "src/app/dashboard/identity/self-service/page.tsx",
     "src/app/dashboard/identity/sessions/page.tsx",
-    "src/app/dashboard/chat/notifications/page.tsx"
+    "src/app/dashboard/chat/notifications/page.tsx",
+    "src/lib/offline/db.ts",
+    "src/lib/offline/sync.ts",
+    "src/lib/storage/upload.ts"
   ]
 }

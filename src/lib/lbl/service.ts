@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import type { LblDashboardStats } from "./types";
 
 export async function getLabelsDashboardStats(companyId: string): Promise<LblDashboardStats> {

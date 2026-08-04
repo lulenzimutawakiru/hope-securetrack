@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
 import { downloadCsv, toCsv } from "@/lib/attendance";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 
 const REPORTS = [
@@ -32,12 +32,14 @@ export default function AttendanceReportsPage() {
         setLoading(false);
         return;
       }
-      const sb = createClient();
       const next: Record<string, number> = {};
       await Promise.all(
         REPORTS.map(async (r) => {
-          const { count } = await sb.from(r.table).select("*", { count: "exact", head: true }).eq("company_id", companyId);
-          next[r.id] = count ?? 0;
+          try {
+            next[r.id] = await crudCount(r.table);
+          } catch {
+            next[r.id] = 0;
+          }
         })
       );
       setCounts(next);
@@ -49,17 +51,29 @@ export default function AttendanceReportsPage() {
   const exportReport = async (r: (typeof REPORTS)[number]) => {
     if (!companyId) return;
     try {
-      const { data, error } = await createClient()
-        .from(r.table)
-        .select("*")
-        .eq("company_id", companyId)
-        .limit(2000);
-      if (error) throw error;
+      const res = await crudList<Record<string, unknown>>(r.table, {
+        page: 1,
+        pageSize: 100,
+      });
+      if (!res.ok) throw new Error(res.error);
+      // Walk additional pages up to ~500 rows for CSV
+      let rows = res.data.data;
+      const total = res.data.total;
+      if (total > 100) {
+        const pages = Math.min(5, Math.ceil(total / 100));
+        for (let p = 2; p <= pages; p++) {
+          const more = await crudList<Record<string, unknown>>(r.table, {
+            page: p,
+            pageSize: 100,
+          });
+          if (more.ok) rows = rows.concat(more.data.data);
+        }
+      }
       downloadCsv(
         `attendance-${r.id}-${new Date().toISOString().slice(0, 10)}.csv`,
-        toCsv((data || []) as Array<Record<string, unknown>>, [...r.cols])
+        toCsv(rows, [...r.cols])
       );
-      toast.success(`Exported ${(data || []).length} rows`);
+      toast.success(`Exported ${rows.length} rows`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
     }

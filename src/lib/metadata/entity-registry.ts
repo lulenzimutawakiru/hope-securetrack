@@ -253,6 +253,71 @@ defineEntity("ec_audit_log", "ec_audit_log", "ec", {
   searchable: ["action", "entity_table"],
 });
 
+// Enterprise company module tables
+const EC_VIEW = { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.manage" } as const;
+
+defineEntity("ec_business_units", "ec_business_units", "ec", EC_VIEW, {
+  softDelete: true,
+  searchable: ["name", "code"],
+});
+defineEntity("ec_cost_centers", "ec_cost_centers", "ec", EC_VIEW, {
+  softDelete: true,
+  searchable: ["name", "code"],
+});
+defineEntity("ec_org_nodes", "ec_org_nodes", "ec", EC_VIEW, {
+  softDelete: true,
+  searchable: ["name", "code", "node_type"],
+});
+defineEntity("ec_company_settings", "ec_company_settings", "ec", EC_VIEW, {
+  searchable: ["domain", "setting_key"],
+});
+defineEntity("ec_company_branding", "ec_company_branding", "ec", EC_VIEW, {
+  searchable: [],
+});
+defineEntity("ec_company_documents", "ec_company_documents", "ec", EC_VIEW, {
+  softDelete: true,
+  searchable: ["title", "doc_type", "doc_number"],
+});
+defineEntity("ec_calendar_events", "ec_calendar_events", "ec", EC_VIEW, {
+  createdBy: true,
+  searchable: ["title", "event_type"],
+});
+defineEntity("ec_board_members", "ec_board_members", "ec", EC_VIEW, {
+  searchable: ["full_name", "email", "title"],
+});
+defineEntity("ec_committees", "ec_committees", "ec", EC_VIEW, {
+  searchable: ["name"],
+});
+defineEntity("ec_meetings", "ec_meetings", "ec", EC_VIEW, {
+  createdBy: true,
+  searchable: ["title", "meeting_number", "status"],
+});
+defineEntity("ec_authorized_signatories", "ec_authorized_signatories", "ec", EC_VIEW, {
+  searchable: ["full_name"],
+});
+defineEntity("ec_risk_register", "ec_risk_register", "ec", EC_VIEW, {
+  softDelete: true,
+  searchable: ["risk_code", "title", "status"],
+});
+defineEntity("ec_insurance_policies", "ec_insurance_policies", "ec", EC_VIEW, {
+  softDelete: true,
+  searchable: ["policy_number", "policy_type", "insurer_name"],
+});
+defineEntity("ec_ai_insights", "ec_ai_insights", "ec", EC_VIEW, {
+  hasUpdatedAt: false,
+  searchable: ["title", "insight_type", "status"],
+});
+defineEntity("verification_logs", "verification_logs", "fraud", {
+  view: "fraud.view",
+  create: "fraud.investigate",
+  update: "fraud.investigate",
+  delete: "fraud.investigate",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["result", "serial_number"],
+  sortable: ["verified_at", "created_at"],
+});
+
 defineEntity("branches", "branches", "settings", {
   view: "settings.view",
   create: "settings.manage",
@@ -505,6 +570,170 @@ defineEntity("crm_segments", "crm_segments", "crm", {
 }, {
   searchable: ["name", "code"],
   createdBy: true,
+});
+
+const CRM_STD = {
+  view: "crm.view",
+  create: "crm.manage",
+  update: "crm.manage",
+  delete: "crm.manage",
+} as const;
+
+defineEntity("crm_audit_log", "crm_audit_log", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: ["action", "entity_type"],
+});
+defineEntity("crm_timeline", "crm_timeline", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: ["title", "kind"],
+  sortable: ["occurred_at", "created_at"],
+});
+defineEntity("crm_merge_log", "crm_merge_log", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: [],
+});
+defineEntity("crm_feedback", "crm_feedback", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: ["comment"],
+});
+defineEntity("crm_dealers", "crm_dealers", "crm", CRM_STD, {
+  searchable: ["dealer_code", "territory"],
+});
+defineEntity("crm_tenders", "crm_tenders", "crm", CRM_STD, {
+  softDelete: true,
+  searchable: ["tender_number", "title"],
+});
+defineEntity("crm_portal_requests", "crm_portal_requests", "crm", CRM_STD, {
+  searchable: ["status"],
+});
+defineEntity("crm_health_scores", "crm_health_scores", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: [],
+});
+defineEntity("crm_communications", "crm_communications", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: ["subject", "channel"],
+  createdBy: true,
+});
+defineEntity("crm_insights", "crm_insights", "crm", CRM_STD, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"],
+});
+
+const FIN_STD = {
+  view: "finance.view",
+  create: "finance.manage",
+  update: "finance.manage",
+  delete: "finance.manage",
+} as const;
+
+defineEntity("fin_audit_log", "fin_audit_log", "finance", FIN_STD, {
+  hasUpdatedAt: false,
+  searchable: ["action", "entity_type"],
+});
+defineEntity("fin_cost_rolls", "fin_cost_rolls", "finance", FIN_STD, {
+  searchable: ["roll_number", "product_name"],
+  createdBy: true,
+});
+defineEntity("fin_wip", "fin_wip", "finance", FIN_STD, {
+  searchable: ["status"],
+});
+defineEntity("fin_kpi_snapshots", "fin_kpi_snapshots", "finance", FIN_STD, {
+  hasUpdatedAt: false,
+  searchable: [],
+  sortable: ["snapshot_date", "created_at"],
+});
+defineEntity("fin_cash_positions", "fin_cash_positions", "finance", FIN_STD, {
+  hasUpdatedAt: false,
+  sortable: ["position_date", "created_at"],
+  searchable: [],
+});
+defineEntity("fin_cash_forecasts", "fin_cash_forecasts", "finance", FIN_STD, {
+  sortable: ["forecast_date", "created_at"],
+  searchable: [],
+});
+defineEntity("fin_petty_cash", "fin_petty_cash", "finance", FIN_STD, {
+  searchable: ["voucher_number", "payee"],
+  createdBy: true,
+});
+defineEntity("fin_mobile_money_txns", "fin_mobile_money_txns", "finance", FIN_STD, {
+  searchable: ["reference", "status"],
+});
+defineEntity("finance_insights", "finance_insights", "finance", FIN_STD, {
+  hasUpdatedAt: false,
+  searchable: ["title", "status"],
+});
+defineEntity("fin_intercompany_txns", "fin_intercompany_txns", "finance", FIN_STD, {
+  searchable: ["txn_number", "status"],
+  createdBy: true,
+});
+defineEntity("fin_posting_rules", "fin_posting_rules", "finance", FIN_STD, {
+  softDelete: true,
+  searchable: ["rule_code", "event_type", "name"],
+});
+defineEntity("fin_auto_journals", "fin_auto_journals", "finance", FIN_STD, {
+  softDelete: true,
+  searchable: ["auto_number", "event_type", "status"],
+  createdBy: true,
+});
+
+// Attendance hub KPI entities
+const ATT_STD = {
+  view: "attendance.view",
+  create: "attendance.manage",
+  update: "attendance.manage",
+  delete: "attendance.manage",
+} as const;
+defineEntity("att_events", "att_events", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["employee_name", "event_code", "event_type"],
+  sortable: ["event_at", "created_at"],
+});
+defineEntity("att_ai_insights", "att_ai_insights", "attendance", ATT_STD, {
+  hasUpdatedAt: false,
+  searchable: ["title", "severity"],
+});
+defineEntity("att_devices", "att_devices", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["name", "device_code", "status"],
+});
+defineEntity("att_corrections", "att_corrections", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["status"],
+});
+defineEntity("att_violations", "att_violations", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["status"],
+});
+defineEntity("att_locations", "att_locations", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["name", "status"],
+});
+defineEntity("attendance_records", "attendance_records", "attendance", ATT_STD, {
+  searchable: ["work_date"],
+  sortable: ["work_date", "created_at"],
+});
+defineEntity("att_settings", "att_settings", "attendance", ATT_STD, {
+  searchable: ["setting_key"],
+});
+defineEntity("att_qr_tokens", "att_qr_tokens", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["token_code", "status"],
+});
+defineEntity("att_field_assignments", "att_field_assignments", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["employee_name", "status"],
+});
+defineEntity("att_notifications", "att_notifications", "attendance", ATT_STD, {
+  hasUpdatedAt: false,
+  searchable: ["title", "category"],
+});
+defineEntity("att_device_integrations", "att_device_integrations", "attendance", ATT_STD, {
+  softDelete: true,
+  searchable: ["vendor", "name"],
+});
+defineEntity("att_device_punches", "att_device_punches", "attendance", ATT_STD, {
+  searchable: ["process_status"],
 });
 
 defineEntity("distributors", "distributors", "crm", {
@@ -1054,6 +1283,41 @@ defineEntity("payroll_runs", "payroll_runs", "payroll", {
   hasUpdatedAt: false,
 });
 
+const PAY_STD = {
+  view: "payroll.view",
+  create: "payroll.manage",
+  update: "payroll.manage",
+  delete: "payroll.admin",
+} as const;
+
+defineEntity("pay_audit", "pay_audit", "payroll", PAY_STD, {
+  hasUpdatedAt: false,
+  searchable: ["action", "entity_type"],
+});
+defineEntity("pay_employee_profiles", "pay_employee_profiles", "payroll", PAY_STD, {
+  softDelete: true,
+  searchable: ["salary_grade", "bank_name"],
+});
+defineEntity("pay_bonuses", "pay_bonuses", "payroll", PAY_STD, {
+  searchable: ["status"],
+});
+defineEntity("pay_employee_benefits", "pay_employee_benefits", "payroll", PAY_STD, {
+  searchable: ["status"],
+});
+defineEntity("payroll_runs", "payroll_runs", "payroll", PAY_STD, {
+  searchable: ["run_number", "period_label", "status"],
+  createdBy: true,
+});
+defineEntity("pay_run_lines", "pay_run_lines", "payroll", PAY_STD, {
+  searchable: [],
+});
+defineEntity("payroll_lines", "payroll_lines", "payroll", PAY_STD, {
+  searchable: ["payslip_number", "status"],
+});
+defineEntity("pay_approvals", "pay_approvals", "payroll", PAY_STD, {
+  searchable: ["stage", "status"],
+});
+
 defineEntity("pay_components", "pay_components", "payroll", {
   view: "payroll.view",
   create: "payroll.manage",
@@ -1124,6 +1388,42 @@ defineEntity("pay_payslips", "pay_payslips", "payroll", {
 });
 
 // ---- Fixed / IT assets ----------------------------------------------------
+const AST_STD = {
+  view: "ast.view",
+  create: "ast.manage",
+  update: "ast.manage",
+  delete: "ast.manage",
+} as const;
+
+defineEntity("ast_audit_log", "ast_audit_log", "ast", AST_STD, {
+  hasUpdatedAt: false,
+  searchable: ["action", "entity_type"],
+});
+defineEntity("ast_number_sequences", "ast_number_sequences", "ast", AST_STD, {
+  searchable: ["sequence_key"],
+});
+defineEntity("ast_identifiers", "ast_identifiers", "ast", AST_STD, {
+  searchable: ["id_value", "id_type"],
+});
+defineEntity("ast_events", "ast_events", "ast", AST_STD, {
+  hasUpdatedAt: false,
+  searchable: ["title", "event_type"],
+});
+defineEntity("ast_assignments", "ast_assignments", "ast", AST_STD, {
+  searchable: ["assignee_name", "status"],
+  sortable: ["assigned_at", "created_at"],
+});
+defineEntity("ast_locations", "ast_locations", "ast", AST_STD, {
+  searchable: ["location_label"],
+  sortable: ["recorded_at", "created_at"],
+});
+defineEntity("ast_documents", "ast_documents", "ast", AST_STD, {
+  searchable: ["title", "file_name"],
+});
+defineEntity("ast_tag_templates", "ast_tag_templates", "ast", AST_STD, {
+  searchable: ["template_code", "name"],
+});
+
 defineEntity("ast_assets", "ast_assets", "assets", {
   view: "ast.view",
   create: "ast.assign",
@@ -1863,6 +2163,82 @@ defineEntity("dsp_returns", "dsp_returns", "dsp", {
   createdBy: true,
   hasUpdatedAt: false,
   searchable: ["status", "customer_name", "reason"]
+});
+
+const EAL_STD = {
+  view: "audit.view",
+  create: "audit.manage",
+  update: "audit.manage",
+  delete: "audit.admin",
+} as const;
+
+defineEntity("audit_logs", "audit_logs", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["action", "module", "user_email"],
+});
+defineEntity("eal_events", "eal_events", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["audit_id", "action", "module", "user_email"],
+  sortable: ["chain_index", "created_at"],
+});
+defineEntity("eal_archive_batches", "eal_archive_batches", "eal", EAL_STD, {
+  searchable: ["batch_number", "status"],
+});
+defineEntity("eal_archived_events", "eal_archived_events", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["audit_id"],
+  sortable: ["chain_index", "created_at"],
+});
+defineEntity("eal_archive_retrievals", "eal_archive_retrievals", "eal", EAL_STD, {
+  searchable: ["approval_status", "reason"],
+});
+defineEntity("eal_config_history", "eal_config_history", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["config_type", "action"],
+});
+defineEntity("eal_logging_policies", "eal_logging_policies", "eal", EAL_STD, {
+  searchable: ["policy_code", "name"],
+});
+defineEntity("eal_approvals", "eal_approvals", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["module", "decision"],
+});
+defineEntity("eal_exports", "eal_exports", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["export_format", "module"],
+});
+defineEntity("eal_api_calls", "eal_api_calls", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["path", "method"],
+});
+defineEntity("eal_print_audit", "eal_print_audit", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["document_name"],
+});
+defineEntity("eal_file_audit", "eal_file_audit", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["file_name", "action"],
+});
+defineEntity("eal_integrity_checkpoints", "eal_integrity_checkpoints", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["checkpoint_number", "status"],
+});
+defineEntity("eal_audit_packages", "eal_audit_packages", "eal", EAL_STD, {
+  searchable: ["package_number", "name"],
+});
+defineEntity("eal_controls", "eal_controls", "eal", EAL_STD, {
+  searchable: ["control_code", "name"],
+});
+defineEntity("eal_siem_connectors", "eal_siem_connectors", "eal", EAL_STD, {
+  searchable: ["provider", "name"],
+});
+defineEntity("eal_siem_outbox", "eal_siem_outbox", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["status"],
+});
+defineEntity("eal_report_runs", "eal_report_runs", "eal", EAL_STD, {
+  hasUpdatedAt: false,
+  searchable: ["report_code", "name"],
 });
 
 defineEntity("eal_alerts", "eal_alerts", "eal", {
@@ -3454,3 +3830,202 @@ defineEntity("sd_nps_responses", "sd_nps_responses", "sd", {
   softDelete: true,
   searchable: ["respondent_name", "comment"]
 });
+
+// ── Bulk registrations for remaining domain modules (auto) ──
+const BULK_STD = { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" } as const;
+
+defineEntity("attachments", "attachments", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("brand_approvals", "brand_approvals", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("brand_assets", "brand_assets", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("brand_audit", "brand_audit", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("brand_colors", "brand_colors", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("brand_profiles", "brand_profiles", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("brand_templates", "brand_templates", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_announcements", "comm_announcements", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_attachments", "comm_attachments", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_audit_log", "comm_audit_log", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_campaigns", "comm_campaigns", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_delivery_events", "comm_delivery_events", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_document_jobs", "comm_document_jobs", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_event_rules", "comm_event_rules", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_messages", "comm_messages", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_providers", "comm_providers", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_reminders", "comm_reminders", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_schedules", "comm_schedules", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("comm_templates", "comm_templates", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("config_change_log", "config_change_log", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_ai_insights", "di_ai_insights", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_approval_routes", "di_approval_routes", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_asset_assignments", "di_asset_assignments", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_biometric_devices", "di_biometric_devices", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_biometric_profiles", "di_biometric_profiles", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_clearance_assignments", "di_clearance_assignments", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_clearance_matrix", "di_clearance_matrix", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_document_vault", "di_document_vault", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_id_cards", "di_id_cards", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_lifecycle_events", "di_lifecycle_events", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_org_units", "di_org_units", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_provision_checklist", "di_provision_checklist", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_provision_jobs", "di_provision_jobs", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_provision_templates", "di_provision_templates", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_sync_log", "di_sync_log", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("di_sync_rules", "di_sync_rules", "crud", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("domain_events", "domain_events", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_audit_log", "dsp_audit_log", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_documents", "dsp_documents", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_gps_points", "dsp_gps_points", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_loading_scans", "dsp_loading_scans", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_loading_sessions", "dsp_loading_sessions", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_notifications", "dsp_notifications", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_pods", "dsp_pods", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_request_lines", "dsp_request_lines", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_requests", "dsp_requests", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_route_stops", "dsp_route_stops", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("dsp_routes", "dsp_routes", "dispatch", { view: "dispatch.view", create: "dispatch.manage", update: "dispatch.manage", delete: "dispatch.admin" }, { softDelete: true, searchable: [] });
+defineEntity("employee_assets", "employee_assets", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fin_government_contracts", "fin_government_contracts", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_ai_insights", "fleet_ai_insights", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_costs", "fleet_costs", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_drivers", "fleet_drivers", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_fuel_transactions", "fleet_fuel_transactions", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_gps_devices", "fleet_gps_devices", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_gps_locations", "fleet_gps_locations", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_insurance_policies", "fleet_insurance_policies", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_maintenance_plans", "fleet_maintenance_plans", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_odometer_logs", "fleet_odometer_logs", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_trips", "fleet_trips", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_vehicle_assignments", "fleet_vehicle_assignments", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("fleet_work_orders", "fleet_work_orders", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_announcement_acks", "hc_announcement_acks", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_announcements", "hc_announcements", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_audit_log", "hc_audit_log", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_channel_members", "hc_channel_members", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_channels", "hc_channels", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_chat_tasks", "hc_chat_tasks", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_files", "hc_files", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_meetings", "hc_meetings", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_messages", "hc_messages", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_reactions", "hc_reactions", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_api_accounts", "idm_api_accounts", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_api_keys", "idm_api_keys", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_audit", "idm_audit", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_import_batches", "idm_import_batches", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_offboarding", "idm_offboarding", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_temp_access", "idm_temp_access", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_user_activity", "idm_user_activity", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("idm_username_rules", "idm_username_rules", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("inventory_balances", "inventory_balances", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_ai_insights", "lbl_ai_insights", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_batches", "lbl_batches", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_formats", "lbl_formats", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_instances", "lbl_instances", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_jobs", "lbl_jobs", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_materials", "lbl_materials", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_pallet", "lbl_pallet", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_reprints", "lbl_reprints", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_shipping", "lbl_shipping", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_stock", "lbl_stock", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("lbl_templates", "lbl_templates", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("media_files", "media_files", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_cost_layers", "mes_cost_layers", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_downtime", "mes_downtime", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_genealogy", "mes_genealogy", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_maintenance_orders", "mes_maintenance_orders", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_material_issues", "mes_material_issues", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_oee_snapshots", "mes_oee_snapshots", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_packaging_units", "mes_packaging_units", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("mes_shop_floor_events", "mes_shop_floor_events", "mes", { view: "mes.view", create: "mes.manage", update: "mes.manage", delete: "mes.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_audit", "pkg_audit", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_material_issues", "pkg_material_issues", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_packing_lists", "pkg_packing_lists", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_pallet_cartons", "pkg_pallet_cartons", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_pallets", "pkg_pallets", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_qc_checks", "pkg_qc_checks", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("pkg_weights", "pkg_weights", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
+defineEntity("platform_announcements", "platform_announcements", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("platform_feature_flags", "platform_feature_flags", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("platform_health_checks", "platform_health_checks", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("platform_modules", "platform_modules", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("platform_plans", "platform_plans", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_ai_insights", "ppm_ai_insights", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_approvals", "ppm_approvals", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_budgets", "ppm_budgets", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_issues", "ppm_issues", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_milestones", "ppm_milestones", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_risks", "ppm_risks", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_tasks", "ppm_tasks", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ppm_timesheets", "ppm_timesheets", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
+defineEntity("procurement_contracts", "procurement_contracts", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_audit", "profile_audit", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_certifications", "profile_certifications", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_completion", "profile_completion", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_consents", "profile_consents", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_projects", "profile_projects", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_requests", "profile_requests", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_security_events", "profile_security_events", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_skills", "profile_skills", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_timeline", "profile_timeline", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("profile_visibility", "profile_visibility", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("prt_audit", "prt_audit", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("prt_batches", "prt_batches", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("prt_queue", "prt_queue", "print", { view: "print.view", create: "print.manage", update: "print.manage", delete: "print.admin" }, { softDelete: true, searchable: [] });
+defineEntity("role_permissions", "role_permissions", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("roles", "roles", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sales_ai_insights", "sales_ai_insights", "sales", { view: "sales.view", create: "sales.manage", update: "sales.manage", delete: "sales.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sales_contract_lines", "sales_contract_lines", "sales", { view: "sales.view", create: "sales.manage", update: "sales.manage", delete: "sales.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sales_contracts", "sales_contracts", "sales", { view: "sales.view", create: "sales.manage", update: "sales.manage", delete: "sales.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sales_forecasts", "sales_forecasts", "sales", { view: "sales.view", create: "sales.manage", update: "sales.manage", delete: "sales.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sales_targets", "sales_targets", "sales", { view: "sales.view", create: "sales.manage", update: "sales.manage", delete: "sales.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_approvals", "sd_approvals", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_catalog_items", "sd_catalog_items", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_catalog_requests", "sd_catalog_requests", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_cmdb_cis", "sd_cmdb_cis", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_csat_responses", "sd_csat_responses", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_messages", "sd_messages", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("sd_work_logs", "sd_work_logs", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_audit_log", "srm_audit_log", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_capacity_confirmations", "srm_capacity_confirmations", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_categories", "srm_categories", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_collab_documents", "srm_collab_documents", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_compliance_items", "srm_compliance_items", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_contacts", "srm_contacts", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_delivery_slots", "srm_delivery_slots", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_demand_forecasts", "srm_demand_forecasts", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_documents", "srm_documents", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_insights", "srm_insights", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_match_logs", "srm_match_logs", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_material_lots", "srm_material_lots", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_merge_log", "srm_merge_log", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_ncrs", "srm_ncrs", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_onboarding", "srm_onboarding", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_portal_requests", "srm_portal_requests", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_procurement_savings", "srm_procurement_savings", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_quality_inspections", "srm_quality_inspections", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_registry_approvals", "srm_registry_approvals", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_registry_items", "srm_registry_items", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_risks", "srm_risks", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_scorecards", "srm_scorecards", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_timeline", "srm_timeline", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("srm_trace_links", "srm_trace_links", "procurement", { view: "procurement.view", create: "procurement.manage", update: "procurement.manage", delete: "procurement.admin" }, { softDelete: true, searchable: [] });
+defineEntity("system_settings", "system_settings", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ta_ai_insights", "ta_ai_insights", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ta_interviews", "ta_interviews", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ta_offers", "ta_offers", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ta_onboarding_tasks", "ta_onboarding_tasks", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
+defineEntity("ta_requisitions", "ta_requisitions", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenant_feature_flags", "tenant_feature_flags", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenant_provisioning_jobs", "tenant_provisioning_jobs", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenant_setup_progress", "tenant_setup_progress", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenant_subscriptions", "tenant_subscriptions", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenants", "tenants", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("user_company_memberships", "user_company_memberships", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("user_profiles", "user_profiles", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("user_role_changes", "user_role_changes", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("user_sessions", "user_sessions", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_identity_events", "uw_identity_events", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_merge_log", "uw_merge_log", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_module_entitlements", "uw_module_entitlements", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_person_360", "uw_person_360", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_person_links", "uw_person_links", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_persons", "uw_persons", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
+defineEntity("uw_upid_sequences", "uw_upid_sequences", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });

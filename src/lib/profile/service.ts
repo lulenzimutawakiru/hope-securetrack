@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { calculateProfileCompletion, type CompletionContext } from "./completion";
 import type { EmployeeProfile } from "./types";
 

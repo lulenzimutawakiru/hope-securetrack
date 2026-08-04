@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
+import { crudList } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 
 export default function LiveAttendancePage() {
@@ -27,36 +27,35 @@ export default function LiveAttendancePage() {
     }
     const today = new Date().toISOString().slice(0, 10);
     try {
-      const sb = createClient();
-      const [{ data: att }, { data: dev }, { data: ev }] = await Promise.all([
-        sb
-          .from("attendance_records")
-          .select("*, employees(first_name,last_name,employee_number)")
-          .eq("company_id", companyId)
-          .eq("work_date", today)
-          .not("check_in", "is", null)
-          .is("check_out", null)
-          .order("check_in", { ascending: false })
-          .limit(100),
-        sb
-          .from("att_devices")
-          .select("device_code,name,vendor,status,last_heartbeat_at,branch_name")
-          .eq("company_id", companyId)
-          .is("deleted_at", null)
-          .order("status")
-          .limit(50),
-        sb
-          .from("att_events")
-          .select("*")
-          .eq("company_id", companyId)
-          .eq("work_date", today)
-          .is("deleted_at", null)
-          .order("event_at", { ascending: false })
-          .limit(20),
+      const [attRes, devRes, evRes] = await Promise.all([
+        crudList<Record<string, unknown>>("attendance_records", {
+          page: 1,
+          pageSize: 100,
+          sort: "check_in",
+          order: "desc",
+          filters: { work_date: today },
+        }),
+        crudList<Record<string, unknown>>("att_devices", {
+          page: 1,
+          pageSize: 50,
+          sort: "status",
+          order: "asc",
+        }),
+        crudList<Record<string, unknown>>("att_events", {
+          page: 1,
+          pageSize: 20,
+          sort: "event_at",
+          order: "desc",
+          filters: { work_date: today },
+        }),
       ]);
-      setPresent((att as Array<Record<string, unknown>>) || []);
-      setDevices((dev as Array<Record<string, unknown>>) || []);
-      setEvents((ev as Array<Record<string, unknown>>) || []);
+      // Present = checked in today without checkout (client filter; CRUD has no is null)
+      const att = attRes.ok ? attRes.data.data : [];
+      setPresent(
+        att.filter((r) => r.check_in && !r.check_out)
+      );
+      setDevices(devRes.ok ? devRes.data.data : []);
+      setEvents(evRes.ok ? evRes.data.data : []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Load failed");
     } finally {

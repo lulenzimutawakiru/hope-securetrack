@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import type { LinkInput, PersonInput } from "./types";
 import { MODULE_CODES } from "./types";
 

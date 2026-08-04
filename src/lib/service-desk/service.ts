@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { calculateSlaDue, slaMinutesForPriority } from "./sla";
 import { routeTicket, detectDuplicate } from "./routing";
 import { analyzeRequest, detectSentiment, extractIntent, predictCsat, suggestAutoReply } from "./ai";

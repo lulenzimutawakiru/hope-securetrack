@@ -1,32 +1,24 @@
-import { createClient } from "@/lib/supabase/client";
+import { mustList, persistInsights, type RuleInsight } from "@/lib/crud/ai-insights";
 
-export type TaInsight = {
-  insight_type: string;
-  title: string;
-  summary: string;
-  severity: string;
-  score?: number;
-  recommendations?: string[];
-};
+export type TaInsight = RuleInsight;
 
-export async function generateTalentInsights(companyId: string): Promise<TaInsight[]> {
-  const sb = createClient();
+export async function generateTalentInsights(
+  companyId: string
+): Promise<TaInsight[]> {
+  void companyId;
   const insights: TaInsight[] = [];
 
-  const [
-    { data: apps },
-    { data: vacancies },
-    { data: interviews },
-    { data: offers },
-  ] = await Promise.all([
-    sb.from("ta_applications").select("stage_code,status,match_score,vacancy_code").eq("company_id", companyId).is("deleted_at", null).limit(300),
-    sb.from("ta_vacancies").select("status,title,applications_count").eq("company_id", companyId).is("deleted_at", null).limit(100),
-    sb.from("ta_interviews").select("status,scheduled_at").eq("company_id", companyId).is("deleted_at", null).limit(100),
-    sb.from("ta_offers").select("status,candidate_response").eq("company_id", companyId).is("deleted_at", null).limit(100),
+  const [apps, vacancies, interviews, offers] = await Promise.all([
+    mustList<Record<string, unknown>>("ta_applications", { pageSize: 100 }),
+    mustList<Record<string, unknown>>("ta_vacancies", { pageSize: 100 }),
+    mustList<Record<string, unknown>>("ta_interviews", { pageSize: 100 }),
+    mustList<Record<string, unknown>>("ta_offers", { pageSize: 100 }),
   ]);
 
-  const openApps = (apps || []).filter((a) => a.status === "open");
-  const screening = openApps.filter((a) => ["applied", "screen"].includes(String(a.stage_code)));
+  const openApps = apps.filter((a) => a.status === "open");
+  const screening = openApps.filter((a) =>
+    ["applied", "screen"].includes(String(a.stage_code))
+  );
   if (screening.length >= 5) {
     insights.push({
       insight_type: "funnel",
@@ -34,13 +26,18 @@ export async function generateTalentInsights(companyId: string): Promise<TaInsig
       summary: `${screening.length} applications await screening.`,
       severity: "high",
       score: 78,
-      recommendations: ["Bulk shortlist high match scores", "Assign co-recruiter"],
+      recommendations: [
+        "Bulk shortlist high match scores",
+        "Assign co-recruiter",
+      ],
     });
   }
 
-  const openVacs = (vacancies || []).filter((v) => v.status === "open");
+  const openVacs = vacancies.filter((v) => v.status === "open");
   if (openVacs.length > 0) {
-    const lowApp = openVacs.filter((v) => Number(v.applications_count || 0) < 3);
+    const lowApp = openVacs.filter(
+      (v) => Number(v.applications_count || 0) < 3
+    );
     if (lowApp.length > 0) {
       insights.push({
         insight_type: "sourcing",
@@ -48,12 +45,17 @@ export async function generateTalentInsights(companyId: string): Promise<TaInsig
         summary: `${lowApp.length} open vacancies have fewer than 3 applications.`,
         severity: "medium",
         score: 65,
-        recommendations: ["Boost careers portal features", "Engage agencies/referrals"],
+        recommendations: [
+          "Boost careers portal features",
+          "Engage agencies/referrals",
+        ],
       });
     }
   }
 
-  const pendingInterviews = (interviews || []).filter((i) => i.status === "scheduled");
+  const pendingInterviews = interviews.filter(
+    (i) => i.status === "scheduled"
+  );
   if (pendingInterviews.length >= 3) {
     insights.push({
       insight_type: "interviews",
@@ -65,7 +67,9 @@ export async function generateTalentInsights(companyId: string): Promise<TaInsig
     });
   }
 
-  const openOffers = (offers || []).filter((o) => o.status === "issued" && o.candidate_response === "pending");
+  const openOffers = offers.filter(
+    (o) => o.status === "issued" && o.candidate_response === "pending"
+  );
   if (openOffers.length > 0) {
     insights.push({
       insight_type: "offers",
@@ -73,38 +77,24 @@ export async function generateTalentInsights(companyId: string): Promise<TaInsig
       summary: `${openOffers.length} issued offers pending candidate decision.`,
       severity: "medium",
       score: 70,
-      recommendations: ["Follow up before expiry", "Review compensation competitiveness"],
+      recommendations: [
+        "Follow up before expiry",
+        "Review compensation competitiveness",
+      ],
     });
   }
 
   if (insights.length === 0) {
     insights.push({
       insight_type: "health",
-      title: "Recruitment pipeline healthy",
-      summary: "No critical funnel or offer risks detected from current data.",
+      title: "Talent pipeline healthy",
+      summary: "No critical recruiting bottlenecks detected.",
       severity: "info",
-      score: 90,
-      recommendations: ["Keep weekly hiring stand-up", "Refresh job ads monthly"],
+      score: 40,
+      recommendations: ["Maintain sourcing cadence"],
     });
   }
 
-  for (const [i, ins] of insights.slice(0, 5).entries()) {
-    try {
-      await sb.from("ta_ai_insights").insert({
-        company_id: companyId,
-        insight_code: `AI-TA-RT-${Date.now()}-${i}`,
-        insight_type: ins.insight_type,
-        title: ins.title,
-        summary: ins.summary,
-        severity: ins.severity,
-        score: ins.score ?? 0,
-        recommendations: (ins.recommendations || []).join("; "),
-        status: "open",
-      });
-    } catch {
-      /* ignore */
-    }
-  }
-
+  await persistInsights("ta_ai_insights", insights);
   return insights;
 }

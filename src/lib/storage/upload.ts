@@ -6,8 +6,10 @@ import {
   type UploadInput,
   type UploadResult,
 } from "./types";
+import { mustCreate, mustList, mustUpdate } from "@/lib/crud/domain-helpers";
 
-function sb() {
+/** Browser client ONLY for Storage API (objects), not table mutations. */
+function storageClient() {
   return createClient();
 }
 
@@ -38,7 +40,7 @@ export function buildStoragePath(input: {
 }
 
 export function getPublicUrl(bucket: string, path: string): string {
-  const { data } = sb().storage.from(bucket).getPublicUrl(path);
+  const { data } = storageClient().storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -47,8 +49,8 @@ export async function getSignedUrl(
   path: string,
   expiresIn = 3600
 ): Promise<string> {
-  const { data, error } = await sb().storage
-    .from(bucket)
+  const { data, error } = await storageClient()
+    .storage.from(bucket)
     .createSignedUrl(path, expiresIn);
   if (error) throw error;
   return data.signedUrl;
@@ -72,8 +74,8 @@ export async function uploadFile(input: UploadInput): Promise<UploadResult> {
       : undefined,
   });
 
-  const { error: upErr } = await sb().storage
-    .from(input.bucket)
+  const { error: upErr } = await storageClient()
+    .storage.from(input.bucket)
     .upload(path, input.file, {
       cacheControl: "3600",
       upsert: Boolean(input.fixedName),
@@ -91,30 +93,25 @@ export async function uploadFile(input: UploadInput): Promise<UploadResult> {
     }
   }
 
-  // Register in media library
+  // Register in media library via CRUD (not browser table writes)
   let mediaId: string | undefined;
   try {
-    const { data: reg } = await sb()
-      .from("media_files")
-      .insert({
-        company_id: input.companyId,
-        bucket_id: input.bucket,
-        storage_path: path,
-        public_url: publicUrl,
-        file_name: path.split("/").pop() || input.file.name,
-        original_name: input.file.name,
-        mime_type: input.file.type || null,
-        file_size_bytes: input.file.size,
-        category: input.category || "attachment",
-        entity_table: input.entityTable || null,
-        entity_id: input.entityId || null,
-        entity_field: input.entityField || null,
-        uploaded_by: input.uploadedBy || null,
-        is_public: isPublic,
-      })
-      .select("id")
-      .single();
-    mediaId = reg?.id;
+    const reg = await mustCreate<Record<string, unknown>>("media_files", {
+      bucket_id: input.bucket,
+      storage_path: path,
+      public_url: publicUrl,
+      file_name: path.split("/").pop() || input.file.name,
+      original_name: input.file.name,
+      mime_type: input.file.type || null,
+      file_size_bytes: input.file.size,
+      category: input.category || "attachment",
+      entity_table: input.entityTable || null,
+      entity_id: input.entityId || null,
+      entity_field: input.entityField || null,
+      uploaded_by: input.uploadedBy || null,
+      is_public: isPublic,
+    });
+    mediaId = reg?.id ? String(reg.id) : undefined;
   } catch {
     /* registry optional if migration pending */
   }
@@ -137,19 +134,27 @@ export async function deleteFile(
   path: string,
   mediaId?: string
 ): Promise<void> {
-  const { error } = await sb().storage.from(bucket).remove([path]);
+  const { error } = await storageClient().storage.from(bucket).remove([path]);
   if (error) throw error;
-  if (mediaId) {
-    await sb()
-      .from("media_files")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", mediaId);
-  } else {
-    await sb()
-      .from("media_files")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("storage_path", path)
-      .eq("bucket_id", bucket);
+  try {
+    if (mediaId) {
+      await mustUpdate("media_files", mediaId, {
+        deleted_at: new Date().toISOString(),
+      });
+    } else {
+      const rows = await mustList<Record<string, unknown>>("media_files", {
+        pageSize: 10,
+        filters: { storage_path: path, bucket_id: bucket },
+      });
+      for (const r of rows) {
+        if (r.id)
+          await mustUpdate("media_files", String(r.id), {
+            deleted_at: new Date().toISOString(),
+          });
+      }
+    }
+  } catch {
+    /* registry optional */
   }
 }
 
@@ -160,19 +165,17 @@ export async function listMediaFiles(opts?: {
   entityId?: string;
   limit?: number;
 }) {
-  let q = sb()
-    .from("media_files")
-    .select("*")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(opts?.limit ?? 100);
-  if (opts?.companyId) q = q.eq("company_id", opts.companyId);
-  if (opts?.category) q = q.eq("category", opts.category);
-  if (opts?.entityTable) q = q.eq("entity_table", opts.entityTable);
-  if (opts?.entityId) q = q.eq("entity_id", opts.entityId);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
+  void opts?.companyId;
+  const filters: Record<string, unknown> = {};
+  if (opts?.category) filters.category = opts.category;
+  if (opts?.entityTable) filters.entity_table = opts.entityTable;
+  if (opts?.entityId) filters.entity_id = opts.entityId;
+  return mustList("media_files", {
+    pageSize: opts?.limit ?? 100,
+    sort: "created_at",
+    order: "desc",
+    filters: Object.keys(filters).length ? filters : undefined,
+  });
 }
 
 /** Convenience helpers */

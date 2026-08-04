@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { ATT_MENU, getAttendanceDashboard } from "@/lib/attendance";
-import { createClient } from "@/lib/supabase/client";
+import { crudList } from "@/lib/api/crud-client";
 
 export default function AttendanceDashboardPage() {
   const { auth } = useUser();
@@ -33,26 +33,24 @@ export default function AttendanceDashboardPage() {
         return;
       }
       try {
-        const sb = createClient();
-        const [s, { data: ev }, { data: ai }] = await Promise.all([
+        const [s, evRes, aiRes] = await Promise.all([
           getAttendanceDashboard(companyId),
-          sb
-            .from("att_events")
-            .select("event_code,employee_name,event_type,location_name,verification_status,method,event_at")
-            .eq("company_id", companyId)
-            .is("deleted_at", null)
-            .order("event_at", { ascending: false })
-            .limit(8),
-          sb
-            .from("att_ai_insights")
-            .select("title,severity,summary")
-            .eq("company_id", companyId)
-            .order("created_at", { ascending: false })
-            .limit(4),
+          crudList<Record<string, unknown>>("att_events", {
+            page: 1,
+            pageSize: 8,
+            sort: "event_at",
+            order: "desc",
+          }),
+          crudList<Record<string, unknown>>("att_ai_insights", {
+            page: 1,
+            pageSize: 4,
+            sort: "created_at",
+            order: "desc",
+          }),
         ]);
         setStats(s);
-        setRecent((ev as Array<Record<string, unknown>>) || []);
-        setInsights((ai as Array<Record<string, unknown>>) || []);
+        setRecent(evRes.ok ? evRes.data.data : []);
+        setInsights(aiRes.ok ? aiRes.data.data : []);
       } catch {
         /* empty */
       } finally {

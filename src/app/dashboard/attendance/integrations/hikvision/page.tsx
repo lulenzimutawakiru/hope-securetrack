@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/client";
+import { crudList } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 
 export default function HikvisionSetupPage() {
@@ -26,12 +26,11 @@ export default function HikvisionSetupPage() {
         setLoading(false);
         return;
       }
-      const { data } = await createClient()
-        .from("att_device_integrations")
-        .select("push_token, enabled")
-        .eq("company_id", cid)
-        .eq("vendor", "hikvision")
-        .maybeSingle();
+      const res = await crudList<Record<string, unknown>>(
+        "att_device_integrations",
+        { pageSize: 1, filters: { vendor: "hikvision" } }
+      );
+      const data = res.ok ? res.data.data[0] : null;
       setToken(String(data?.push_token || ""));
       setLoading(false);
     }

@@ -18,10 +18,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate } from "@/lib/api/crud-client";
+import { crudCreate, crudList } from "@/lib/api/crud-client";
 import { ASSET_DOMAINS } from "@/lib/assets";
 
 export default function AssetCategoriesPage() {
@@ -40,12 +39,13 @@ export default function AssetCategoriesPage() {
   const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
-    const { data } = await createClient()
-      .from("ast_categories")
-      .select("*")
-      .order("domain", { ascending: true })
-      .order("category_code", { ascending: true });
-    setRows((data as Array<Record<string, unknown>>) || []);
+    const res = await crudList<Record<string, unknown>>("ast_categories", {
+      page: 1,
+      pageSize: 100,
+      sort: "category_code",
+      order: "asc",
+    });
+    setRows(res.ok ? res.data.data : []);
     setLoading(false);
   };
 

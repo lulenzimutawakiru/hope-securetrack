@@ -19,10 +19,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudUpdate } from "@/lib/api/crud-client";
+import { crudList, crudUpdate } from "@/lib/api/crud-client";
 import { createMaintenanceFromTag } from "@/lib/assets";
 
 export default function AssetMaintenancePage() {
@@ -42,13 +41,22 @@ export default function AssetMaintenancePage() {
   const companyId = auth?.profile?.company_id as string | undefined;
 
   const load = async () => {
-    const sb = createClient();
-    const [{ data }, { data: ast }] = await Promise.all([
-      sb.from("ast_maintenance_links").select("*, ast_assets(asset_tag, name)").order("created_at", { ascending: false }).limit(200),
-      sb.from("ast_assets").select("id, asset_tag, name").is("deleted_at", null).order("asset_tag").limit(300),
+    const [maintRes, astRes] = await Promise.all([
+      crudList<Record<string, unknown>>("ast_maintenance_links", {
+        page: 1,
+        pageSize: 100,
+        sort: "created_at",
+        order: "desc",
+      }),
+      crudList<Record<string, unknown>>("ast_assets", {
+        page: 1,
+        pageSize: 100,
+        sort: "asset_tag",
+        order: "asc",
+      }),
     ]);
-    setRows((data as Array<Record<string, unknown>>) || []);
-    setAssets((ast as Array<Record<string, unknown>>) || []);
+    setRows(maintRes.ok ? maintRes.data.data : []);
+    setAssets(astRes.ok ? astRes.data.data : []);
     setLoading(false);
   };
 

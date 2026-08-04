@@ -15,8 +15,8 @@ import {
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import { useLiveGps } from "@/hooks/use-live-gps";
-import { createClient } from "@/lib/supabase/client";
 import { processClock, listActiveLocations, distanceMeters } from "@/lib/attendance";
+import { crudList } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 
 type Emp = { id: string; first_name: string; last_name: string; employee_number: string; email?: string | null };
@@ -45,14 +45,14 @@ export default function SecureClockPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("employees")
-        .select("id,first_name,last_name,employee_number,email")
-        .eq("status", "active")
-        .order("last_name")
-        .limit(500);
-      const list = (data as Emp[]) || [];
+      const res = await crudList<Emp>("employees", {
+        page: 1,
+        pageSize: 100,
+        sort: "last_name",
+        order: "asc",
+        filters: { status: "active" },
+      });
+      const list = res.ok ? res.data.data : [];
       setEmployees(list);
 
       // Prefer employee matching signed-in email / name
@@ -116,13 +116,14 @@ export default function SecureClockPage() {
         return;
       }
       const today = new Date().toISOString().slice(0, 10);
-      const { data } = await createClient()
-        .from("attendance_records")
-        .select("check_in,check_out,status,location_name,hours_worked")
-        .eq("company_id", companyId)
-        .eq("employee_id", employeeId)
-        .eq("work_date", today)
-        .maybeSingle();
+      const res = await crudList<Record<string, unknown>>(
+        "attendance_records",
+        {
+          pageSize: 1,
+          filters: { employee_id: employeeId, work_date: today },
+        }
+      );
+      const data = res.ok ? res.data.data[0] : null;
       if (!data) {
         setTodayStatus("Not clocked in today");
         return;

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { calculateCartonization, DEFAULT_HOPE_A4_RULE, estimateMaterialQty } from "./cartonization";
 import {
   buildSerial,

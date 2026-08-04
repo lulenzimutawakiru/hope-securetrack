@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import {
   generateAssetInsights,
   estimateRemainingLife,
@@ -22,24 +22,26 @@ export default function AssetAiPage() {
 
   useEffect(() => {
     async function load() {
-      const sb = createClient();
       const [
-        { count: total },
-        { count: assigned },
-        { count: missing },
-        { count: maintOpen },
-        { count: openAlerts },
-        { data: assets },
+        total,
+        assigned,
+        missing,
+        maintOpen,
+        openAlerts,
+        assetsRes,
       ] = await Promise.all([
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).is("deleted_at", null),
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).eq("status", "assigned").is("deleted_at", null),
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).eq("status", "missing").is("deleted_at", null),
-        sb.from("ast_maintenance_links").select("*", { count: "exact", head: true }).eq("status", "open"),
-        sb.from("ast_alerts").select("*", { count: "exact", head: true }).eq("status", "open"),
-        sb.from("ast_assets").select("asset_tag, name, purchase_date, current_value, warranty_end").is("deleted_at", null).limit(50),
+        crudCount("ast_assets"),
+        crudCount("ast_assets", { status: "assigned" }),
+        crudCount("ast_assets", { status: "missing" }),
+        crudCount("ast_maintenance_links", { status: "open" }),
+        crudCount("ast_alerts", { status: "open" }),
+        crudList<Record<string, unknown>>("ast_assets", {
+          page: 1,
+          pageSize: 50,
+        }),
       ]);
 
-      const list = assets || [];
+      const list = assetsRes.ok ? assetsRes.data.data : [];
       const now = Date.now();
       const warrantyExpiring = list.filter((a) => {
         if (!a.warranty_end) return false;

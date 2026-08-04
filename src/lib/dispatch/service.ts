@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { optimizeRoute, recommendVehicleType } from "./routing";
 import { buildDispatchNoteHtml, buildPodHtml, shipmentQrValue } from "./documents";
 

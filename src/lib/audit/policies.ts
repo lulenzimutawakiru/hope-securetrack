@@ -1,10 +1,10 @@
-/** Logging policy & config CRUD (configs mutable; events never are) */
+/** Logging policy & config CRUD — session-scoped via /api/v2/crud */
 
-import { createClient } from "@/lib/supabase/client";
-
-function sb() {
-  return createClient();
-}
+import {
+  crudGetOne,
+  mustCreate,
+  mustUpdate,
+} from "@/lib/crud/domain-helpers";
 
 export async function logConfigChange(input: {
   company_id: string;
@@ -17,17 +17,20 @@ export async function logConfigChange(input: {
   after_state?: Record<string, unknown> | null;
   details?: string;
 }) {
-  await sb().from("eal_config_history").insert({
-    company_id: input.company_id,
-    config_type: input.config_type,
-    config_id: input.config_id,
-    action: input.action,
-    actor_id: input.actor_id,
-    actor_email: input.actor_email,
-    before_state: input.before_state,
-    after_state: input.after_state,
-    details: input.details,
-  });
+  try {
+    await mustCreate("eal_config_history", {
+      config_type: input.config_type,
+      config_id: input.config_id,
+      action: input.action,
+      actor_id: input.actor_id,
+      actor_email: input.actor_email,
+      before_state: input.before_state,
+      after_state: input.after_state,
+      details: input.details,
+    });
+  } catch {
+    /* best-effort */
+  }
 }
 
 export async function upsertLoggingPolicy(input: {
@@ -44,7 +47,6 @@ export async function upsertLoggingPolicy(input: {
   actor_email?: string;
 }) {
   const row = {
-    company_id: input.company_id,
     policy_code: input.policy_code.toUpperCase(),
     name: input.name,
     module_scope: input.module_scope || "*",
@@ -52,23 +54,11 @@ export async function upsertLoggingPolicy(input: {
     capture_before_after: input.capture_before_after ?? true,
     enabled: input.enabled ?? true,
     description: input.description,
-    updated_by: input.actor_id,
-    updated_at: new Date().toISOString(),
   };
 
   if (input.id) {
-    const { data: before } = await sb()
-      .from("eal_logging_policies")
-      .select("*")
-      .eq("id", input.id)
-      .maybeSingle();
-    const { data, error } = await sb()
-      .from("eal_logging_policies")
-      .update(row)
-      .eq("id", input.id)
-      .select("*")
-      .single();
-    if (error) throw error;
+    const before = await crudGetOne("eal_logging_policies", input.id);
+    const data = await mustUpdate("eal_logging_policies", input.id, row);
     await logConfigChange({
       company_id: input.company_id,
       config_type: "logging_policy",
@@ -82,16 +72,14 @@ export async function upsertLoggingPolicy(input: {
     return data;
   }
 
-  const { data, error } = await sb()
-    .from("eal_logging_policies")
-    .insert({ ...row, created_by: input.actor_id })
-    .select("*")
-    .single();
-  if (error) throw error;
+  const data = await mustCreate<Record<string, unknown>>(
+    "eal_logging_policies",
+    row
+  );
   await logConfigChange({
     company_id: input.company_id,
     config_type: "logging_policy",
-    config_id: data.id,
+    config_id: String(data.id),
     action: "create",
     actor_id: input.actor_id,
     actor_email: input.actor_email,
@@ -107,18 +95,10 @@ export async function setPolicyEnabled(input: {
   actor_id?: string | null;
   actor_email?: string;
 }) {
-  const { data: before } = await sb()
-    .from("eal_logging_policies")
-    .select("*")
-    .eq("id", input.id)
-    .maybeSingle();
-  const { data, error } = await sb()
-    .from("eal_logging_policies")
-    .update({ enabled: input.enabled, updated_at: new Date().toISOString() })
-    .eq("id", input.id)
-    .select("*")
-    .single();
-  if (error) throw error;
+  const before = await crudGetOne("eal_logging_policies", input.id);
+  const data = await mustUpdate("eal_logging_policies", input.id, {
+    enabled: input.enabled,
+  });
   await logConfigChange({
     company_id: input.company_id,
     config_type: "logging_policy",
@@ -138,14 +118,11 @@ export async function toggleSiemConnector(input: {
   enabled: boolean;
   actor_id?: string | null;
 }) {
-  const { data, error } = await sb()
-    .from("eal_siem_connectors")
-    .update({ enabled: input.enabled })
-    .eq("id", input.id)
-    .eq("company_id", input.company_id)
-    .select("*")
-    .single();
-  if (error) throw error;
+  const data = await mustUpdate<Record<string, unknown>>(
+    "eal_siem_connectors",
+    input.id,
+    { enabled: input.enabled }
+  );
   await logConfigChange({
     company_id: input.company_id,
     config_type: "siem",
@@ -160,23 +137,42 @@ export async function toggleSiemConnector(input: {
 export const ROLE_MATRIX = [
   {
     role: "Internal Auditor",
-    permissions: ["eal.view", "eal.export", "eal.investigate", "eal.archive", "audit.view"],
+    permissions: [
+      "eal.view",
+      "eal.export",
+      "eal.investigate",
+      "eal.archive",
+      "audit.view",
+    ],
     notes: "View all logs, export, investigations. Cannot modify events.",
   },
   {
     role: "Compliance Officer",
-    permissions: ["eal.view", "eal.compliance", "eal.export", "eal.executive", "audit.view"],
+    permissions: [
+      "eal.view",
+      "eal.compliance",
+      "eal.export",
+      "eal.executive",
+      "audit.view",
+    ],
     notes: "Compliance reports, risk dashboards, packages.",
   },
   {
     role: "IT Security",
-    permissions: ["eal.view", "eal.security", "eal.investigate", "eal.ai", "audit.view"],
+    permissions: [
+      "eal.view",
+      "eal.security",
+      "eal.investigate",
+      "eal.ai",
+      "audit.view",
+    ],
     notes: "Security events, incidents, live monitoring.",
   },
   {
     role: "System Administrator",
     permissions: ["eal.infra", "eal.config", "audit.view"],
-    notes: "Infrastructure logs & config only. Cannot alter audit records.",
+    notes:
+      "Infrastructure logs & config only. Cannot alter audit records.",
   },
   {
     role: "Executive Management",
@@ -186,6 +182,7 @@ export const ROLE_MATRIX = [
   {
     role: "Super Administrator",
     permissions: ["eal.*", "audit.*"],
-    notes: "Full platform access. Still cannot edit/delete individual audit events (DB enforced).",
+    notes:
+      "Full platform access. Still cannot edit/delete individual audit events (DB enforced).",
   },
 ] as const;

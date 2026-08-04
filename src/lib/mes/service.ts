@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { calculateOee } from "./oee";
 import { explodeBom, flattenExplosion, rollupBomCost, requiredQty } from "./bom";
 import { runMrp } from "./mrp";

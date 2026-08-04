@@ -6,7 +6,7 @@
  * ref validation and audit. The browser never sends actor or company fields:
  * they are derived from the session server-side.
  */
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import {
   apiGet,
   apiPost,

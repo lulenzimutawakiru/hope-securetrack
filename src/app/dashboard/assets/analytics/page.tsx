@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { crudList } from "@/lib/api/crud-client";
 import { formatNumber } from "@/lib/utils";
 import { ASSET_DOMAINS } from "@/lib/assets";
 
@@ -26,13 +26,11 @@ export default function AssetAnalyticsPage() {
 
   useEffect(() => {
     async function load() {
-      const sb = createClient();
-      const { data: assets } = await sb
-        .from("ast_assets")
-        .select("domain, status, department, purchase_cost, current_value")
-        .is("deleted_at", null);
-
-      const list = assets || [];
+      const res = await crudList<Record<string, unknown>>("ast_assets", {
+        page: 1,
+        pageSize: 100,
+      });
+      const list = res.ok ? res.data.data : [];
       const byDomain: Record<string, number> = {};
       const byStatus: Record<string, number> = {};
       const deptMap: Record<string, { count: number; value: number }> = {};

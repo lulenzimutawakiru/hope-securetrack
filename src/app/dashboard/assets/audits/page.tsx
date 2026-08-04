@@ -19,10 +19,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudUpdate } from "@/lib/api/crud-client";
+import { crudList, crudUpdate } from "@/lib/api/crud-client";
 import { startAudit, scanAuditLine, AUDIT_RESULTS } from "@/lib/assets";
 
 export default function AssetAuditsPage() {
@@ -41,23 +40,25 @@ export default function AssetAuditsPage() {
   const userId = auth?.profile?.id as string | undefined;
 
   const load = async () => {
-    const { data } = await createClient()
-      .from("ast_audits")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setAudits((data as Array<Record<string, unknown>>) || []);
+    const res = await crudList<Record<string, unknown>>("ast_audits", {
+      page: 1,
+      pageSize: 50,
+      sort: "created_at",
+      order: "desc",
+    });
+    setAudits(res.ok ? res.data.data : []);
     setLoading(false);
   };
 
   const loadLines = async (auditId: string) => {
-    const { data } = await createClient()
-      .from("ast_audit_lines")
-      .select("*")
-      .eq("audit_id", auditId)
-      .order("scanned_at", { ascending: false })
-      .limit(100);
-    setLines((data as Array<Record<string, unknown>>) || []);
+    const res = await crudList<Record<string, unknown>>("ast_audit_lines", {
+      page: 1,
+      pageSize: 100,
+      sort: "scanned_at",
+      order: "desc",
+      filters: { audit_id: auditId },
+    });
+    setLines(res.ok ? res.data.data : []);
   };
 
   useEffect(() => {

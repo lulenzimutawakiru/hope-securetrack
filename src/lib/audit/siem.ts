@@ -1,12 +1,18 @@
-/** SIEM integration adapters — Splunk, Sentinel, QRadar, Elastic, webhook */
+/** SIEM integration adapters — Splunk, Sentinel, QRadar, Elastic, webhook. CRUD-backed. */
 
-import { createClient } from "@/lib/supabase/client";
+import {
+  mustCreate,
+  mustList,
+  mustUpdate,
+} from "@/lib/crud/domain-helpers";
 
-function sb() {
-  return createClient();
-}
-
-export type SiemProvider = "splunk" | "sentinel" | "qradar" | "elastic" | "webhook" | "syslog";
+export type SiemProvider =
+  | "splunk"
+  | "sentinel"
+  | "qradar"
+  | "elastic"
+  | "webhook"
+  | "syslog";
 
 export function formatForSiem(
   provider: string,
@@ -28,7 +34,11 @@ export function formatForSiem(
 
   switch (provider) {
     case "splunk":
-      return { event: base, sourcetype: "hope:eal", source: "hope-securetrack" };
+      return {
+        event: base,
+        sourcetype: "hope:eal",
+        source: "hope-securetrack",
+      };
     case "sentinel":
       return {
         TimeGenerated: event.created_at,
@@ -63,17 +73,17 @@ export function formatForSiem(
 export async function enqueueSiemPush(input: {
   company_id: string;
   event: Record<string, unknown>;
-  /** Prefer durable job worker for delivery (default true on server) */
   useJobQueue?: boolean;
 }) {
-  const client = sb();
-  const { data: connectors } = await client
-    .from("eal_siem_connectors")
-    .select("*")
-    .eq("company_id", input.company_id)
-    .eq("enabled", true);
+  const connectors = await mustList<Record<string, unknown>>(
+    "eal_siem_connectors",
+    {
+      pageSize: 50,
+      filters: { enabled: true },
+    }
+  );
 
-  if (!connectors?.length) return { enqueued: 0, jobId: null as string | null };
+  if (!connectors.length) return { enqueued: 0, jobId: null as string | null };
 
   let n = 0;
   const outboxIds: string[] = [];
@@ -83,17 +93,12 @@ export async function enqueueSiemPush(input: {
     if (ev < min) continue;
 
     const payload = formatForSiem(String(c.provider), input.event);
-    const { data: row } = await client
-      .from("eal_siem_outbox")
-      .insert({
-        company_id: input.company_id,
-        connector_id: c.id,
-        event_id: input.event.id as string,
-        payload,
-        status: "pending",
-      })
-      .select("id")
-      .maybeSingle();
+    const row = await mustCreate<Record<string, unknown>>("eal_siem_outbox", {
+      connector_id: c.id,
+      event_id: input.event.id as string,
+      payload,
+      status: "pending",
+    });
     if (row?.id) outboxIds.push(String(row.id));
     n += 1;
   }
@@ -105,6 +110,7 @@ export async function enqueueSiemPush(input: {
       const { createAdminClient } = await import("@/lib/supabase/admin");
       const job = await enqueueJob(createAdminClient(), {
         companyId: input.company_id,
+        tenantId: null,
         jobType: "siem.forward",
         payload: {
           company_id: input.company_id,
@@ -115,7 +121,7 @@ export async function enqueueSiemPush(input: {
       });
       jobId = job?.id || null;
     } catch {
-      /* browser path may lack admin — outbox still pending */
+      /* outbox still pending without worker */
     }
   }
 
@@ -135,32 +141,36 @@ function severityRank(s: string): number {
 
 /** Simulate flush of pending outbox (production would POST to HEC/Sentinel) */
 export async function flushSiemOutbox(companyId: string) {
-  const { data: pending } = await sb()
-    .from("eal_siem_outbox")
-    .select("*")
-    .eq("company_id", companyId)
-    .eq("status", "pending")
-    .limit(100);
+  void companyId;
+  const pending = await mustList<Record<string, unknown>>("eal_siem_outbox", {
+    pageSize: 100,
+    filters: { status: "pending" },
+  });
 
   let sent = 0;
-  for (const row of pending || []) {
-    await sb()
-      .from("eal_siem_outbox")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        attempts: Number(row.attempts || 0) + 1,
-      })
-      .eq("id", row.id);
+  for (const row of pending) {
+    await mustUpdate("eal_siem_outbox", String(row.id), {
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      attempts: Number(row.attempts || 0) + 1,
+    });
     sent += 1;
   }
 
   if (sent > 0) {
-    await sb()
-      .from("eal_siem_connectors")
-      .update({ last_push_at: new Date().toISOString(), last_status: "ok" })
-      .eq("company_id", companyId)
-      .eq("enabled", true);
+    const connectors = await mustList<Record<string, unknown>>(
+      "eal_siem_connectors",
+      { pageSize: 50, filters: { enabled: true } }
+    );
+    for (const c of connectors) {
+      try {
+        await mustUpdate("eal_siem_connectors", String(c.id), {
+          last_push_at: new Date().toISOString(),
+        });
+      } catch {
+        /* optional column */
+      }
+    }
   }
 
   return { sent };

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { computeOverallScore, predictDisruptionRisk } from "./ai";
 import type { NcrInput, OnboardingInput, RiskInput, SupplierInput } from "./types";
 

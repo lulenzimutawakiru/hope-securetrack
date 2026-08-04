@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { createClient } from "@/lib/supabase/client";
+import { crudCount, crudList } from "@/lib/api/crud-client";
 import { ASSET_LIFECYCLE } from "@/lib/assets";
 import { formatNumber } from "@/lib/utils";
 
@@ -45,27 +45,52 @@ export default function AssetsHubPage() {
 
   useEffect(() => {
     async function load() {
-      const sb = createClient();
-      const [total, assigned, missing, maint, alerts, { data: vals }] = await Promise.all([
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).is("deleted_at", null),
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).eq("status", "assigned").is("deleted_at", null),
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).eq("status", "missing").is("deleted_at", null),
-        sb.from("ast_assets").select("*", { count: "exact", head: true }).eq("status", "maintenance").is("deleted_at", null),
-        sb.from("ast_alerts").select("*", { count: "exact", head: true }).eq("status", "open"),
-        sb.from("ast_assets").select("current_value").is("deleted_at", null),
-      ]);
-      const value = (vals || []).reduce((s, r) => s + Number(r.current_value || 0), 0);
-      setStats({
-        total: total.count ?? 0,
-        assigned: assigned.count ?? 0,
-        missing: missing.count ?? 0,
-        maintenance: maint.count ?? 0,
-        openAlerts: alerts.count ?? 0,
-        value,
-      });
-      setLoading(false);
+      try {
+        const [total, assigned, missing, maint, openAlerts, valsRes] =
+          await Promise.all([
+            crudCount("ast_assets"),
+            crudCount("ast_assets", { status: "assigned" }),
+            crudCount("ast_assets", { status: "missing" }),
+            crudCount("ast_assets", { status: "maintenance" }),
+            crudCount("ast_alerts", { status: "open" }),
+            crudList<Record<string, unknown>>("ast_assets", {
+              page: 1,
+              pageSize: 100,
+            }),
+          ]);
+        const vals = valsRes.ok ? valsRes.data.data : [];
+        // Walk more pages for value if needed (bounded)
+        let value = vals.reduce(
+          (s, r) => s + Number(r.current_value || 0),
+          0
+        );
+        if (valsRes.ok && valsRes.data.total > 100) {
+          const page2 = await crudList<Record<string, unknown>>("ast_assets", {
+            page: 2,
+            pageSize: 100,
+          });
+          if (page2.ok) {
+            value += page2.data.data.reduce(
+              (s, r) => s + Number(r.current_value || 0),
+              0
+            );
+          }
+        }
+        setStats({
+          total,
+          assigned,
+          missing,
+          maintenance: maint,
+          openAlerts,
+          value,
+        });
+      } catch {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
     }
-    load().catch(() => setLoading(false));
+    load();
   }, []);
 
   if (loading) return <LoadingState message="Loading asset identification platform…" />;

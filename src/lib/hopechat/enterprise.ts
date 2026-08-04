@@ -8,7 +8,7 @@
  * caller's company + tenant.
  */
 
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { logHcAudit } from "./service";
 
 export const APPROVAL_TYPES = [

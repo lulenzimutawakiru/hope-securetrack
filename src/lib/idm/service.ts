@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/crud-compat";
 import { generateUsername, ensureUniqueUsername } from "./username";
 import { generateTempPassword, passwordExpiresAt, simpleHashHint, validatePassword } from "./password";
 import type { BulkUserRow, PasswordPolicy, ProvisionInput } from "./types";

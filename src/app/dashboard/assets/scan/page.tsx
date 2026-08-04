@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { formatNumber } from "@/lib/utils";
+import { crudList } from "@/lib/api/crud-client";
 
 function ScanInner() {
   const sp = useSearchParams();
@@ -53,22 +53,40 @@ function ScanInner() {
         }
       }
 
-      const sb = createClient();
-      let q = sb.from("ast_assets").select("*").is("deleted_at", null);
-      if (companyId) q = q.eq("company_id", companyId);
-
+      void companyId;
       const upper = lookupVal.toUpperCase();
-      let { data: found } = await q
-        .or(`asset_tag.eq.${upper},serial_number.eq.${lookupVal}`)
-        .maybeSingle();
-
+      let found: Record<string, unknown> | null = null;
+      const byTag = await crudList<Record<string, unknown>>("ast_assets", {
+        pageSize: 1,
+        filters: { asset_tag: upper },
+      });
+      if (byTag.ok && byTag.data.data[0]) found = byTag.data.data[0];
       if (!found) {
-        let idQ = sb.from("ast_identifiers").select("asset_id").eq("id_value", lookupVal);
-        if (companyId) idQ = idQ.eq("company_id", companyId);
-        const { data: ident } = await idQ.maybeSingle();
-        if (ident?.asset_id) {
-          const { data: a } = await sb.from("ast_assets").select("*").eq("id", ident.asset_id).maybeSingle();
-          found = a;
+        const bySerial = await crudList<Record<string, unknown>>("ast_assets", {
+          pageSize: 1,
+          filters: { serial_number: lookupVal },
+        });
+        if (bySerial.ok && bySerial.data.data[0]) found = bySerial.data.data[0];
+      }
+      if (!found) {
+        const idents = await crudList<Record<string, unknown>>(
+          "ast_identifiers",
+          { pageSize: 1, filters: { id_value: lookupVal } }
+        );
+        if (idents.ok && idents.data.data[0]?.asset_id) {
+          const byId = await crudList<Record<string, unknown>>("ast_assets", {
+            pageSize: 1,
+            filters: { id: String(idents.data.data[0].asset_id) },
+          });
+          // Prefer get by id via list filter; fall back to identifiers asset load
+          if (byId.ok && byId.data.data[0]) found = byId.data.data[0];
+          else {
+            const { crudGetOne } = await import("@/lib/api/crud-client");
+            found = await crudGetOne(
+              "ast_assets",
+              String(idents.data.data[0].asset_id)
+            );
+          }
         }
       }
 
@@ -81,8 +99,11 @@ function ScanInner() {
 
       setAsset(found as Record<string, unknown>);
       setTag(String(found.asset_tag));
-      const { data: ids } = await sb.from("ast_identifiers").select("*").eq("asset_id", found.id);
-      setIdentifiers((ids as Array<Record<string, unknown>>) || []);
+      const idsRes = await crudList<Record<string, unknown>>("ast_identifiers", {
+        pageSize: 50,
+        filters: { asset_id: String(found.id) },
+      });
+      setIdentifiers(idsRes.ok ? idsRes.data.data : []);
       toast.success(`Verified ${found.asset_tag}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Lookup failed");
