@@ -309,6 +309,14 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             {captchaRequired && (
               <div className="space-y-2 rounded-md border p-3 bg-muted/40">
                 <Label>Security check</Label>

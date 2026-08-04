@@ -98,7 +98,7 @@ export type ProvisionTenantInput = {
   slug?: string;
   admin_email: string;
   admin_name?: string;
-  admin_password?: string;
+  admin_password: string;
   country_code?: string;
   currency?: string;
   plan_code?: string;

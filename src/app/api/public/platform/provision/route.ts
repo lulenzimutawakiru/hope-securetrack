@@ -12,7 +12,7 @@ const bodySchema = z.object({
   slug: z.string().min(2).max(60).optional(),
   admin_email: z.string().email(),
   admin_name: z.string().min(1).max(150).optional(),
-  admin_password: z.string().min(8).max(100).optional(),
+  admin_password: z.string().min(8).max(100),
   country_code: z.string().min(2).max(5).optional(),
   currency: z.string().min(3).max(10).optional(),
   plan_code: z.enum(["starter", "professional", "enterprise", "government"]).optional(),
@@ -133,6 +133,15 @@ export async function POST(req: Request) {
       ...parsed.data,
       plan_code: plan,
     });
+
+    // Never report success when the administrator auth user was not created:
+    // that leaves a tenant no one can sign in to ("invalid login credentials").
+    const adminStep = result.steps.find((st) => st.key === "admin");
+    if (!adminStep || adminStep.status !== "completed") {
+      throw new Error(
+        "Administrator account could not be created; tenant was not provisioned"
+      );
+    }
 
     return NextResponse.json({
       ok: true,

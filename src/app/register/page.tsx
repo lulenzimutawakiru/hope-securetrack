@@ -42,6 +42,16 @@ export default function RegisterTenantPage() {
       if (!res.ok || !json.ok) {
         throw new Error(json?.error?.message || "Provisioning failed");
       }
+      const adminStep = (json.data?.steps || []).find(
+        (s: { key: string; status: string; detail?: string }) =>
+          s.key === "admin"
+      );
+      if (!adminStep || adminStep.status !== "completed") {
+        throw new Error(
+          adminStep?.detail ||
+            "Administrator account could not be created. No one will be able to sign in."
+        );
+      }
       setDone(json.data);
       toast.success("Organization provisioned on SecureTrack ERP");
     } catch (err) {

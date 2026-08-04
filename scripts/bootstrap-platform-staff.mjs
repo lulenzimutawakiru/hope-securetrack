@@ -15,7 +15,7 @@
  *      global platform_admin role.
  *
  * Usage:
- *   node scripts/bootstrap-platform-staff.mjs <email> <first> <last> [--password <pw>]
+ *   node scripts/bootstrap-platform-staff.mjs <email> <first> <last> --password <pw>
  *
  * Credentials: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from .env.local
  * (or the environment). The service role is required because user creation
@@ -48,8 +48,9 @@ const lastName = args[2];
 const passwordFlag = args.indexOf("--password");
 const password = passwordFlag >= 0 ? args[passwordFlag + 1] : undefined;
 
-if (!email || !firstName || !lastName) {
-  console.error("Usage: node scripts/bootstrap-platform-staff.mjs <email> <first> <last> [--password <pw>]");
+if (!email || !firstName || !lastName || !password) {
+  console.error("Usage: node scripts/bootstrap-platform-staff.mjs <email> <first> <last> --password <pw>");
+  console.error("--password is required so staff accounts are never created with a lost random password.");
   process.exit(1);
 }
 
@@ -96,7 +97,7 @@ async function main() {
       headers: jsonHeaders,
       body: JSON.stringify({
         email,
-        password: password || `${crypto.randomUUID().slice(0, 12)}!A1`,
+        password,
         email_confirm: true,
         user_metadata: { full_name: `${firstName} ${lastName}`, staff: true },
       }),

@@ -1,7 +1,7 @@
 /**
  * Auto tenant provisioning for SecureTrack ERP.
  * Creates tenant → company → branch → admin membership → modules → flags → setup wizard.
- * Admin auth user is created when service role is available (API route).
+ * Admin auth user creation is REQUIRED - provisioning fails if it cannot be created.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -29,6 +29,12 @@ export async function provisionTenant(
   sb: SupabaseClient,
   input: ProvisionTenantInput
 ): Promise<{ job: ProvisioningJob; tenantId: string; companyId: string; steps: ProvisionStep[] }> {
+  // The tenant is unusable without a working administrator login.
+  // Require an explicit password so we never generate one the caller cannot
+  // see (a generated temp password = permanent "invalid credentials" lockout).
+  if (!input.admin_password || input.admin_password.length < 8) {
+    throw new Error("admin_password (min 8 characters) is required to provision a tenant");
+  }
   const steps: ProvisionStep[] = [];
   const code = jobCode();
   const slug = input.slug || slugify(input.organization_name);
@@ -219,84 +225,73 @@ export async function provisionTenant(
     });
     steps[steps.length - 1] = step("event", "Emit provisioned event", "completed");
 
-    // 9. Admin user (if service role supports auth.admin)
+    // 9. Admin user (required - tenant is unusable without a working admin login)
     steps.push(step("admin", "Create administrator", "running"));
     let adminUserId: string | null = null;
     try {
-      if (typeof sb.auth.admin?.createUser === "function") {
-        const password =
-          input.admin_password ||
-          `St${Math.random().toString(36).slice(2, 8)}!${Date.now().toString().slice(-4)}`;
-        const { data: created, error: uErr } = await sb.auth.admin.createUser({
+      if (typeof sb.auth.admin?.createUser !== "function") {
+        throw new Error("Service role required for auth.admin user creation");
+      }
+      const password = input.admin_password as string;
+      const { data: created, error: uErr } = await sb.auth.admin.createUser({
+        email: input.admin_email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: input.admin_name || "Administrator",
+          tenant_id: tenant.id,
+        },
+      });
+      if (uErr) throw uErr;
+      adminUserId = created.user?.id || null;
+
+      // Resolve super_administrator or any system role
+      const { data: role } = await sb
+        .from("roles")
+        .select("id")
+        .eq("slug", "super_administrator")
+        .maybeSingle();
+
+      if (adminUserId && role?.id) {
+        const names = (input.admin_name || "Tenant Admin").split(" ");
+        await sb.from("user_profiles").upsert({
+          id: adminUserId,
+          company_id: company.id,
+          active_company_id: company.id,
+          tenant_id: tenant.id,
+          role_id: role.id,
+          first_name: names[0] || "Admin",
+          last_name: names.slice(1).join(" ") || "User",
           email: input.admin_email,
-          password,
-          email_confirm: true,
-          user_metadata: {
-            full_name: input.admin_name || "Administrator",
-            tenant_id: tenant.id,
-          },
+          is_active: true,
+          is_platform_admin: false,
         });
-        if (uErr) throw uErr;
-        adminUserId = created.user?.id || null;
 
-        // Resolve super_administrator or any system role
-        const { data: role } = await sb
-          .from("roles")
-          .select("id")
-          .eq("slug", "super_administrator")
-          .maybeSingle();
-
-        if (adminUserId && role?.id) {
-          const names = (input.admin_name || "Tenant Admin").split(" ");
-          await sb.from("user_profiles").upsert({
-            id: adminUserId,
+        await sb.from("user_company_memberships").upsert(
+          {
+            user_id: adminUserId,
             company_id: company.id,
-            active_company_id: company.id,
             tenant_id: tenant.id,
             role_id: role.id,
-            first_name: names[0] || "Admin",
-            last_name: names.slice(1).join(" ") || "User",
-            email: input.admin_email,
-            is_active: true,
-            is_platform_admin: false,
-          });
-
-          await sb.from("user_company_memberships").upsert(
-            {
-              user_id: adminUserId,
-              company_id: company.id,
-              tenant_id: tenant.id,
-              role_id: role.id,
-              is_default: true,
-              status: "active",
-            },
-            { onConflict: "user_id,company_id" }
-          );
-
-          await sb
-            .from("tenant_setup_progress")
-            .update({ status: "completed", completed_at: new Date().toISOString() })
-            .eq("tenant_id", tenant.id)
-            .eq("step_key", "admin");
-        }
-
-        steps[steps.length - 1] = step(
-          "admin",
-          "Create administrator",
-          "completed",
-          adminUserId || "created"
+            is_default: true,
+            status: "active",
+          },
+          { onConflict: "user_id,company_id" }
         );
 
-        // Store temp password only in job result (not returned to browser unless API allows)
-        (jobRow as { _tempPassword?: string })._tempPassword = password;
-      } else {
-        steps[steps.length - 1] = step(
-          "admin",
-          "Create administrator",
-          "skipped",
-          "Service role required for auth.admin"
-        );
+        await sb
+          .from("tenant_setup_progress")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("tenant_id", tenant.id)
+          .eq("step_key", "admin");
       }
+
+      steps[steps.length - 1] = step(
+        "admin",
+        "Create administrator",
+        "completed",
+        adminUserId || "created"
+      );
     } catch (e) {
       steps[steps.length - 1] = step(
         "admin",
@@ -304,6 +299,11 @@ export async function provisionTenant(
         "failed",
         e instanceof Error ? e.message : "Admin create failed"
       );
+
+      // A tenant without an auth user is unreachable ("invalid login
+      // credentials" for every admin). Fail the job loudly so the caller
+      // sees the real error instead of a false "provisioned" response.
+      throw e;
     }
 
     const result = {

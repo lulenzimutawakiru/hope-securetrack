@@ -53,6 +53,10 @@ export default function ProvisioningPage() {
       toast.error("Organization and admin email required");
       return;
     }
+    if (!form.admin_password || form.admin_password.length < 8) {
+      toast.error("Admin password (min 8 characters) is required for the new tenant");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/public/platform/provision", {
@@ -163,9 +167,11 @@ export default function ProvisioningPage() {
               />
             </div>
             <div>
-              <Label>Temp password</Label>
+              <Label>Admin password</Label>
               <Input
                 type="password"
+                required
+                minLength={8}
                 value={form.admin_password}
                 onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
                 placeholder="Min 8 characters"

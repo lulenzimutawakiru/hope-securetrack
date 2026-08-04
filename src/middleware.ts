@@ -172,6 +172,8 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/register") ||
       pathname.startsWith("/portal") ||
       pathname.startsWith("/api/public") ||
+      pathname.startsWith("/forgot-password") ||
+      pathname.startsWith("/reset-password") ||
       pathname.startsWith("/api/health") ||
       pathname.startsWith("/api/attendance/devices") ||
       // Slack Events API (signature verified in route)
@@ -240,7 +242,9 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/careers") ||
       pathname.startsWith("/portal") ||
       pathname.startsWith("/login") ||
-      pathname.startsWith("/register")
+      pathname.startsWith("/register") ||
+      pathname.startsWith("/forgot-password") ||
+      pathname.startsWith("/reset-password")
     ) {
       return applySecurityHeaders(NextResponse.next({ request }));
     }
