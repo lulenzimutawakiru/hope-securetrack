@@ -668,16 +668,46 @@ export async function convertMessageToTicket(input: {
 }
 
 export async function listCompanyUsers(companyId: string) {
-  const { data, error } = await sb()
-    .from("user_profiles")
-    .select("id, first_name, last_name, email, avatar_url, job_title, department_code")
-    .eq("company_id", companyId)
-    .is("deleted_at", null)
-    .order("first_name", { ascending: true });
-  if (error) throw error;
+  // Only columns that exist on user_profiles (no department_code — that is not a profile column).
+  const base = () =>
+    sb()
+      .from("user_profiles")
+      .select("id, first_name, last_name, email, avatar_url, job_title, is_active")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .order("first_name", { ascending: true });
+
+  let { data, error } = await base().is("deleted_at", null);
+
+  // Older schemas without soft-delete: retry without deleted_at filter
+  if (
+    error &&
+    /deleted_at|column .* does not exist|42703/i.test(
+      `${error.message || ""} ${error.code || ""}`
+    )
+  ) {
+    const retry = await base();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) {
+    throw new Error(
+      error.message || "Could not load company people for direct messages"
+    );
+  }
+
   return (data || []).map((u) => ({
-    ...u,
-    name: `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email || "User",
+    id: u.id as string,
+    first_name: u.first_name as string | null,
+    last_name: u.last_name as string | null,
+    email: u.email as string | null,
+    avatar_url: u.avatar_url as string | null,
+    job_title: u.job_title as string | null,
+    name:
+      `${u.first_name || ""} ${u.last_name || ""}`.trim() ||
+      (u.email as string) ||
+      "User",
   }));
 }
 

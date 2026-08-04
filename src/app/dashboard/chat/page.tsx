@@ -103,6 +103,7 @@ export default function SecureChatPage() {
   const [newChannelName, setNewChannelName] = useState("");
   const [dmOpen, setDmOpen] = useState(false);
   const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [typingPeers, setTypingPeers] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -351,14 +352,23 @@ export default function SecureChatPage() {
   };
 
   const openDmPanel = async () => {
-    setDmOpen((v) => !v);
-    if (!users.length && companyId) {
-      try {
-        const u = await listCompanyUsers(companyId);
-        setUsers(u.filter((x) => x.id !== userId));
-      } catch {
-        toast.error("Could not load people");
+    const opening = !dmOpen;
+    setDmOpen(opening);
+    if (!opening) return;
+    if (users.length || !companyId) return;
+    setUsersLoading(true);
+    try {
+      const u = await listCompanyUsers(companyId);
+      setUsers(u.filter((x) => x.id !== userId));
+      if (u.filter((x) => x.id !== userId).length === 0) {
+        toast.message("No other active users found in your company");
       }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not load people"
+      );
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -510,8 +520,12 @@ export default function SecureChatPage() {
           {dmOpen && (
             <div className="border-b max-h-48 overflow-y-auto">
               <p className="px-3 pt-2 text-[11px] font-semibold text-muted-foreground">Start a direct message</p>
-              {users.length === 0 ? (
+              {usersLoading ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">Loading people...</p>
+              ) : users.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">
+                  No colleagues available. Ensure other users are active in this company.
+                </p>
               ) : (
                 users.map((u) => (
                   <button
@@ -522,6 +536,11 @@ export default function SecureChatPage() {
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
                     <span className="truncate">{u.name}</span>
+                    {u.email ? (
+                      <span className="truncate text-[10px] text-muted-foreground ml-auto">
+                        {u.email}
+                      </span>
+                    ) : null}
                   </button>
                 ))
               )}
