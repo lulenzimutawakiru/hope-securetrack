@@ -1,4 +1,13 @@
-import { createClient } from "@/lib/supabase/crud-compat";
+/**
+ * SecureChat data layer — uses the browser Supabase client intentionally.
+ *
+ * Chat is RLS + auth.uid() + membership-driven (is_hc_channel_member). DM
+ * channel create, membership upsert (onConflict channel_id,user_id), message
+ * INSERT…RETURNING, and Storage attachments all require the real session
+ * client. Routing through crud-compat breaks DMs (wrong entity perms, no
+ * composite upsert, storage not supported).
+ */
+import { createClient } from "@/lib/supabase/client";
 import { chatAssist, handleBotCommand } from "./ai";
 import type { ChatMessageInput } from "./types";
 
@@ -222,7 +231,7 @@ export async function createChannel(input: {
     .insert({
       company_id: input.company_id,
       name: input.name,
-      slug,
+      slug: slug || `dm-${Date.now()}`,
       channel_type: input.channel_type || "channel",
       description: input.description,
       is_private: input.is_private || false,
@@ -230,18 +239,28 @@ export async function createChannel(input: {
     })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) throw chatWriteError(error, "create channel");
 
   const members = new Set(input.member_ids || []);
   if (input.created_by) members.add(input.created_by);
 
-  for (const uid of members) {
-    await sb().from("hc_channel_members").insert({
+  // Insert creator first so SELECT policies that key on membership/created_by
+  // stay happy; then remaining members.
+  const ordered = [
+    ...[...members].filter((uid) => uid === input.created_by),
+    ...[...members].filter((uid) => uid !== input.created_by),
+  ];
+  for (const uid of ordered) {
+    const { error: memErr } = await sb().from("hc_channel_members").insert({
       company_id: input.company_id,
       channel_id: data.id,
       user_id: uid,
       role: uid === input.created_by ? "owner" : "member",
     });
+    if (memErr && !/duplicate|unique|23505/i.test(memErr.message || "")) {
+      // Non-fatal for non-creator members if RLS blocks (other user may join later)
+      if (uid === input.created_by) throw chatWriteError(memErr, "join channel");
+    }
   }
 
   await logHcAudit({
@@ -263,11 +282,20 @@ export async function startDm(input: {
   other_id: string;
   other_name: string;
 }) {
-  // Find existing DM between users
-  const { data: myMemberships } = await sb()
+  if (!input.self_id || !input.other_id) {
+    throw new Error("Both participants are required to start a direct message");
+  }
+  if (input.self_id === input.other_id) {
+    throw new Error("Cannot start a direct message with yourself");
+  }
+
+  // Find existing DM between users (same company)
+  const { data: myMemberships, error: memErr } = await sb()
     .from("hc_channel_members")
     .select("channel_id")
-    .eq("user_id", input.self_id);
+    .eq("user_id", input.self_id)
+    .eq("company_id", input.company_id);
+  if (memErr) throw chatWriteError(memErr, "open DM");
 
   for (const m of myMemberships || []) {
     const { data: ch } = await sb()
@@ -275,6 +303,8 @@ export async function startDm(input: {
       .select("*")
       .eq("id", m.channel_id)
       .eq("channel_type", "dm")
+      .eq("company_id", input.company_id)
+      .is("deleted_at", null)
       .maybeSingle();
     if (!ch) continue;
     const { data: other } = await sb()
@@ -287,14 +317,23 @@ export async function startDm(input: {
   }
 
   const name = [input.self_name, input.other_name].filter(Boolean).join("  ·  ");
-  return createChannel({
-    company_id: input.company_id,
-    name: name || "Direct message",
-    channel_type: "dm",
-    is_private: true,
-    created_by: input.self_id,
-    member_ids: [input.self_id, input.other_id],
-  });
+  try {
+    return await createChannel({
+      company_id: input.company_id,
+      name: name || "Direct message",
+      channel_type: "dm",
+      is_private: true,
+      created_by: input.self_id,
+      member_ids: [input.self_id, input.other_id],
+    });
+  } catch (e) {
+    throw e instanceof Error
+      ? e
+      : chatWriteError(
+          { message: e instanceof Error ? e.message : String(e) },
+          "create DM"
+        );
+  }
 }
 
 export async function markChannelRead(input: {
@@ -315,6 +354,7 @@ export async function ensureChannelMembership(input: {
   channel_id: string;
   user_id: string;
 }) {
+  // Prefer idempotent upsert; fall back to select→insert for older clients.
   const { error } = await sb()
     .from("hc_channel_members")
     .upsert(
@@ -327,11 +367,32 @@ export async function ensureChannelMembership(input: {
       },
       { onConflict: "channel_id,user_id", ignoreDuplicates: true }
     );
-  if (error) {
+  if (!error) return;
+
+  // Already a member — success
+  const { data: existing } = await sb()
+    .from("hc_channel_members")
+    .select("id")
+    .eq("channel_id", input.channel_id)
+    .eq("user_id", input.user_id)
+    .maybeSingle();
+  if (existing) return;
+
+  const { error: insErr } = await sb().from("hc_channel_members").insert({
+    company_id: input.company_id,
+    channel_id: input.channel_id,
+    user_id: input.user_id,
+    role: "member",
+    joined_at: new Date().toISOString(),
+  });
+  if (insErr) {
     // Membership is best-effort for public channels (RLS may still allow
     // insert via the public-channel policy). Surface only hard auth failures.
-    if (/row-level security|permission denied|42501/i.test(error.message || "")) {
-      throw chatWriteError(error, "join channel");
+    if (
+      /row-level security|permission denied|42501/i.test(insErr.message || "") ||
+      /row-level security|permission denied|42501/i.test(error.message || "")
+    ) {
+      throw chatWriteError(insErr, "join channel");
     }
   }
 }

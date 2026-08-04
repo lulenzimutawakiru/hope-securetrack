@@ -8,7 +8,11 @@
  * caller's company + tenant.
  */
 
-import { createClient } from "@/lib/supabase/crud-compat";
+/**
+ * SecureChat enterprise helpers — browser Supabase client (session RLS).
+ * See service.ts for why chat is not routed through crud-compat.
+ */
+import { createClient } from "@/lib/supabase/client";
 import { logHcAudit } from "./service";
 
 export const APPROVAL_TYPES = [

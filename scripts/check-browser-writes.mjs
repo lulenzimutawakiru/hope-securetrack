@@ -27,6 +27,9 @@ const ALLOWLIST = new Set([
   "src/lib/offline/sync.ts",
   // Storage object API requires browser Supabase; table registry uses CRUD
   "src/lib/storage/upload.ts",
+  // SecureChat: RLS membership + auth.uid() + Storage + composite upsert
+  "src/lib/hopechat/service.ts",
+  "src/lib/hopechat/enterprise.ts",
 ]);
 
 /** Server-side modules that must not use the browser client for writes (enforced). */
@@ -50,10 +53,7 @@ const LIB_ENFORCED = [
   "src/lib/digital-identity/service.ts",
   "src/lib/dispatch/service.ts",
   "src/lib/fleet/service.ts",
-  "src/lib/hopechat/service.ts",
-  "src/lib/hopechat/enterprise.ts",
-  "src/lib/idm/service.ts",
-  "src/lib/idm/governance.ts",
+  "src/lib/idm/service.ts",  "src/lib/idm/governance.ts",
   "src/lib/lbl/service.ts",
   "src/lib/mes/service.ts",
   "src/lib/packaging/service.ts",

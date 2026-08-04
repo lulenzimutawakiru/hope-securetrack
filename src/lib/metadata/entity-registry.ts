@@ -3896,16 +3896,17 @@ defineEntity("fleet_odometer_logs", "fleet_odometer_logs", "fleet", { view: "fle
 defineEntity("fleet_trips", "fleet_trips", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
 defineEntity("fleet_vehicle_assignments", "fleet_vehicle_assignments", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
 defineEntity("fleet_work_orders", "fleet_work_orders", "fleet", { view: "fleet.view", create: "fleet.manage", update: "fleet.manage", delete: "fleet.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_announcement_acks", "hc_announcement_acks", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_announcements", "hc_announcements", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_audit_log", "hc_audit_log", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_channel_members", "hc_channel_members", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_channels", "hc_channels", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_chat_tasks", "hc_chat_tasks", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_files", "hc_files", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_meetings", "hc_meetings", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_messages", "hc_messages", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
-defineEntity("hc_reactions", "hc_reactions", "sd", { view: "sd.view", create: "sd.manage", update: "sd.manage", delete: "sd.admin" }, { softDelete: true, searchable: [] });
+// HopeChat entities — hc.* permissions (not service-desk). Prefer browser RLS path.
+defineEntity("hc_announcement_acks", "hc_announcement_acks", "hc", { view: "hc.view", create: "hc.view", update: "hc.view", delete: "hc.manage" }, { softDelete: true, searchable: [] });
+defineEntity("hc_announcements", "hc_announcements", "hc", { view: "hc.view", create: "hc.manage", update: "hc.manage", delete: "hc.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_audit_log", "hc_audit_log", "hc", { view: "hc.view", create: "hc.view", update: "hc.manage", delete: "hc.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_channel_members", "hc_channel_members", "hc", { view: "hc.view", create: "hc.view", update: "hc.view", delete: "hc.manage" }, { softDelete: true, searchable: [] });
+defineEntity("hc_channels", "hc_channels", "hc", { view: "hc.view", create: "hc.view", update: "hc.manage", delete: "hc.admin" }, { softDelete: true, searchable: [] });
+defineEntity("hc_chat_tasks", "hc_chat_tasks", "hc", { view: "hc.view", create: "hc.view", update: "hc.view", delete: "hc.manage" }, { softDelete: true, searchable: [] });
+defineEntity("hc_files", "hc_files", "hc", { view: "hc.view", create: "hc.view", update: "hc.view", delete: "hc.manage" }, { softDelete: true, searchable: [] });
+defineEntity("hc_meetings", "hc_meetings", "hc", { view: "hc.view", create: "hc.meetings", update: "hc.meetings", delete: "hc.manage" }, { softDelete: true, searchable: [] });
+defineEntity("hc_messages", "hc_messages", "hc", { view: "hc.view", create: "hc.view", update: "hc.view", delete: "hc.manage" }, { softDelete: true, searchable: [] });
+defineEntity("hc_reactions", "hc_reactions", "hc", { view: "hc.view", create: "hc.view", update: "hc.view", delete: "hc.view" }, { softDelete: true, searchable: [] });
 defineEntity("idm_api_accounts", "idm_api_accounts", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
 defineEntity("idm_api_keys", "idm_api_keys", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
 defineEntity("idm_audit", "idm_audit", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-04T04:34:14.697Z",
+  "generatedAt": "2026-08-04T04:44:46.395Z",
   "uiViolations": 0,
   "libEnforcedViolations": 0,
   "libDebtViolations": 0,
@@ -13,6 +13,8 @@
     "src/app/dashboard/chat/notifications/page.tsx",
     "src/lib/offline/db.ts",
     "src/lib/offline/sync.ts",
-    "src/lib/storage/upload.ts"
+    "src/lib/storage/upload.ts",
+    "src/lib/hopechat/service.ts",
+    "src/lib/hopechat/enterprise.ts"
   ]
 }
