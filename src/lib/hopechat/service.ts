@@ -299,9 +299,12 @@ export async function startDm(input: {
         other_name: input.other_name,
       }
     );
-    if (res.ok && res.data.channel) return res.data.channel;
-    if (res.status === 400 || res.status === 403) {
-      throw new Error(res.error);
+    if (!res.ok) {
+      if (res.status === 400 || res.status === 403) {
+        throw new Error(res.error);
+      }
+    } else if (res.data.channel) {
+      return res.data.channel;
     }
   } catch (e) {
     if (e instanceof Error && /yourself|required|permission|RLS|not an active/i.test(e.message)) {

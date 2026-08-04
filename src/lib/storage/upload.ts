@@ -196,7 +196,7 @@ export async function uploadAvatar(
     uploadedBy: userId,
     fixedName: userId,
   });
-  await sb()
+  await storageClient()
     .from("user_profiles")
     .update({ avatar_url: result.publicUrl, updated_at: new Date().toISOString() })
     .eq("id", userId);
@@ -232,14 +232,14 @@ export async function uploadCompanyLogo(
     fixedName: `${companyId}-${field}`,
   });
 
-  await sb()
+  await storageClient()
     .from("companies")
     .update({ [field]: result.publicUrl, updated_at: new Date().toISOString() })
     .eq("id", companyId);
 
   // Keep branding table in sync when present
   try {
-    await sb()
+    await storageClient()
       .from("ec_company_branding")
       .upsert(
         {

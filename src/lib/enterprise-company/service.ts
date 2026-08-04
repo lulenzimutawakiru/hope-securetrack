@@ -141,7 +141,7 @@ export async function updateCompany(
   patch: Record<string, unknown>,
   actorId?: string | null
 ) {
-  const body = { ...patch, updated_by: actorId || null };
+  const body: Record<string, unknown> = { ...patch, updated_by: actorId || null };
   delete body.id;
   delete body.company_id;
   delete body.tenant_id;
@@ -525,7 +525,7 @@ export async function importOrgNodes(
           sort_order: Number.isNaN(sortOrder) ? 0 : sortOrder,
           is_active: isActive,
         });
-        byCode.set(code, created as Record<string, unknown>);
+        byCode.set(code, created as unknown as OrgNodeLike);
         result.created++;
       }
     } catch (e) {

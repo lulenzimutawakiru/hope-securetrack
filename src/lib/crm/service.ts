@@ -985,7 +985,7 @@ export async function getCrmDashboardStats() {
   const openOpps = opps.filter(
     (o) => o.stage !== "won" && o.stage !== "lost"
   );
-  const pipeline = openOpps.reduce(
+  const pipeline = openOpps.reduce<{ total: number; weighted: number; count: number }>(
     (acc, o) => {
       acc.total += Number(o.expected_value || 0);
       acc.weighted += Number(

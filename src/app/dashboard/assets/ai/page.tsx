@@ -45,7 +45,7 @@ export default function AssetAiPage() {
       const now = Date.now();
       const warrantyExpiring = list.filter((a) => {
         if (!a.warranty_end) return false;
-        const t = new Date(a.warranty_end).getTime();
+        const t = new Date(String(a.warranty_end)).getTime();
         return t > now && t - now < 90 * 24 * 3600 * 1000;
       }).length;
       const totalValue = list.reduce((s, a) => s + Number(a.current_value || 0), 0);

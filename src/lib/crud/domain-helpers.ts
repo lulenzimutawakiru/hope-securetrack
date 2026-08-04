@@ -13,7 +13,7 @@ import {
   crudUpdate,
 } from "@/lib/api/crud-client";
 
-export async function mustCreate<T = Record<string, unknown>>(
+export async function mustCreate<T = any>(
   entity: string,
   body: Record<string, unknown>
 ): Promise<T> {
@@ -22,7 +22,7 @@ export async function mustCreate<T = Record<string, unknown>>(
   return res.data;
 }
 
-export async function mustUpdate<T = Record<string, unknown>>(
+export async function mustUpdate<T = any>(
   entity: string,
   id: string,
   body: Record<string, unknown>
@@ -32,7 +32,7 @@ export async function mustUpdate<T = Record<string, unknown>>(
   return res.data;
 }
 
-export async function mustList<T = Record<string, unknown>>(
+export async function mustList<T = any>(
   entity: string,
   opts?: {
     pageSize?: number;
@@ -57,7 +57,7 @@ export async function mustList<T = Record<string, unknown>>(
   return res.data.data;
 }
 
-export async function mustGet<T = Record<string, unknown>>(
+export async function mustGet<T = any>(
   entity: string,
   id: string
 ): Promise<T> {

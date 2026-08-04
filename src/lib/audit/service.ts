@@ -430,7 +430,7 @@ export async function verifyIntegrityChain(companyId: string, limit = 200) {
   const count = await crudCount("eal_integrity_checkpoints");
   const root =
     all.length > 0
-      ? all[all.length - 1].integrity_hash
+      ? String(all[all.length - 1].integrity_hash ?? "")
       : "GENESIS";
 
   await mustCreate("eal_integrity_checkpoints", {
