@@ -104,6 +104,8 @@ export default function SecureChatPage() {
   const [dmOpen, setDmOpen] = useState(false);
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [dmSearch, setDmSearch] = useState("");
+  const [dmStartingId, setDmStartingId] = useState<string | null>(null);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [typingPeers, setTypingPeers] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -351,29 +353,42 @@ export default function SecureChatPage() {
     }
   };
 
+  const loadDmPeople = useCallback(
+    async (search?: string) => {
+      if (!companyId) {
+        toast.error("No company context — sign in again");
+        return;
+      }
+      setUsersLoading(true);
+      try {
+        const u = await listCompanyUsers(companyId, { search });
+        const others = u.filter((x) => x.id !== userId);
+        setUsers(others);
+        if (!search && others.length === 0) {
+          toast.message("No other active users found in your company");
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Could not load people"
+        );
+      } finally {
+        setUsersLoading(false);
+      }
+    },
+    [companyId, userId]
+  );
+
   const openDmPanel = async () => {
     const opening = !dmOpen;
     setDmOpen(opening);
     if (!opening) return;
-    if (users.length || !companyId) return;
-    setUsersLoading(true);
-    try {
-      const u = await listCompanyUsers(companyId);
-      setUsers(u.filter((x) => x.id !== userId));
-      if (u.filter((x) => x.id !== userId).length === 0) {
-        toast.message("No other active users found in your company");
-      }
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Could not load people"
-      );
-    } finally {
-      setUsersLoading(false);
-    }
+    setDmSearch("");
+    await loadDmPeople();
   };
 
   const startDmWith = async (u: CompanyUser) => {
     if (!companyId || !userId) return;
+    setDmStartingId(u.id);
     try {
       const ch = await startDm({
         company_id: companyId,
@@ -384,9 +399,13 @@ export default function SecureChatPage() {
       });
       setActiveId(String(ch.id));
       setDmOpen(false);
+      setDmSearch("");
+      toast.success(`DM with ${u.name}`);
       await loadChannels();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not start DM");
+    } finally {
+      setDmStartingId(null);
     }
   };
 
@@ -518,31 +537,81 @@ export default function SecureChatPage() {
             </div>
           </div>
           {dmOpen && (
-            <div className="border-b max-h-48 overflow-y-auto">
-              <p className="px-3 pt-2 text-[11px] font-semibold text-muted-foreground">Start a direct message</p>
+            <div className="border-b max-h-56 overflow-y-auto">
+              <div className="px-3 pt-2 pb-1 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Start a direct message
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1.5 text-[10px]"
+                  disabled={usersLoading}
+                  onClick={() => loadDmPeople(dmSearch)}
+                >
+                  {usersLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Refresh"
+                  )}
+                </Button>
+              </div>
+              <div className="px-2 pb-1">
+                <Input
+                  className="h-7 text-xs"
+                  placeholder="Search name or email…"
+                  value={dmSearch}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDmSearch(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void loadDmPeople(dmSearch);
+                    }
+                  }}
+                />
+              </div>
               {usersLoading ? (
-                <p className="px-3 py-2 text-xs text-muted-foreground">Loading people...</p>
+                <p className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading people…
+                </p>
               ) : users.length === 0 ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">
-                  No colleagues available. Ensure other users are active in this company.
+                  No colleagues found. Need other active users in this company
+                  with chat access (hc.view).
                 </p>
               ) : (
-                users.map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => startDmWith(u)}
-                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted/60 flex items-center gap-2"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
-                    <span className="truncate">{u.name}</span>
-                    {u.email ? (
-                      <span className="truncate text-[10px] text-muted-foreground ml-auto">
-                        {u.email}
-                      </span>
-                    ) : null}
-                  </button>
-                ))
+                users
+                  .filter((u) => {
+                    if (!dmSearch.trim()) return true;
+                    const s = dmSearch.trim().toLowerCase();
+                    return (
+                      u.name.toLowerCase().includes(s) ||
+                      (u.email || "").toLowerCase().includes(s)
+                    );
+                  })
+                  .map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      disabled={dmStartingId === u.id}
+                      onClick={() => startDmWith(u)}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted/60 flex items-center gap-2 disabled:opacity-60"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                      <span className="truncate">{u.name}</span>
+                      {u.email ? (
+                        <span className="truncate text-[10px] text-muted-foreground ml-auto">
+                          {u.email}
+                        </span>
+                      ) : null}
+                      {dmStartingId === u.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                      ) : null}
+                    </button>
+                  ))
               )}
             </div>
           )}

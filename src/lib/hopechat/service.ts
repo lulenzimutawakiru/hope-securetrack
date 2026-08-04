@@ -289,7 +289,28 @@ export async function startDm(input: {
     throw new Error("Cannot start a direct message with yourself");
   }
 
-  // Find existing DM between users (same company)
+  // Prefer authenticated API (session company + RLS)
+  try {
+    const { apiPost } = await import("@/lib/api-client");
+    const res = await apiPost<{ channel: Record<string, unknown> }>(
+      "/api/v2/hopechat/dm",
+      {
+        other_user_id: input.other_id,
+        other_name: input.other_name,
+      }
+    );
+    if (res.ok && res.data.channel) return res.data.channel;
+    if (res.status === 400 || res.status === 403) {
+      throw new Error(res.error);
+    }
+  } catch (e) {
+    if (e instanceof Error && /yourself|required|permission|RLS|not an active/i.test(e.message)) {
+      throw e;
+    }
+    // Fall through to browser path
+  }
+
+  // Browser RLS path
   const { data: myMemberships, error: memErr } = await sb()
     .from("hc_channel_members")
     .select("channel_id")
@@ -667,19 +688,56 @@ export async function convertMessageToTicket(input: {
   }
 }
 
-export async function listCompanyUsers(companyId: string) {
-  // Only columns that exist on user_profiles (no department_code — that is not a profile column).
+/**
+ * List company colleagues for the DM picker.
+ * Prefer session API (tenant-safe); fall back to browser RLS query.
+ */
+export async function listCompanyUsers(
+  companyId: string,
+  opts: { search?: string } = {}
+) {
+  void companyId; // company always from session on API path
+  try {
+    const { apiGet } = await import("@/lib/api-client");
+    const q = new URLSearchParams();
+    if (opts.search) q.set("search", opts.search);
+    q.set("limit", "100");
+    const qs = q.toString();
+    const res = await apiGet<{ people: Array<Record<string, unknown>> }>(
+      `/api/v2/hopechat/people${qs ? `?${qs}` : ""}`
+    );
+    if (res.ok) {
+      return (res.data.people || []).map((u) => ({
+        id: String(u.id),
+        first_name: (u.first_name as string | null) ?? null,
+        last_name: (u.last_name as string | null) ?? null,
+        email: (u.email as string | null) ?? null,
+        avatar_url: (u.avatar_url as string | null) ?? null,
+        job_title: (u.job_title as string | null) ?? null,
+        name: String(u.name || u.email || "User"),
+      }));
+    }
+    // Fall through to browser if API denies (e.g. missing hc.view in route gate)
+    if (res.status !== 403 && res.status !== 401) {
+      throw new Error(res.error);
+    }
+  } catch (e) {
+    if (e instanceof Error && !/fetch|Network|Failed to fetch/i.test(e.message)) {
+      // keep trying browser fallback for soft failures
+    }
+  }
+
+  // Browser RLS fallback (no department_code — column does not exist)
   const base = () =>
     sb()
       .from("user_profiles")
       .select("id, first_name, last_name, email, avatar_url, job_title, is_active")
       .eq("company_id", companyId)
       .eq("is_active", true)
-      .order("first_name", { ascending: true });
+      .order("first_name", { ascending: true })
+      .limit(100);
 
   let { data, error } = await base().is("deleted_at", null);
-
-  // Older schemas without soft-delete: retry without deleted_at filter
   if (
     error &&
     /deleted_at|column .* does not exist|42703/i.test(
@@ -690,14 +748,13 @@ export async function listCompanyUsers(companyId: string) {
     data = retry.data;
     error = retry.error;
   }
-
   if (error) {
     throw new Error(
       error.message || "Could not load company people for direct messages"
     );
   }
 
-  return (data || []).map((u) => ({
+  let people = (data || []).map((u) => ({
     id: u.id as string,
     first_name: u.first_name as string | null,
     last_name: u.last_name as string | null,
@@ -709,6 +766,16 @@ export async function listCompanyUsers(companyId: string) {
       (u.email as string) ||
       "User",
   }));
+
+  const search = opts.search?.trim().toLowerCase();
+  if (search) {
+    people = people.filter(
+      (p) =>
+        p.name.toLowerCase().includes(search) ||
+        (p.email || "").toLowerCase().includes(search)
+    );
+  }
+  return people;
 }
 
 function safeFileName(name: string): string {
