@@ -53,9 +53,11 @@ export type MtnKycErrorPayload = {
 /** MADAPI statusCode on error bodies (swagger examples) */
 export type MadapiStatusCode =
   | "0000" // success
+  | "1000" // 404 Not Found
+  | "3000" // 405/406/415 Method Not Allowed / Not Acceptable / Unsupported Media
   | "4000" // 401 Unauthorized
   | "4001" // 403 Forbidden
-  | "4004" // 404 Not Found
+  | "4004" // 404 alternate
   | "5000" // 400 Bad Request
   | "5001" // validation
   | string;

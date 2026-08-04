@@ -130,13 +130,19 @@ export const POST = createApiHandler(
             ? "FORBIDDEN"
             : http === 404
               ? "NOT_FOUND"
-              : http === 400
+              : http === 400 ||
+                  http === 405 ||
+                  http === 406 ||
+                  http === 415
                 ? "VALIDATION"
                 : "INTERNAL";
+        // Preserve MTN HTTP status (incl. 405/406/415); clamp only transport failures
+        const statusOut =
+          http && http >= 400 && http < 600 ? http : 502;
         return apiError(
           code,
           out.result.error,
-          http && http >= 400 ? http : 502,
+          statusOut,
           {
             transaction_id: out.transactionId,
             audit_id: out.auditId,

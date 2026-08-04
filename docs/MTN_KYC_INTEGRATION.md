@@ -31,7 +31,11 @@ GET /v1/kycVerification/customers
 | 400 | `5000` | Bad Request + `ErrorPayload` |
 | 401 | `4000` | Unauthorized + `ErrorPayload` |
 | 403 | `4001` | Forbidden + `ErrorPayload` |
-| 404 | `4004` | Not Found + `ErrorPayload` |
+| 404 | `1000` | Not Found + `ErrorPayload` |
+| 405 | `3000` | Method Not Allowed + `ErrorPayload` |
+| 406 | `3000` | Not Acceptable + `ErrorPayload` |
+| 415 | `3000` | Unsupported Media Type + `ErrorPayload` |
+| 500 | (server) | Internal error + `ErrorPayload` |
 
 SecureTrack maps these in `src/lib/mtn-kyc/madapi-codes.ts` and returns `madapi_code` on API errors.
 

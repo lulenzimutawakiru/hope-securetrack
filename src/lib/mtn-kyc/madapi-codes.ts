@@ -16,7 +16,19 @@ export type MadapiCodeInfo = {
   description: string;
 };
 
-/** Known codes from swagger examples + common MADAPI patterns */
+/**
+ * Known codes from swagger examples + common MADAPI patterns.
+ *
+ * Swagger ErrorPayload blocks (examples):
+ *   400 → 5000  Bad Request
+ *   401 → 4000  Unauthorized
+ *   403 → 4001  Forbidden
+ *   404 → 1000  Not Found
+ *   405 → 3000  Method Not Allowed
+ *   406 → 3000  Not Acceptable
+ *   415 → 3000  Unsupported Media Type
+ *   500 → (server; default 5000 family if unspecified)
+ */
 export const MADAPI_STATUS_CODES: Record<string, MadapiCodeInfo> = {
   "0000": {
     code: "0000",
@@ -31,6 +43,21 @@ export const MADAPI_STATUS_CODES: Record<string, MadapiCodeInfo> = {
     severity: "success",
     label: "Success",
     description: "Request completed successfully",
+  },
+  "1000": {
+    code: "1000",
+    httpHint: 404,
+    severity: "not_found",
+    label: "Not Found",
+    description: "Customer or resource was not found (MADAPI 1000)",
+  },
+  "3000": {
+    code: "3000",
+    httpHint: 405,
+    severity: "client",
+    label: "Not Allowed / Not Acceptable",
+    description:
+      "Method not allowed, not acceptable, or unsupported media type (HTTP 405/406/415)",
   },
   "4000": {
     code: "4000",
@@ -51,7 +78,7 @@ export const MADAPI_STATUS_CODES: Record<string, MadapiCodeInfo> = {
     httpHint: 404,
     severity: "not_found",
     label: "Not Found",
-    description: "Customer or resource was not found",
+    description: "Resource not found (alternate MADAPI code)",
   },
   "5000": {
     code: "5000",
@@ -75,7 +102,10 @@ export const HTTP_TO_DEFAULT_MADAPI: Record<number, string> = {
   400: "5000",
   401: "4000",
   403: "4001",
-  404: "4004",
+  404: "1000",
+  405: "3000",
+  406: "3000",
+  415: "3000",
   500: "5000",
   502: "5000",
   503: "5000",
@@ -146,7 +176,15 @@ export function describeMadapiError(
           ? "Forbidden"
           : httpStatus === 404
             ? "Not Found"
-            : `HTTP ${httpStatus}`;
+            : httpStatus === 405
+              ? "Method Not Allowed"
+              : httpStatus === 406
+                ? "Not Acceptable"
+                : httpStatus === 415
+                  ? "Unsupported Media Type"
+                  : httpStatus >= 500
+                    ? "Internal Server Error"
+                    : `HTTP ${httpStatus}`;
 
   return {
     code: code || String(httpStatus),
