@@ -11,6 +11,7 @@ supabase/migrations/20260805000006_service_desk_enterprise.sql
 supabase/migrations/20260805000007_service_desk_ai_cx.sql
 supabase/migrations/20260806000001_servicedesk_rls_numbering_sla.sql
 supabase/migrations/20260806000002_servicedesk_rls_numbering_sla_fix.sql
+supabase/migrations/20260806000003_servicedesk_sla_recalc_tenant_seed.sql
 ```
 
 ### 20260806000001 (ESM security + SLA engine)
@@ -28,6 +29,14 @@ supabase/migrations/20260806000002_servicedesk_rls_numbering_sla_fix.sql
 - **Auto-set triggers** - `sd_ticket_events`, `sd_ai_sessions` derive tenant_id from company
 - **Re-asserts** - `support_tickets` tenant column/FK/trigger/policy and agents-only UPDATE policy (idempotent)
 
+### 20260806000003 (SLA recalc, tenant pass, seeding, webhook ingestion)
+
+- **SLA recalc trigger** - `trg_sla_recalc` on `support_tickets` re-anchors `sla_response_due` / `sla_resolve_due` on status or priority changes (reopen, escalation, re-prioritization); clock stops on closed / resolved / archived / deleted. Insert preserves server-computed due dates.
+- **RLS parity** - `sd_escalation_events` re-asserted to match `sd_ticket_events` (permissive company `_all` + RESTRICTIVE tenant policy).
+- **Tenant pass** - `tenant_id` column + backfill + FK + trigger + RESTRICTIVE policy on `sd_teams`, `sd_agents`, `sd_sla_policies`, `sd_categories`.
+- **Seeding** - default SLA policies (SLA-P1..P4) and escalation rules (`P1 SLA Breach` level 2, `Major Incident` level 3) for every company, with notify roles resolved from actual role slugs.
+- **Numbering preview** - `preview_support_ticket_number(company_id)` non-consuming RPC for the POST-only numbering API.
+
 ## API-first surface
 
 | Method | Path | Purpose |
@@ -36,6 +45,9 @@ supabase/migrations/20260806000002_servicedesk_rls_numbering_sla_fix.sql
 | POST/GET | `/api/v2/servicedesk/inbound` | Omni-channel ingestion + inbox |
 | POST | `/api/v2/servicedesk/ai/triage` | AI triage (+ optional ticket create + LLM enrich) |
 | GET/POST | `/api/v2/servicedesk/sla/cron` | SLA warning/breach + escalation engine (CRON_SECRET) |
+| POST | `/api/v2/servicedesk/webhooks/email` | Shared-secret email-to-ticket ingestion (no session) |
+| POST | `/api/v2/servicedesk/webhooks/whatsapp` | Shared-secret WhatsApp ingestion (no session) |
+| POST | `/api/v2/servicedesk/tickets/number` | Preview next ticket number (non-consuming) |
 
 Cron (Vercel): every 5 min SLA scan; every 2 min job worker.
 

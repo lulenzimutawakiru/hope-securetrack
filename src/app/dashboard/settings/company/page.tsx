@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { FileUpload } from "@/components/ui/file-upload";
 import { createClient } from "@/lib/supabase/client";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 
@@ -123,7 +124,6 @@ export default function CompanySettingsPage() {
     e.preventDefault();
     if (!auth || !form.id) return;
     setSaving(true);
-    const supabase = createClient();
     const payload = {
       name: form.name,
       legal_name: form.legal_name || null,
@@ -146,23 +146,10 @@ export default function CompanySettingsPage() {
       watermark_url: form.watermark_url || null,
       seal_url: form.seal_url || null,
     };
-    const { error } = await supabase
-      .from("companies")
-      .update(payload)
-      .eq("id", form.id);
-    if (error) {
-      toast.error(error.message);
+    const res = await crudUpdate("companies", form.id, payload);
+    if (!res.ok) {
+      toast.error(res.error);
     } else {
-      await supabase.from("config_change_log").insert({
-        company_id: auth.profile.company_id,
-        entity_type: "company",
-        entity_id: form.id,
-        action: "update",
-        field_name: "company_profile",
-        new_value: form.name,
-        changed_by: auth.profile.id,
-        reason: "Company profile updated via Settings",
-      });
       toast.success("Company saved");
     }
     setSaving(false);
@@ -326,10 +313,7 @@ export default function CompanySettingsPage() {
                 onUploaded={async (r) => {
                   set("logo_url", r.publicUrl);
                   if (form.id) {
-                    await createClient()
-                      .from("companies")
-                      .update({ logo_url: r.publicUrl, updated_at: new Date().toISOString() })
-                      .eq("id", form.id);
+                    await crudUpdate("companies", form.id, { logo_url: r.publicUrl });
                   }
                 }}
                 onCleared={() => set("logo_url", "")}
@@ -348,10 +332,7 @@ export default function CompanySettingsPage() {
                 onUploaded={async (r) => {
                   set("seal_url", r.publicUrl);
                   if (form.id) {
-                    await createClient()
-                      .from("companies")
-                      .update({ seal_url: r.publicUrl, updated_at: new Date().toISOString() })
-                      .eq("id", form.id);
+                    await crudUpdate("companies", form.id, { seal_url: r.publicUrl });
                   }
                 }}
                 onCleared={() => set("seal_url", "")}
@@ -369,10 +350,9 @@ export default function CompanySettingsPage() {
                 onUploaded={async (r) => {
                   set("watermark_url", r.publicUrl);
                   if (form.id) {
-                    await createClient()
-                      .from("companies")
-                      .update({ watermark_url: r.publicUrl, updated_at: new Date().toISOString() })
-                      .eq("id", form.id);
+                    await crudUpdate("companies", form.id, {
+                      watermark_url: r.publicUrl,
+                    });
                   }
                 }}
                 onCleared={() => set("watermark_url", "")}

@@ -1,0 +1,295 @@
+{
+  "generatedAt": "2026-08-04T01:19:09.998Z",
+  "totalAdminUsages": 48,
+  "risks": [],
+  "inventory": [
+    {
+      "file": "src/app/api/attendance/devices/heartbeat/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/billing/credit-notes/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/billing/debit-notes/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/email/send/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/finance/journals/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/hr/leave/[id]/approve/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/identity/provision/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/identity/reset-password/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/inventory/adjustments/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/inventory/transfers/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/inventory/transfers/[id]/receive/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/invoices/issue/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/invoices/[id]/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/jobs/worker/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/notifications/dispatch/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/advances/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/advances/[id]/approve/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/benefits/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/bonuses/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/bonuses/[id]/approve/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/loans/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/loans/[id]/approve/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/overtime/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/overtime/[id]/approve/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/process/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/release/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/payroll/structures/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/platform/offboarding/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/print/queue/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/procurement/orders/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/procurement/orders/[id]/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/procurement/requisitions/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/procurement/requisitions/[id]/approve/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/public/billing/webhook/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": false,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/public/careers/apply/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/public/platform/provision/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/public/portal/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/sales/orders/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/app/api/v2/servicedesk/sla/cron/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": false,
+      "expectedAdmin": true
+    },
+    {
+      "file": "src/app/api/workforce/attendance/route.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/attendance/integrations/ingest.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/audit/siem.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/notifications/service.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/payroll/server-ops.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/security/dual-control.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/service-desk/webhook.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": false,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/supabase/admin.ts",
+      "usesScoped": false,
+      "hasCompanyFilter": false,
+      "expectedAdmin": false
+    },
+    {
+      "file": "src/lib/supabase/scoped-admin.ts",
+      "usesScoped": true,
+      "hasCompanyFilter": true,
+      "expectedAdmin": false
+    }
+  ]
+}

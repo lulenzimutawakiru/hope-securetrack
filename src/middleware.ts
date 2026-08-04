@@ -121,6 +121,9 @@ export async function middleware(request: NextRequest) {
   // Rate limit API routes (per IP; Upstash-backed when configured)
   if (pathname.startsWith("/api/") && !isApiRateLimitExempt(pathname)) {
     const ip = getClientIpFromHeaders(request.headers);
+    // Multi-instance production: set RATE_LIMIT_REQUIRE_REDIS=true (or
+    // RATE_LIMIT_FAIL_CLOSED=true) so missing Upstash cannot silently bypass limits.
+    const redisRequired = process.env.RATE_LIMIT_REQUIRE_REDIS === "true";
     const result = await rateLimitRequest(
       `mw:${ip}`,
       apiRateLimitMax(request),
@@ -128,8 +131,7 @@ export async function middleware(request: NextRequest) {
       {
         failClosed:
           process.env.RATE_LIMIT_FAIL_CLOSED === "true" ||
-          (process.env.NODE_ENV === "production" &&
-            process.env.RATE_LIMIT_REQUIRE_REDIS === "true"),
+          (process.env.NODE_ENV === "production" && redisRequired),
       }
     );
     if (!result.allowed) {

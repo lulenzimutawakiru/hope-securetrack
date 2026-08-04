@@ -60,7 +60,6 @@ export default function BranchesSettingsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes3 = await crudCreate("branches", {
         company_id: auth.profile.company_id,
         name: form.name,
@@ -81,14 +80,6 @@ export default function BranchesSettingsPage() {
       return;
     }
     const data = crudRes3.data as Record<string, unknown>;
-    await supabase.from("config_change_log").insert({
-      company_id: auth.profile.company_id,
-      entity_type: "branch",
-      entity_id: data?.id ? String(data.id) : null,
-      action: "create",
-      new_value: form.code,
-      changed_by: auth.profile.id,
-    });
     toast.success("Branch created");
     setOpen(false);
     setForm({
@@ -109,20 +100,9 @@ export default function BranchesSettingsPage() {
 
   const toggleActive = async (id: string, is_active: boolean) => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes2 = await crudUpdate("branches", id, { is_active: !is_active });
     if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
-      await supabase.from("config_change_log").insert({
-        company_id: auth.profile.company_id,
-        entity_type: "branch",
-        entity_id: id,
-        action: "toggle",
-        field_name: "is_active",
-        old_value: String(is_active),
-        new_value: String(!is_active),
-        changed_by: auth.profile.id,
-      });
       load();
     }
   };
@@ -130,17 +110,9 @@ export default function BranchesSettingsPage() {
   const archive = async (id: string) => {
     if (!auth) return;
     if (!confirm("Archive this branch? It can be restored from the database.")) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("branches", id, { deleted_at: new Date().toISOString(), is_active: false });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {
-      await supabase.from("config_change_log").insert({
-        company_id: auth.profile.company_id,
-        entity_type: "branch",
-        entity_id: id,
-        action: "archive",
-        changed_by: auth.profile.id,
-      });
       toast.success("Branch archived");
       load();
     }

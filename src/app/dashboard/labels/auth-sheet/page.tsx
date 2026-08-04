@@ -35,7 +35,7 @@ import { LabelCard } from "@/components/labels/label-card";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate } from "@/lib/api/crud-client";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import type { LabelData } from "@/lib/labels";
 import { buildLabelQrValue } from "@/lib/verification";
 import type { ProductionBatch, QrCode } from "@/types/database";
@@ -223,19 +223,17 @@ export default function LabelsPage() {
     if (!auth || labels.length === 0) return;
     setMarking(true);
     try {
-      const supabase = createClient();
       const ids = labels.map((l) => l.id);
-      const { error } = await supabase
-        .from("qr_codes")
-        .update({
-          status: "printed",
-          print_count: 1,
-          last_printed_at: new Date().toISOString(),
-          last_printed_by: auth.profile.id,
-        })
-        .in("id", ids);
-
-      if (error) throw error;
+      const stamp = {
+        status: "printed",
+        print_count: 1,
+        last_printed_at: new Date().toISOString(),
+        last_printed_by: auth.profile.id,
+      };
+      for (const id of ids) {
+        const res = await crudUpdate("qr_codes", id, stamp);
+        if (!res.ok) throw new Error(res.error);
+      }
 
       // Create print job record
       const crudRes = await crudCreate("print_jobs", {

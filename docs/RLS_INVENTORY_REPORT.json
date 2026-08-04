@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-08-04T01:25:38.822Z",
+  "tablesTotal": 973,
+  "businessTables": 481,
+  "rlsEnabledTotal": 767,
+  "businessWithRls": 481,
+  "coveragePercent": 100,
+  "missingRls": [],
+  "strict": false
+}

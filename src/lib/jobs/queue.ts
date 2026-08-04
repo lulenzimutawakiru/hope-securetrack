@@ -497,7 +497,51 @@ export function defaultJobHandlers(deps: {
         return { ok: false, error: e instanceof Error ? e.message : "siem failed" };
       }
     },
-    "domain_event.consume": async () => ({ ok: true }),
+    "domain_event.consume": async (job) => {
+      try {
+        const {
+          consumeDomainEvent,
+          claimDomainEvents,
+          processClaimedDomainEvents,
+        } = await import("@/lib/jobs/domain-events");
+        // Payload may carry a synthetic event (from money paths) or empty for batch claim
+        const p = job.payload || {};
+        if (p.event_type || p.id) {
+          const event = {
+            id: String(p.id || job.id),
+            company_id:
+              (p.company_id as string) ||
+              job.company_id ||
+              (p._company_id as string) ||
+              null,
+            tenant_id:
+              (p.tenant_id as string) ||
+              job.tenant_id ||
+              (p._tenant_id as string) ||
+              null,
+            event_type: String(p.event_type || "unknown"),
+            payload: (p.payload as Record<string, unknown>) || p,
+          };
+          const r = await consumeDomainEvent(deps.admin, event);
+          return r.ok ? { ok: true as const } : { ok: false as const, error: r.error };
+        }
+        // Batch: claim pending domain_events rows
+        const claimed = await claimDomainEvents(
+          deps.admin,
+          Number(p.limit || 20) || 20
+        );
+        const stats = await processClaimedDomainEvents(deps.admin, claimed);
+        if (stats.failed > 0 && stats.processed === 0) {
+          return { ok: false, error: `all ${stats.failed} events failed` };
+        }
+        return { ok: true };
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : "domain event consume failed",
+        };
+      }
+    },
     generic: async () => ({ ok: true }),
   };
 }

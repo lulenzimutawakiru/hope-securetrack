@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
 import { orgStats, wouldCreateCycle } from "./org-tree";
 import { ORG_NODE_TYPES } from "./types";
 
@@ -15,7 +16,8 @@ export async function logCompanyAudit(input: {
   entity_code?: string;
   details?: string;
 }) {
-  await sb().from("ec_audit_log").insert({
+  // Prefer hardened CRUD path; fall back to browser only if entity unregistered
+  const res = await crudCreate("ec_audit_log", {
     company_id: input.company_id || null,
     actor_id: input.actor_id || null,
     action: input.action,
@@ -24,6 +26,22 @@ export async function logCompanyAudit(input: {
     entity_code: input.entity_code || null,
     details: input.details || null,
   });
+  if (!res.ok) {
+    // Best-effort local audit — do not block primary mutation
+    try {
+      await sb().from("ec_audit_log").insert({
+        company_id: input.company_id || null,
+        actor_id: input.actor_id || null,
+        action: input.action,
+        entity_table: input.entity_table || null,
+        entity_id: input.entity_id || null,
+        entity_code: input.entity_code || null,
+        details: input.details || null,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export async function getEnterpriseStats(companyId: string) {
@@ -91,17 +109,15 @@ export async function updateCompany(
   patch: Record<string, unknown>,
   actorId?: string | null
 ) {
-  const { data, error } = await sb()
-    .from("companies")
-    .update({
-      ...patch,
-      updated_by: actorId || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select("*")
-    .single();
-  if (error) throw error;
+  const body = {
+    ...patch,
+    updated_by: actorId || null,
+  };
+  delete (body as { id?: unknown }).id;
+  delete (body as { company_id?: unknown }).company_id;
+  delete (body as { tenant_id?: unknown }).tenant_id;
+  const res = await crudUpdate<Record<string, unknown>>("companies", id, body);
+  if (!res.ok) throw new Error(res.error);
   await logCompanyAudit({
     company_id: id,
     actor_id: actorId,
@@ -110,7 +126,7 @@ export async function updateCompany(
     entity_id: id,
     details: "Company master updated",
   });
-  return data;
+  return res.data;
 }
 
 export async function createCompany(
@@ -126,38 +142,39 @@ export async function createCompany(
   },
   actorId?: string | null
 ) {
-  const { data, error } = await sb()
-    .from("companies")
-    .insert({
-      name: input.name,
-      code: input.code.toUpperCase(),
-      legal_name: input.legal_name || input.name,
-      trading_name: input.trading_name || input.name,
-      company_type: input.company_type || "operating",
-      parent_company_id: input.parent_company_id || null,
-      country: input.country || "Uganda",
-      base_currency: input.base_currency || "UGX",
-      company_status: "active",
-      is_active: true,
-      created_by: actorId || null,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-
-  await sb().from("ec_company_branding").upsert({
-    company_id: data.id,
-    primary_color: "#0B1F3A",
-    secondary_color: "#C9A227",
+  const res = await crudCreate<Record<string, unknown>>("companies", {
+    name: input.name,
+    code: input.code.toUpperCase(),
+    legal_name: input.legal_name || input.name,
+    trading_name: input.trading_name || input.name,
+    company_type: input.company_type || "operating",
+    parent_company_id: input.parent_company_id || null,
+    country: input.country || "Uganda",
+    base_currency: input.base_currency || "UGX",
+    company_status: "active",
+    is_active: true,
   });
+  if (!res.ok) throw new Error(res.error);
+  const data = res.data;
+  const companyId = String(data.id);
+
+  try {
+    await crudCreate("ec_company_branding", {
+      company_id: companyId,
+      primary_color: "#0B1F3A",
+      secondary_color: "#C9A227",
+    });
+  } catch {
+    /* branding optional */
+  }
 
   await logCompanyAudit({
-    company_id: data.id,
+    company_id: companyId,
     actor_id: actorId,
     action: "create",
     entity_table: "companies",
-    entity_id: data.id,
-    entity_code: data.code,
+    entity_id: companyId,
+    entity_code: String(data.code || input.code),
   });
   return data;
 }

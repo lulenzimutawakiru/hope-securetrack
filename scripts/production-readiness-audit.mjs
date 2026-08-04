@@ -105,6 +105,42 @@ for (const f of required) {
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
 info.push(`Migrations: ${migs.length}`);
 
+// 7. Hardening artefacts present
+const hardening = [
+  "src/lib/supabase/scoped-admin.ts",
+  "src/lib/storage/isolation.ts",
+  "src/lib/tenant/offboarding.ts",
+  "src/lib/jobs/domain-events.ts",
+  "src/app/api/platform/offboarding/route.ts",
+  "scripts/rls-inventory.mjs",
+  "scripts/check-browser-writes.mjs",
+  "scripts/check-service-role.mjs",
+];
+for (const f of hardening) {
+  if (!fs.existsSync(path.join(root, f))) {
+    issues.push({
+      severity: "high",
+      type: "missing_hardening",
+      file: f,
+      detail: "expected P0 hardening artefact missing",
+    });
+  }
+}
+
+// 8. Production env guidance present in runbook
+const runbook = path.join(root, "docs/PRODUCTION_HARDENING_RUNBOOK.md");
+if (fs.existsSync(runbook)) {
+  const rb = fs.readFileSync(runbook, "utf8");
+  if (!rb.includes("RATE_LIMIT_REQUIRE_REDIS")) {
+    issues.push({
+      severity: "medium",
+      type: "runbook_gap",
+      file: "docs/PRODUCTION_HARDENING_RUNBOOK.md",
+      detail: "missing RATE_LIMIT_REQUIRE_REDIS guidance",
+    });
+  }
+}
+
 // Report
 const bySev = { critical: 0, high: 0, medium: 0, low: 0 };
 for (const i of issues) bySev[i.severity] = (bySev[i.severity] || 0) + 1;

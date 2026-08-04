@@ -109,9 +109,14 @@ export async function rateLimitRequest(
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!upstashConfigured()) {
-    // Fail closed only when Redis is explicitly required.
-    if (failClosed && process.env.RATE_LIMIT_REQUIRE_REDIS === "true") {
-      return { allowed: false, remaining: 0, retryAfterSec: 60, source: "memory" };
+    // Fail closed only when the caller opts in (multi-instance SaaS should).
+    if (failClosed) {
+      return {
+        allowed: false,
+        remaining: 0,
+        retryAfterSec: 60,
+        source: "memory",
+      };
     }
     return memoryRateLimit(key, limit, windowMs);
   }

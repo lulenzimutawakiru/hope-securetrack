@@ -37,22 +37,11 @@ export default function ModulesSettingsPage() {
 
   const toggle = async (id: string, field: "is_enabled" | "is_licensed", value: boolean) => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("erp_modules", id, { [field]: !value, updated_at: new Date().toISOString() });
     if (!crudRes.ok) {
       toast.error(crudRes.error);
       return;
     }
-    await supabase.from("config_change_log").insert({
-      company_id: auth.profile.company_id,
-      entity_type: "erp_module",
-      entity_id: id,
-      action: "toggle",
-      field_name: field,
-      old_value: String(value),
-      new_value: String(!value),
-      changed_by: auth.profile.id,
-    });
     toast.success("Module updated");
     load();
   };

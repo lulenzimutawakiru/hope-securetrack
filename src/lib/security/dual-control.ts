@@ -14,7 +14,9 @@ export type DualControlAction =
   | "identity.provision"
   | "identity.reset_password"
   | "billing.payment_void"
-  | "platform.provision_tenant";
+  | "billing.invoice_pay"
+  | "platform.provision_tenant"
+  | "platform.tenant_purge";
 
 export type DualControlRequest = {
   id: string;

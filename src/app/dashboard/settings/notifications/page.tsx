@@ -148,21 +148,12 @@ export default function NotificationsSettingsPage() {
         return;
       }
     }
-    await supabase.from("config_change_log").insert({
-      company_id: auth.profile.company_id,
-      entity_type: "notification_template",
-      entity_id: editId,
-      action: editId ? "update" : "create",
-      field_name: form.template_key,
-      changed_by: auth.profile.id,
-    });
     toast.success(editId ? "Template updated" : "Template created");
     setOpen(false);
     load();
   };
 
   const toggle = async (id: string, is_active: boolean) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("notification_templates", id, { is_active: !is_active });
     if (!crudRes.ok) toast.error(crudRes.error);
     else load();

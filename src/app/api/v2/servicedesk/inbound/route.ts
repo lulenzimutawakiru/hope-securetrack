@@ -11,18 +11,16 @@
  * the server client enforces RLS so client-supplied company_id is rejected unless
  * it matches the authenticated company.
  *
- * Ingestion is idempotent: re-sending the same source + external_id returns the
- * existing inbound item instead of creating a duplicate.
+ * The ingestion pipeline itself lives in src/lib/service-desk/ingest.ts and is
+ * shared with the shared-secret webhook endpoints (email / WhatsApp), so external
+ * sources never hit the portal RLS path.
  */
 
 import { z } from "zod";
 import { createApiHandler } from "@/lib/api/handler";
 import { apiError, apiOk } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createTicketServer,
-  triageForCompany,
-} from "@/lib/service-desk/server";
+import { ingestInbound } from "@/lib/service-desk/ingest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -78,147 +76,47 @@ export const POST = createApiHandler(
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
 
     const supabase = await createClient();
-    const externalId = body.external_id || null;
-
-    // Idempotency: re-ingesting the same source + external_id returns the
-    // existing item instead of creating a duplicate.
-    if (externalId) {
-      const { data: existing } = await supabase
-        .from("sd_inbound_items")
-        .select("*")
-        .eq("company_id", ctx.companyId)
-        .eq("source", body.source)
-        .eq("external_id", externalId)
-        .maybeSingle();
-      if (existing) {
-        return apiOk({ item: existing, duplicate: true });
-      }
-    }
-
-    const text = `${body.subject} ${body.body || ""}`;
-    const { analysis, duplicates } = await triageForCompany(
-      supabase,
-      ctx.companyId,
-      text
-    );
-
-    const autoCreate =
-      body.auto_convert === true ||
-      (body.auto_convert === undefined && analysis.shouldCreateTicket);
-    const effectiveCategory = body.category || analysis.suggestedCategory;
-    const canTicket =
-      !analysis.isMajor && effectiveCategory.toLowerCase() !== "spam";
-
-    const { data: item, error: insertError } = await supabase
-      .from("sd_inbound_items")
-      .insert({
-        company_id: ctx.companyId,
-        tenant_id: ctx.tenantId,
-        source: body.source,
-        external_id: externalId,
-        from_address: body.from_address,
-        subject: body.subject,
-        body: body.body,
-        status: "new",
-        metadata: {
-          ...(body.metadata || {}),
-          correlation_id: correlationId,
-          ai: {
-            category: analysis.suggestedCategory,
-            subcategory: analysis.suggestedSubcategory,
-            service_type: analysis.suggestedServiceType,
-            priority: analysis.suggestedPriority,
-            impact: analysis.suggestedImpact,
-            urgency: analysis.suggestedUrgency,
-            is_major: analysis.isMajor,
-            should_create_ticket: autoCreate,
-            knowledge_matches: analysis.knowledgeMatches.slice(0, 5),
-            duplicate_candidates: duplicates.slice(0, 5),
-          },
+    try {
+      const result = await ingestInbound(
+        supabase,
+        {
+          companyId: ctx.companyId,
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.user.id,
+          actorName: ctx.user.email || "Inbound",
+          correlationId,
         },
-      })
-      .select("*")
-      .single();
+        body
+      );
 
-    if (insertError || !item) {
+      const analysis = result.analysis;
+      return apiOk({
+        item: result.item,
+        duplicate: result.duplicate,
+        auto_created: result.auto_created,
+        ticket: result.ticket,
+        analysis: analysis
+          ? {
+              category: analysis.suggestedCategory,
+              subcategory: analysis.suggestedSubcategory,
+              service_type: analysis.suggestedServiceType,
+              priority: analysis.suggestedPriority,
+              impact: analysis.suggestedImpact,
+              urgency: analysis.suggestedUrgency,
+              is_major: analysis.isMajor,
+              should_create_ticket: analysis.shouldCreateTicket,
+              knowledge_matches: analysis.knowledgeMatches.slice(0, 5),
+              duplicate_candidates: result.duplicates.slice(0, 5),
+            }
+          : null,
+      });
+    } catch (e) {
       return apiError(
         "INTERNAL",
-        `Failed to store inbound item: ${insertError?.message || "unknown error"}`,
+        e instanceof Error ? e.message : "Inbound ingestion failed",
         500
       );
     }
-
-    let ticket: { id: string; ticket_number: string } | null = null;
-    if (autoCreate && canTicket) {
-      try {
-        const created = await createTicketServer(supabase, {
-          company_id: ctx.companyId,
-          created_by: ctx.user.id,
-          actor_name: body.from_address || "Inbound",
-          ticket: {
-            subject: body.subject,
-            description: body.body || undefined,
-            category: effectiveCategory,
-            service_type: body.service_type || analysis.suggestedServiceType,
-            priority: (body.priority || analysis.suggestedPriority) as
-              | "critical"
-              | "high"
-              | "medium"
-              | "low",
-            impact: analysis.suggestedImpact,
-            urgency: analysis.suggestedUrgency,
-            ticket_type: body.ticket_type || undefined,
-            channel: body.source,
-            requester_email: body.from_address || undefined,
-          },
-        });
-        ticket = { id: created.id, ticket_number: created.ticket_number };
-        const { error: updateError } = await supabase
-          .from("sd_inbound_items")
-          .update({ status: "ticketed", ticket_id: created.id })
-          .eq("id", item.id);
-        if (updateError) {
-          // Non-fatal: item and ticket both exist; record the mismatch so
-          // operators can reconcile the link.
-          await supabase
-            .from("sd_inbound_items")
-            .update({
-              metadata: {
-                ...(item.metadata as Record<string, unknown>),
-                ticket_link_error: updateError.message,
-              },
-            })
-            .eq("id", item.id);
-        }
-      } catch (err) {
-        return apiError(
-          "INTERNAL",
-          `Inbound stored but ticket creation failed: ${(err as Error).message}`,
-          500
-        );
-      }
-    }
-
-    return apiOk({
-      item,
-      duplicate: false,
-      auto_created: Boolean(ticket),
-      ticket: ticket
-        ? { id: ticket.id, ticket_number: ticket.ticket_number }
-        : null,
-      analysis: {
-        category: analysis.suggestedCategory,
-        subcategory: analysis.suggestedSubcategory,
-        service_type: analysis.suggestedServiceType,
-        priority: analysis.suggestedPriority,
-        impact: analysis.suggestedImpact,
-        urgency: analysis.suggestedUrgency,
-        is_major: analysis.isMajor,
-        should_create_ticket: autoCreate,
-        knowledge_matches: analysis.knowledgeMatches.slice(0, 5),
-        duplicate_candidates: duplicates.slice(0, 5),
-      },
-    });
   }
 );
 

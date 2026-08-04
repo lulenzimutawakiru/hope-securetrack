@@ -23,7 +23,7 @@ import {
   listCompanies, getCompany, updateCompany, createCompany, COMPANY_TYPES,
 } from "@/lib/enterprise-company";
 import { FileUpload } from "@/components/ui/file-upload";
-import { createClient } from "@/lib/supabase/client";
+import { crudUpdate } from "@/lib/api/crud-client";
 import { toast } from "sonner";
 
 export default function CompaniesPage() {
@@ -234,10 +234,10 @@ export default function CompaniesPage() {
                   onUploaded={async (r) => {
                     setEdit((e) => ({ ...e, logo_url: r.publicUrl }));
                     setSelected((s) => (s ? { ...s, logo_url: r.publicUrl } : s));
-                    await createClient()
-                      .from("companies")
-                      .update({ logo_url: r.publicUrl })
-                      .eq("id", selected.id as string);
+                    const res = await crudUpdate("companies", selected.id as string, {
+                      logo_url: r.publicUrl,
+                    });
+                    if (!res.ok) toast.error(res.error);
                   }}
                 />
               </div>

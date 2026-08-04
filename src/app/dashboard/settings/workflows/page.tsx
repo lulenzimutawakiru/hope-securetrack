@@ -61,7 +61,6 @@ export default function WorkflowsSettingsPage() {
       toast.error("Steps must be valid JSON");
       return;
     }
-    const supabase = createClient();
     const crudRes2 = await crudCreate("approval_workflows", {
         company_id: auth.profile.company_id,
         workflow_code: form.workflow_code,
@@ -78,14 +77,6 @@ export default function WorkflowsSettingsPage() {
       return;
     }
     const data = crudRes2.data as Record<string, unknown>;
-    await supabase.from("config_change_log").insert({
-      company_id: auth.profile.company_id,
-      entity_type: "approval_workflow",
-      entity_id: data?.id ? String(data.id) : null,
-      action: "create",
-      new_value: form.workflow_code,
-      changed_by: auth.profile.id,
-    });
     toast.success("Workflow created");
     setOpen(false);
     load();
@@ -93,20 +84,9 @@ export default function WorkflowsSettingsPage() {
 
   const toggle = async (id: string, is_active: boolean) => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("approval_workflows", id, { is_active: !is_active, updated_at: new Date().toISOString() });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {
-      await supabase.from("config_change_log").insert({
-        company_id: auth.profile.company_id,
-        entity_type: "approval_workflow",
-        entity_id: id,
-        action: "toggle",
-        field_name: "is_active",
-        old_value: String(is_active),
-        new_value: String(!is_active),
-        changed_by: auth.profile.id,
-      });
       load();
     }
   };

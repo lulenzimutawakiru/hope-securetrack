@@ -59,7 +59,6 @@ export default function IntegrationsSettingsPage() {
       toast.error("Config must be valid JSON");
       return;
     }
-    const supabase = createClient();
     const crudRes2 = await crudCreate("integration_configs", {
         company_id: auth.profile.company_id,
         integration_key: form.integration_key,
@@ -73,14 +72,6 @@ export default function IntegrationsSettingsPage() {
       return;
     }
     const data = crudRes2.data as Record<string, unknown>;
-    await supabase.from("config_change_log").insert({
-      company_id: auth.profile.company_id,
-      entity_type: "integration",
-      entity_id: data?.id ? String(data.id) : null,
-      action: "create",
-      new_value: form.integration_key,
-      changed_by: auth.profile.id,
-    });
     toast.success("Integration added");
     setOpen(false);
     load();
@@ -88,20 +79,9 @@ export default function IntegrationsSettingsPage() {
 
   const toggle = async (id: string, is_enabled: boolean) => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("integration_configs", id, { is_enabled: !is_enabled, updated_at: new Date().toISOString() });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {
-      await supabase.from("config_change_log").insert({
-        company_id: auth.profile.company_id,
-        entity_type: "integration",
-        entity_id: id,
-        action: "toggle",
-        field_name: "is_enabled",
-        old_value: String(is_enabled),
-        new_value: String(!is_enabled),
-        changed_by: auth.profile.id,
-      });
       toast.success(!is_enabled ? "Integration enabled" : "Integration disabled");
       load();
     }

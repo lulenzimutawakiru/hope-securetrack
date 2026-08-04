@@ -5,11 +5,28 @@
 
 import { timingSafeEqualString } from "./shared";
 
-/** Mirror of public-ingress.storePlaintextSecrets (kept local to avoid client graph cycles). */
+/**
+ * Plaintext token storage/lookup is forbidden in production.
+ * Dev/test only when ALLOW_PLAINTEXT_TOKENS=true (default off in production;
+ * default on only when NODE_ENV is not production AND not explicitly disabled).
+ */
 function storePlaintextSecrets(): boolean {
-  if (process.env.ALLOW_PLAINTEXT_TOKENS === "true") return true;
+  if (process.env.ALLOW_PLAINTEXT_TOKENS === "false") return false;
+  if (process.env.ALLOW_PLAINTEXT_TOKENS === "true") {
+    // Even with allow flag, never store plaintext in production
+    return process.env.NODE_ENV !== "production";
+  }
   if (process.env.NODE_ENV === "production") return false;
-  return true;
+  // Non-production: allow legacy migration path unless disabled
+  return process.env.ALLOW_PLAINTEXT_TOKENS !== "0";
+}
+
+/** Plaintext lookup is never allowed in production (no migration escape hatch). */
+function allowPlaintextLookup(): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  if (process.env.ALLOW_TOKEN_PLAINTEXT_LOOKUP === "false") return false;
+  if (process.env.ALLOW_TOKEN_PLAINTEXT_LOOKUP === "true") return true;
+  return storePlaintextSecrets();
 }
 
 /** SHA-256 hex digest (browser + Node Web Crypto) */
@@ -67,8 +84,8 @@ export async function resolvePortalUserByToken(
 
   if (byHash) return byHash as Record<string, unknown>;
 
-  // Legacy plaintext fallback (migration window only when allowed)
-  if (!storePlaintextSecrets() && process.env.ALLOW_TOKEN_PLAINTEXT_LOOKUP !== "true") {
+  // Legacy plaintext fallback — blocked in production (see allowPlaintextLookup)
+  if (!allowPlaintextLookup()) {
     return null;
   }
 

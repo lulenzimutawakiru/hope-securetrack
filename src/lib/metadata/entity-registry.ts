@@ -234,6 +234,25 @@ export function getRegisteredEntities(): EntityDefinition[] {
  * =================================================================== */
 
 // ---- Organization / settings ----------------------------------------
+defineEntity("companies", "companies", "settings", {
+  view: "settings.view",
+  create: "settings.manage",
+  update: "settings.manage",
+  delete: "settings.admin",
+}, {
+  searchable: ["name", "code", "legal_name"],
+});
+
+defineEntity("ec_audit_log", "ec_audit_log", "ec", {
+  view: "settings.view",
+  create: "settings.manage",
+  update: "settings.admin",
+  delete: "settings.admin",
+}, {
+  hasUpdatedAt: false,
+  searchable: ["action", "entity_table"],
+});
+
 defineEntity("branches", "branches", "settings", {
   view: "settings.view",
   create: "settings.manage",

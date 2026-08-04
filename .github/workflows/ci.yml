@@ -52,6 +52,15 @@ jobs:
       - name: Security contract tests
         run: npm run test:security
 
+      - name: Browser write ban (strict)
+        run: npm run check:browser-writes -- --strict
+
+      - name: Service-role isolation audit (strict)
+        run: npm run check:service-role -- --strict
+
+      - name: RLS inventory
+        run: npm run check:rls-inventory
+
       - name: Production readiness audit
         run: npm run audit:readiness
 

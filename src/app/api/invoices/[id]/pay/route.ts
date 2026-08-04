@@ -1,7 +1,15 @@
 import { z } from "zod";
 import { apiError, apiOk, createApiHandler } from "@/lib/api/handler";
-import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  adminGetById,
+  adminInsert,
+  adminUpdateById,
+  assertScopedRow,
+  createScopedAdminFromAuth,
+} from "@/lib/supabase/scoped-admin";
 import { writeServerAudit } from "@/lib/api/audit";
+import { assertDualControl } from "@/lib/security/dual-control";
+import { enqueueJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,9 +23,10 @@ const schema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "payment_date must be YYYY-MM-DD")
     .optional(),
+  dual_control_id: z.string().uuid().optional().nullable(),
 });
 
-/** Record a payment against an invoice (money path). */
+/** Record a payment against an invoice (money path — dual-control in production). */
 export const POST = createApiHandler(
   {
     auth: true,
@@ -40,22 +49,30 @@ export const POST = createApiHandler(
     if (!id) return apiError("VALIDATION", "Invoice id required");
     const data = body as z.infer<typeof schema>;
 
-    const admin = createAdminClient();
+    const dc = await assertDualControl({
+      company_id: ctx.companyId,
+      action: "billing.invoice_pay",
+      actor_id: ctx.user.id,
+      request_id: data.dual_control_id,
+    });
+    if (!dc.ok) return apiError("FORBIDDEN", dc.error, 403);
+
+    const scoped = createScopedAdminFromAuth(ctx);
     const companyId = ctx.companyId;
 
     try {
-      const { data: inv, error: invErr } = await admin
-        .from("invoices")
-        .select("*")
-        .eq("id", id)
-        .eq("company_id", companyId)
-        .maybeSingle();
-      if (invErr) return apiError("INTERNAL", invErr.message, 500);
+      // invoices are company-scoped; tenant_id filter is optional (legacy rows)
+      const inv = await adminGetById(scoped, "invoices", id);
       if (!inv) return apiError("NOT_FOUND", "Invoice not found", 404);
+      assertScopedRow(
+        scoped,
+        { company_id: inv.company_id as string, tenant_id: inv.tenant_id as string | null },
+        "invoice"
+      );
       if (inv.status === "void" || inv.status === "cancelled") {
         return apiError(
           "VALIDATION",
-          `Cannot pay a ${inv.status} invoice`,
+          `Cannot pay a ${String(inv.status)} invoice`,
           400
         );
       }
@@ -71,28 +88,16 @@ export const POST = createApiHandler(
         );
       }
 
-      const { data: payment, error: payErr } = await admin
-        .from("invoice_payments")
-        .insert({
-          invoice_id: inv.id,
-          company_id: companyId,
-          amount,
-          payment_date:
-            data.payment_date ?? new Date().toISOString().slice(0, 10),
-          method: data.method,
-          reference: data.reference ?? null,
-          notes: data.notes ?? null,
-          recorded_by: ctx.user.id,
-        })
-        .select("*")
-        .single();
-      if (payErr || !payment) {
-        return apiError(
-          "INTERNAL",
-          payErr?.message ?? "Failed to record payment",
-          500
-        );
-      }
+      const payment = await adminInsert(scoped, "invoice_payments", {
+        invoice_id: inv.id,
+        amount,
+        payment_date:
+          data.payment_date ?? new Date().toISOString().slice(0, 10),
+        method: data.method,
+        reference: data.reference ?? null,
+        notes: data.notes ?? null,
+        recorded_by: ctx.user.id,
+      });
 
       const newPaid = Math.round((paidSoFar + amount) * 100) / 100;
       const status =
@@ -100,31 +105,52 @@ export const POST = createApiHandler(
           ? "paid"
           : newPaid > 0
             ? "partially_paid"
-            : inv.status;
+            : String(inv.status);
 
-      const { error: updErr } = await admin
-        .from("invoices")
-        .update({ amount_paid: newPaid, status })
-        .eq("id", inv.id);
-      if (updErr) return apiError("INTERNAL", updErr.message, 500);
+      await adminUpdateById(scoped, "invoices", String(inv.id), {
+        amount_paid: newPaid,
+        status,
+      });
 
-      await writeServerAudit(admin, {
+      await writeServerAudit(scoped.client, {
         company_id: companyId,
         user_id: ctx.user.id,
         action: "invoice.payment_recorded",
         module: "sales",
         entity_type: "invoice_payments",
-        entity_id: payment.id,
-        entity_reference: inv.invoice_number,
+        entity_id: payment.id as string,
+        entity_reference: inv.invoice_number as string,
         before_state: { amount_paid: paidSoFar, status: inv.status },
         after_state: {
           amount_paid: newPaid,
           status,
           payment_amount: amount,
         },
-        metadata: { source: "api/invoices/[id]/pay" },
+        metadata: {
+          source: "api/invoices/[id]/pay",
+          dual_control_id: data.dual_control_id ?? null,
+        },
         ip_address: ip,
         user_agent: req.headers.get("user-agent"),
+      });
+
+      // Fan-out domain event via job queue (durable consumer)
+      await enqueueJob(scoped.client, {
+        companyId: ctx.companyId,
+        tenantId: ctx.tenantId,
+        jobType: "domain_event.consume",
+        idempotencyKey: `invoice.paid:${payment.id}`,
+        payload: {
+          id: `synthetic-${payment.id}`,
+          event_type: "invoice.paid",
+          company_id: ctx.companyId,
+          tenant_id: ctx.tenantId,
+          payload: {
+            invoice_id: inv.id,
+            payment_id: payment.id,
+            amount,
+          },
+        },
       });
 
       return apiOk({

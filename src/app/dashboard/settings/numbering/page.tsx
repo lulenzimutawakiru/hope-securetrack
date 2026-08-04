@@ -134,22 +134,12 @@ export default function NumberingSettingsPage() {
         return;
       }
     }
-    await supabase.from("config_change_log").insert({
-      company_id: auth.profile.company_id,
-      entity_type: "document_sequence",
-      entity_id: editId,
-      action: editId ? "update" : "create",
-      field_name: form.document_type,
-      new_value: sample,
-      changed_by: auth.profile.id,
-    });
     toast.success(editId ? "Sequence updated" : "Sequence created");
     setOpen(false);
     load();
   };
 
   const toggle = async (id: string, is_active: boolean) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("document_sequences", id, { is_active: !is_active });
     if (!crudRes.ok) toast.error(crudRes.error);
     else load();

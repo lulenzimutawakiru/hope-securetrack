@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-08-04T01:19:09.564Z",
+  "violationCount": 0,
+  "violations": [],
+  "allowlist": [
+    "src/app/dashboard/settings/profile/page.tsx",
+    "src/app/dashboard/identity/self-service/page.tsx",
+    "src/app/dashboard/identity/sessions/page.tsx",
+    "src/app/dashboard/chat/notifications/page.tsx"
+  ]
+}

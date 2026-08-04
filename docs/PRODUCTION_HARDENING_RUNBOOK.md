@@ -45,6 +45,33 @@ SECURETRACK_AI_MODEL=gpt-4o-mini
 JOB_WORKER_SECRET=...          # or CRON_SECRET for /api/jobs/worker
 # RATE_LIMIT_FAIL_CLOSED=true
 # RATE_LIMIT_REQUIRE_REDIS=true  # deny when Upstash missing (strict multi-instance)
+
+# Multi-tenant isolation strictness (after tenant_id backfill on all business rows)
+# REQUIRE_TENANT_ON_ROWS=true
+
+# Token plaintext is NEVER allowed in production (code-enforced).
+# ALLOW_PLAINTEXT_TOKENS / ALLOW_TOKEN_PLAINTEXT_LOOKUP ignored when NODE_ENV=production.
+```
+
+## Money paths (dual-control + MFA in production)
+
+| Action | Endpoint | Dual-control action |
+|--------|----------|---------------------|
+| Invoice payment | `POST /api/invoices/[id]/pay` | `billing.invoice_pay` |
+| Payroll release | `POST /api/payroll/release` | `payroll.release` |
+| Bank file | `POST /api/payroll/bank-file` | `payroll.bank_file` |
+| GL post | `POST /api/finance/post` | `finance.gl_post` |
+| Tenant purge schedule | `POST /api/platform/offboarding` | `platform.tenant_purge` |
+
+Use scoped admin helpers (`createScopedAdminFromAuth`) for service-role work — never unfiltered admin queries.
+
+## Static security gates (CI)
+
+```bash
+npm run check:browser-writes -- --strict   # no browser Supabase mutations outside allowlist
+npm run check:service-role -- --strict     # admin routes must filter company_id
+npm run check:rls-inventory                # business tables vs ENABLE RLS
+npm run test:security
 ```
 
 ## Migrations

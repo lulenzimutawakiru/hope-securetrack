@@ -39,6 +39,10 @@ export function assertSameCompany(
 
 /**
  * Dual-key isolation check: tenant AND company.
+ *
+ * When the session has a tenantId and the row has tenant_id, they must match.
+ * When REQUIRE_TENANT_ON_ROWS=true (or production), rows missing tenant_id
+ * while the session has a tenant are rejected (defense against unscoped legacy rows).
  */
 export function assertTenantAndCompany(
   scope: TenantScope,
@@ -48,6 +52,17 @@ export function assertTenantAndCompany(
   if (scope.isElevated) return;
   if (row.tenant_id && scope.tenantId && String(row.tenant_id) !== String(scope.tenantId)) {
     throw new Error(`Forbidden: ${label} is outside tenant boundary`);
+  }
+  // Opt-in strictness: require tenant_id on rows once backfill is complete.
+  // Default OFF so legacy company-only tables keep working.
+  if (
+    process.env.REQUIRE_TENANT_ON_ROWS === "true" &&
+    scope.tenantId &&
+    (row.tenant_id == null || row.tenant_id === "")
+  ) {
+    throw new Error(
+      `Forbidden: ${label} missing tenant_id under multi-tenant isolation`
+    );
   }
   assertSameCompany(scope, row.company_id, label);
 }
