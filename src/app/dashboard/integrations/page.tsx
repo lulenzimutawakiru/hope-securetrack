@@ -29,6 +29,7 @@ const MODULES = [
   { title: "Hardware", href: "/dashboard/integrations/hardware", icon: Printer, desc: "Printers · RFID · scanners" },
   { title: "GPS & Fleet", href: "/dashboard/integrations/gps", icon: MapPin, desc: "Trackers · routes · fuel" },
   { title: "Payments", href: "/dashboard/integrations/payments", icon: MessageSquare, desc: "MoMo · Stripe · banks" },
+  { title: "Slack · SecureChat", href: "/dashboard/integrations/slack", icon: MessageSquare, desc: "Workspace · tickets · alerts" },
   { title: "Module Links", href: "/dashboard/integrations/modules", icon: Network, desc: "Internal ERP event mesh" },
   { title: "Monitoring", href: "/dashboard/integrations/monitor", icon: Activity, desc: "Health · latency · alerts" },
   { title: "Security", href: "/dashboard/integrations/security", icon: Shield, desc: "Secrets · IP allow · audit" },

@@ -420,7 +420,27 @@ export async function publishCommEvent(input: PublishEventInput) {
     };
 
     for (const channel of channels) {
-      if (channel === "teams" || channel === "slack") continue;
+      if (channel === "teams") continue;
+      // Slack: company workspace fan-out (not per-recipient compose)
+      if (channel === "slack") {
+        try {
+          const { notifyCompanySlack } = await import("@/lib/slack");
+          await notifyCompanySlack(
+            input.company_id,
+            applyVars(rule.subject_template, vars) || input.event_key,
+            applyVars(rule.body_template, vars),
+            {
+              eventType: input.event_key,
+              entityType: input.entity_type,
+              entityId: input.entity_id,
+            }
+          );
+          results.push({ channel: "slack", ok: true });
+        } catch {
+          results.push({ channel: "slack", ok: false });
+        }
+        continue;
+      }
       const msg = await composeMessage({
         company_id: input.company_id,
         channel,

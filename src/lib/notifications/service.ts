@@ -14,7 +14,13 @@ import {
 } from "@/lib/email";
 import { resolveCompanyBranding, brandToEmailBrand } from "@/lib/branding/resolve";
 
-export type NotifyChannel = "in_app" | "email" | "sms" | "push" | "whatsapp";
+export type NotifyChannel =
+  | "in_app"
+  | "email"
+  | "sms"
+  | "push"
+  | "whatsapp"
+  | "slack";
 
 export type NotifyInput = {
   companyId: string;
@@ -71,6 +77,8 @@ function resolveChannels(
     if (ch === "sms" && prefs.sms_enabled === false) return false;
     if (ch === "push" && prefs.push_enabled === false) return false;
     if (ch === "whatsapp" && prefs.whatsapp_enabled === false) return false;
+    // slack is company-level; no per-user mute unless category off
+    if (ch === "slack" && catCfg && catCfg.slack === false) return false;
     if (catCfg && catCfg[ch] === false) return false;
     if (muted.includes(ch)) return false;
     return true;
@@ -381,9 +389,9 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
       }
     }
 
-    // Queue non-email external channels
+    // Queue non-email external channels (except company Slack — handled once below)
     for (const ch of activeChannels) {
-      if (ch === "in_app" || ch === "email") continue;
+      if (ch === "in_app" || ch === "email" || ch === "slack") continue;
       await admin.from("bi_notification_queue").insert({
         company_id: input.companyId,
         channel: ch,
@@ -400,6 +408,41 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
         channel: ch,
         status: "pending",
         provider: "queue",
+      });
+    }
+  }
+
+  // Company Slack: one message per notify call (not per user)
+  if (channels.includes("slack") || input.force) {
+    try {
+      const { notifyCompanySlack } = await import("@/lib/slack");
+      const slackRes = await notifyCompanySlack(
+        input.companyId,
+        input.title,
+        input.message,
+        {
+          eventType: input.sourceEvent || input.category || "notification",
+          entityType: input.entityType,
+          entityId: input.entityId,
+          link: input.link || input.actionUrl,
+        }
+      );
+      await admin.from("notification_deliveries").insert({
+        company_id: input.companyId,
+        channel: "slack",
+        status: slackRes.ok ? "sent" : "failed",
+        error_message: slackRes.ok ? null : slackRes.error || "failed",
+        provider: "slack",
+        sent_at: slackRes.ok ? new Date().toISOString() : null,
+        payload: { mode: slackRes.mode, channel: slackRes.channel },
+      });
+    } catch (e) {
+      await admin.from("notification_deliveries").insert({
+        company_id: input.companyId,
+        channel: "slack",
+        status: "failed",
+        error_message: e instanceof Error ? e.message : String(e),
+        provider: "slack",
       });
     }
   }

@@ -160,7 +160,9 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/portal") ||
       pathname.startsWith("/api/public") ||
       pathname.startsWith("/api/health") ||
-      pathname.startsWith("/api/attendance/devices");
+      pathname.startsWith("/api/attendance/devices") ||
+      // Slack Events API (signature verified in route)
+      pathname === "/api/v2/integrations/slack/events";
 
     if (!user && !isAuthRoute && !isPublicRoute) {
       if (pathname.startsWith("/api/")) {

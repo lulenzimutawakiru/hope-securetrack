@@ -2650,6 +2650,26 @@ defineEntity("intg_connections", "intg_connections", "intg", {
   searchable: ["name", "status"]
 });
 
+defineEntity("intg_slack_workspaces", "intg_slack_workspaces", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.manage",
+}, {
+  softDelete: true,
+  searchable: ["team_name", "team_id", "default_channel_name"],
+});
+
+defineEntity("intg_slack_delivery_log", "intg_slack_delivery_log", "intg", {
+  view: "intg.view",
+  create: "intg.manage",
+  update: "intg.manage",
+  delete: "intg.admin",
+}, {
+  softDelete: false,
+  searchable: ["event_type", "status"],
+});
+
 defineEntity("intg_connectors", "intg_connectors", "intg", {
   view: "intg.view",
   create: "intg.manage",

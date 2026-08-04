@@ -78,6 +78,17 @@ export const env = {
         process.env.XAI_API_KEY
     ),
   },
+  /** Platform Slack SecureChat app (secrets server-only) */
+  slack: {
+    appId: process.env.SLACK_APP_ID || "",
+    clientId: process.env.SLACK_CLIENT_ID || "",
+    configured: Boolean(
+      process.env.SLACK_CLIENT_ID?.trim() &&
+        process.env.SLACK_CLIENT_SECRET?.trim() &&
+        process.env.SLACK_SIGNING_SECRET?.trim()
+    ),
+  },
+
   redis: {
     upstashUrl: process.env.UPSTASH_REDIS_REST_URL || "",
     upstashToken: process.env.UPSTASH_REDIS_REST_TOKEN || "",
