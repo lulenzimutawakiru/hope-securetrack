@@ -17,7 +17,11 @@ export const runtime = "nodejs";
 function authorizeWorker(req: NextRequest): boolean {
   const secret = process.env.JOB_WORKER_SECRET || process.env.CRON_SECRET;
   if (!secret) {
-    // Fail closed in production; open only in non-production for local dev.
+    // Vercel Cron requests carry `User-Agent: vercel-cron/1.0` and, when
+    // CRON_SECRET is set on Vercel, an automatic `Authorization: Bearer`.
+    // Accept genuine platform cron invocations even without a local secret;
+    // otherwise fail closed in production (open only for local dev).
+    if (isVercelCron(req)) return true;
     return process.env.NODE_ENV !== "production";
   }
   const header =
@@ -29,6 +33,13 @@ function authorizeWorker(req: NextRequest): boolean {
       : null) ||
     "";
   return Boolean(header) && header === secret;
+}
+
+function isVercelCron(req: NextRequest): boolean {
+  return (
+    /vercel-cron/i.test(req.headers.get("user-agent") || "") ||
+    Boolean(req.headers.get("x-vercel-cron-schedule"))
+  );
 }
 
 /**
@@ -85,6 +96,91 @@ async function resweepOutboxEmails(admin: ReturnType<typeof createAdminClient>) 
 }
 
 /**
+ * Drain queued external-channel notifications (deferred email, sms, push,
+ * whatsapp). Email rows are re-enqueued as tenant-scoped `email.send` jobs;
+ * channels without a configured provider are marked failed with an audit note
+ * so they leave the queue instead of stalling forever.
+ */
+async function drainNotificationQueue(
+  admin: ReturnType<typeof createAdminClient>
+) {
+  const now = new Date().toISOString();
+  const { data: queued } = await admin
+    .from("bi_notification_queue")
+    .select("id, company_id, tenant_id, channel, recipient, subject, body, payload")
+    .eq("status", "queued")
+    .lte("scheduled_for", now)
+    .limit(50);
+  if (!queued?.length) return { drained: 0, enqueued: 0, failed: 0 };
+
+  // Resolve tenant_id from companies (safety net; biq rows usually carry it).
+  const companyIds = [
+    ...new Set(queued.map((r) => r.company_id).filter(Boolean)),
+  ] as string[];
+  const tenantByCompany = new Map<string, string>();
+  if (companyIds.length) {
+    const { data: companies } = await admin
+      .from("companies")
+      .select("id, tenant_id")
+      .in("id", companyIds);
+    for (const c of companies || []) {
+      if (c.tenant_id) tenantByCompany.set(c.id, c.tenant_id as string);
+    }
+  }
+
+  let enqueued = 0;
+  let failed = 0;
+  for (const row of queued) {
+    const companyId = (row.company_id as string | null) || null;
+    const channel = String(row.channel || "email");
+
+    if (channel === "email") {
+      const tenantId =
+        (row.tenant_id as string | null) ||
+        (companyId ? tenantByCompany.get(companyId) : null) ||
+        null;
+      if (!tenantId) continue; // no resolvable tenant: leave queued (fail closed)
+      const job = await enqueueJob(admin, {
+        jobType: "email.send",
+        companyId,
+        tenantId,
+        payload: {
+          to: row.recipient || "",
+          subject: row.subject || "SecureTrack notification",
+          body: row.body || "",
+          notification_id:
+            (row.payload as { notification_id?: string } | null)
+              ?.notification_id || null,
+        },
+        idempotencyKey: `biq:${row.id}`,
+        priority: 60,
+      });
+      if (job?.id) {
+        await admin
+          .from("bi_notification_queue")
+          .update({ status: "sent", tenant_id: tenantId, sent_at: now })
+          .eq("id", row.id);
+        enqueued += 1;
+      }
+      continue;
+    }
+
+    // sms / push / whatsapp: no provider configured in this deployment.
+    await admin
+      .from("bi_notification_queue")
+      .update({
+        status: "failed",
+        error_message: `No provider configured for channel ${channel}`,
+        sent_at: now,
+      })
+      .eq("id", row.id);
+    failed += 1;
+  }
+
+  return { drained: queued.length, enqueued, failed };
+}
+
+/**
  * Process durable job queue (cron / platform worker).
  * Auth: JOB_WORKER_SECRET or CRON_SECRET header.
  */
@@ -124,6 +220,7 @@ export async function POST(req: NextRequest) {
 
   // Sweep queued emails first so they are picked up once the provider key is set
   const swept = await resweepOutboxEmails(admin);
+  const queueStats = await drainNotificationQueue(admin);
 
   const jobs = await claimJobs(admin, { limit, workerId });
   const stats = await processClaimedJobs(admin, jobs, handlers);
@@ -132,6 +229,7 @@ export async function POST(req: NextRequest) {
     worker_id: workerId,
     claimed: jobs.length,
     swept_emails: swept,
+    notification_queue: queueStats,
     ...stats,
   });
 }

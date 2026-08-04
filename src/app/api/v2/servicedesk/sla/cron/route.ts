@@ -20,6 +20,10 @@ export const maxDuration = 60;
 function authorizeCron(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET || process.env.JOB_WORKER_SECRET;
   if (!secret) {
+    // Vercel Cron requests carry `User-Agent: vercel-cron/1.0` (and, when
+    // CRON_SECRET is set on Vercel, an automatic `Authorization: Bearer`).
+    // Accept genuine platform cron invocations even without a local secret.
+    if (isVercelCron(req)) return true;
     return process.env.NODE_ENV !== "production";
   }
   const header =
@@ -30,6 +34,13 @@ function authorizeCron(req: NextRequest): boolean {
       : null) ||
     "";
   return Boolean(header) && header === secret;
+}
+
+function isVercelCron(req: NextRequest): boolean {
+  return (
+    /vercel-cron/i.test(req.headers.get("user-agent") || "") ||
+    Boolean(req.headers.get("x-vercel-cron-schedule"))
+  );
 }
 
 async function run(req: NextRequest) {

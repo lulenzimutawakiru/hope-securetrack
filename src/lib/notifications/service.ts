@@ -18,6 +18,8 @@ export type NotifyChannel = "in_app" | "email" | "sms" | "push" | "whatsapp";
 
 export type NotifyInput = {
   companyId: string;
+  /** Tenant scope for durable queue jobs (resolved from company when absent) */
+  tenantId?: string | null;
   /** Explicit recipients; if empty, resolved from rule audience / userIds */
   userIds?: string[];
   title: string;
@@ -100,11 +102,22 @@ export async function notifyUsersAsync(
   try {
     const { enqueueJob } = await import("@/lib/jobs/queue");
     const admin = createAdminClient();
+    let tenantId = input.tenantId || null;
+    if (!tenantId) {
+      const { data: company } = await admin
+        .from("companies")
+        .select("tenant_id")
+        .eq("id", input.companyId)
+        .maybeSingle();
+      tenantId = (company?.tenant_id as string | null) || null;
+    }
     const job = await enqueueJob(admin, {
       companyId: input.companyId,
+      tenantId,
       jobType: "notification.dispatch",
       payload: {
         ...input,
+        tenant_id: tenantId,
         // serialize for worker
         title: input.title,
         body: input.message,
