@@ -22,6 +22,12 @@ const schema = z.object({
 export const GET = createApiHandler(
   {
     auth: true,
+    permissions: [
+      "notifications.view",
+      "notifications.manage",
+      "dashboard.view",
+      "hc.view",
+    ],
     module: "notifications",
   },
   async ({ ctx }) => {
@@ -55,6 +61,12 @@ export const GET = createApiHandler(
 export const PUT = createApiHandler(
   {
     auth: true,
+    permissions: [
+      "notifications.view",
+      "notifications.manage",
+      "dashboard.view",
+      "hc.view",
+    ],
     bodySchema: schema,
     rateLimit: { limit: 30, windowMs: 60_000 },
     module: "notifications",

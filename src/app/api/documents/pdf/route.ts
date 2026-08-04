@@ -43,6 +43,15 @@ function sanitizeDoc(raw: unknown): BusinessDocument | null {
 export const POST = createApiHandler(
   {
     auth: true,
+    permissions: [
+      "dashboard.view",
+      "invoices.view",
+      "billing.view",
+      "sales.view",
+      "print.view",
+      "reports.documents",
+      "reports.view",
+    ],
     bodySchema: schema,
     rateLimit: { limit: 20, windowMs: 60_000 },
     module: "documents",

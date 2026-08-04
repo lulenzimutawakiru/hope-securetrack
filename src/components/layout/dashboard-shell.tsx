@@ -7,6 +7,7 @@ import { WorkspaceTabs } from "@/components/enterprise/workspace-tabs";
 import { OfflineBanner } from "@/components/enterprise/offline-banner";
 import { ServiceWorkerRegister } from "@/components/enterprise/service-worker-register";
 import { MfaEnforcementBanner } from "@/components/security/mfa-enforcement-banner";
+import { DashboardRbacGuard } from "@/components/security/dashboard-rbac-guard";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -35,7 +36,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         >
           <div className="mx-auto w-full max-w-content">
             <Breadcrumbs className="mb-3" />
-            {children}
+            <DashboardRbacGuard>{children}</DashboardRbacGuard>
           </div>
         </main>
       </div>

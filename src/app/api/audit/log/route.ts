@@ -28,6 +28,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const POST = createApiHandler(
   {
     auth: true,
+    // Any authenticated session may emit audit events for actions they performed;
+    // actor/company are always taken from the session (never the body).
+    permissions: ["dashboard.view", "audit.view", "eal.view"],
     rateLimit: { limit: 120, windowMs: 60_000 },
     module: "audit",
     bodySchema: AUDIT_SCHEMA,

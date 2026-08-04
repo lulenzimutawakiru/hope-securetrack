@@ -9,6 +9,12 @@ export const runtime = "nodejs";
 export const GET = createApiHandler(
   {
     auth: true,
+    permissions: [
+      "notifications.view",
+      "notifications.manage",
+      "dashboard.view",
+      "hc.view",
+    ],
     module: "notifications",
   },
   async ({ req, ctx }) => {

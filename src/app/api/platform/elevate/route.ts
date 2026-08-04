@@ -20,6 +20,7 @@ export const POST = createApiHandler(
   {
     auth: true,
     allowPlatformAdmin: true,
+    permissions: ["platform.elevate", "platform.view", "platform.admin"],
     requireMfa: "privileged",
     module: "platform",
     rateLimit: { limit: 10, windowMs: 60_000 },

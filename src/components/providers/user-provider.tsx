@@ -8,7 +8,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createClient } from "@/lib/supabase/crud-compat";
+// Session profile + role_permissions must use the real browser Supabase client
+// (RLS + auth.uid). crud-compat requires already-resolved permissions and
+// breaks the chicken-and-egg of the first auth load.
+import { createClient } from "@/lib/supabase/client";
 import { enrichPermissions } from "@/lib/auth/permissions";
 import type { UserProfile, Role } from "@/types/database";
 import type { User } from "@supabase/supabase-js";
@@ -20,6 +23,8 @@ export interface AuthUser {
   tenantId: string | null;
   /** SecureTrack staff platform admin (is_platform_admin with no tenant). */
   isPlatformAdmin: boolean;
+  /** Role slug for RBAC UI (e.g. super_administrator). */
+  roleSlug: string | null;
 }
 
 export interface UserContextValue {
@@ -132,6 +137,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             permissions,
             tenantId,
             isPlatformAdmin: isStaffPlatformAdmin,
+            roleSlug: roleSlug ?? null,
           });
         }
       } catch {

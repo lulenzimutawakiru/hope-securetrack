@@ -40,6 +40,16 @@ export const POST = createApiHandler(
   {
     auth: true,
     allowPlatformAdmin: true,
+    permissions: [
+      "hc.ai",
+      "hc.view",
+      "reports.ai",
+      "reports.assistant",
+      "dashboard.view",
+      "finance.ai",
+      "crm.ai",
+      "sales.ai",
+    ],
     module: "ai",
     rateLimit: { limit: 30, windowMs: 60_000 },
     bodySchema: schema,

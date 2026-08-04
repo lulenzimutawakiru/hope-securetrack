@@ -43,6 +43,11 @@ export type ApiHandlerContext = {
 export type ApiHandlerOptions<T extends z.ZodTypeAny | undefined = undefined> = {
   /** Require authenticated session */
   auth?: boolean;
+  /**
+   * Permission slugs (OR). When set, requireApiAuth enforces RBAC.
+   * Prefer always setting this for mutative routes. Entity CRUD enforces
+   * finer per-entity permissions inside the engine even if omitted here.
+   */
   permissions?: string[];
   allowPlatformAdmin?: boolean;
   requireMfa?: boolean | "privileged";
@@ -54,6 +59,12 @@ export type ApiHandlerOptions<T extends z.ZodTypeAny | undefined = undefined> = 
   idempotent?: boolean;
   /** Module tag for logs */
   module?: string;
+  /**
+   * When true (default for POST/PUT/PATCH/DELETE when permissions omitted),
+   * require at least dashboard.view so anonymous session alone is not enough
+   * for mutations. Set false only for intentional self-service without role.
+   */
+  requireBaselinePermission?: boolean;
 };
 
 /** Next.js App Router route context (params may be a Promise in Next 15+). */
@@ -126,19 +137,27 @@ export function createApiHandler<T extends z.ZodTypeAny | undefined = undefined>
       }
 
       let ctx: AuthedContext | undefined;
-      if (opts.auth !== false && opts.auth !== undefined ? opts.auth : opts.permissions) {
+      const wantsAuth =
+        opts.auth !== false && opts.auth !== undefined
+          ? opts.auth
+          : Boolean(opts.permissions);
+
+      // Mutative routes without explicit permissions still require a baseline
+      // permission so session-only access cannot perform ERP writes.
+      const mutative = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
+      const baseline =
+        opts.requireBaselinePermission !== false &&
+        mutative &&
+        (!opts.permissions || opts.permissions.length === 0)
+          ? (["dashboard.view"] as string[])
+          : undefined;
+      const effectivePermissions = opts.permissions?.length
+        ? opts.permissions
+        : baseline;
+
+      if (wantsAuth || effectivePermissions) {
         const auth = await requireApiAuth({
-          permissions: opts.permissions,
-          allowPlatformAdmin: opts.allowPlatformAdmin,
-          requireMfa: opts.requireMfa,
-        });
-        if ("response" in auth) {
-          auth.response.headers.set("x-correlation-id", correlationId);
-          return auth.response;
-        }
-        ctx = auth.ctx;
-      } else if (opts.auth === true) {
-        const auth = await requireApiAuth({
+          permissions: effectivePermissions,
           allowPlatformAdmin: opts.allowPlatformAdmin,
           requireMfa: opts.requireMfa,
         });

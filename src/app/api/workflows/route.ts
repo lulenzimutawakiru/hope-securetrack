@@ -44,6 +44,12 @@ export const GET = createApiHandler(
   {
     auth: true,
     allowPlatformAdmin: true,
+    permissions: [
+      "settings.workflows",
+      "settings.manage",
+      "settings.view",
+      "dashboard.view",
+    ],
     module: "workflows",
   },
   async ({ req, ctx }) => {
@@ -76,6 +82,11 @@ export const POST = createApiHandler(
   {
     auth: true,
     allowPlatformAdmin: true,
+    permissions: [
+      "settings.workflows",
+      "settings.manage",
+      "dashboard.view",
+    ],
     bodySchema: postSchema,
     rateLimit: { limit: 60, windowMs: 60_000 },
     module: "workflows",

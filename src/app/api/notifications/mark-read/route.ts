@@ -13,6 +13,12 @@ const schema = z.object({
 export const POST = createApiHandler(
   {
     auth: true,
+    permissions: [
+      "notifications.view",
+      "notifications.manage",
+      "dashboard.view",
+      "hc.view",
+    ],
     bodySchema: schema,
     rateLimit: { limit: 60, windowMs: 60_000 },
     module: "notifications",
