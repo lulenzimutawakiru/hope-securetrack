@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-04T07:28:44.168Z",
+  "generatedAt": "2026-08-04T08:32:29.806Z",
   "uiViolations": 0,
   "libEnforcedViolations": 0,
   "libDebtViolations": 0,
@@ -15,6 +15,7 @@
     "src/lib/offline/sync.ts",
     "src/lib/storage/upload.ts",
     "src/lib/hopechat/service.ts",
-    "src/lib/hopechat/enterprise.ts"
+    "src/lib/hopechat/enterprise.ts",
+    "src/app/dashboard/integrations/mtn-oauth/page.tsx"
   ]
 }

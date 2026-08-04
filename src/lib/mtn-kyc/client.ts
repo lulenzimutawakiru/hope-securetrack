@@ -23,6 +23,7 @@
  */
 
 import { mtnKycBasicAuthHeader, mtnKycConfig } from "./config";
+import { getMtnBearerToken } from "@/lib/mtn-oauth/client";
 import {
   describeMadapiError,
   isMadapiSuccessCode,
@@ -189,6 +190,11 @@ async function callMtnApi(input: {
       if (v != null && v !== "") headers[k] = v;
     }
   }
+
+  // MADAPI OAuth2: when MTN_OAUTH_CLIENT_ID / MTN_OAUTH_CLIENT_SECRET are
+  // configured, prefer the live bearer token over HTTP Basic (X-API-Key kept).
+  const bearer = await getMtnBearerToken();
+  if (bearer) headers.Authorization = `Bearer ${bearer}`;
 
   try {
     const res = await fetch(url.toString(), {

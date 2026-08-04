@@ -103,6 +103,20 @@ export const env = {
       process.env.MTN_KYC_SANDBOX === "1",
   },
 
+  /** MTN MADAPI OAuth2 access token (server-only) */
+  mtnOauth: {
+    baseUrl:
+      process.env.MTN_OAUTH_BASE_URL ||
+      "https://api.mtn.com/v1/oauth",
+    configured: Boolean(
+      process.env.MTN_OAUTH_CLIENT_ID?.trim() &&
+        process.env.MTN_OAUTH_CLIENT_SECRET?.trim()
+    ),
+    sandbox:
+      process.env.MTN_OAUTH_SANDBOX === "true" ||
+      process.env.MTN_OAUTH_SANDBOX === "1",
+  },
+
   redis: {
     upstashUrl: process.env.UPSTASH_REDIS_REST_URL || "",
     upstashToken: process.env.UPSTASH_REDIS_REST_TOKEN || "",

@@ -31,6 +31,7 @@ const MODULES = [
   { title: "Payments", href: "/dashboard/integrations/payments", icon: MessageSquare, desc: "MoMo · Stripe · banks" },
   { title: "Slack · SecureChat", href: "/dashboard/integrations/slack", icon: MessageSquare, desc: "Workspace · tickets · alerts" },
   { title: "MTN KYC", href: "/dashboard/integrations/mtn-kyc", icon: Shield, desc: "BVN · MSISDN · MADAPI verify" },
+  { title: "MTN MADAPI OAuth", href: "/dashboard/integrations/mtn-oauth", icon: Key, desc: "Access token · client_credentials · MADAPI" },
   { title: "Module Links", href: "/dashboard/integrations/modules", icon: Network, desc: "Internal ERP event mesh" },
   { title: "Monitoring", href: "/dashboard/integrations/monitor", icon: Activity, desc: "Health · latency · alerts" },
   { title: "Security", href: "/dashboard/integrations/security", icon: Shield, desc: "Secrets · IP allow · audit" },
