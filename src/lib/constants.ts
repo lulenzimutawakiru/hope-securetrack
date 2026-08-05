@@ -444,8 +444,11 @@ export const NAV_ITEMS = [
   { title: "Identity", href: "/dashboard/identity", icon: "Shield", permission: PERMISSIONS.IAM_VIEW, group: "security" },
   { title: "Enterprise", href: "/dashboard/enterprise", icon: "Building2", permission: PERMISSIONS.EC_VIEW, group: "platform" },
   { title: "Tenants (ERP)", href: "/dashboard/tenants", icon: "Building2", permission: PERMISSIONS.TENANT_VIEW, group: "platform" },
-  { title: "Platform cPanel", href: "/platform", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
+  { title: "Control Plane", href: "/platform", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
   { title: "All tenants", href: "/platform/tenants", icon: "Building2", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
+  { title: "Estate users", href: "/platform/users", icon: "Users", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
+  { title: "Companies (estate)", href: "/platform/companies", icon: "Building2", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
+
   { title: "Background Jobs", href: "/platform/jobs", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
   { title: "Platform Ops", href: "/platform/ops", icon: "Activity", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
   { title: "Dual Control", href: "/dashboard/security/dual-control", icon: "Shield", permission: "security.dual_control", group: "security" },

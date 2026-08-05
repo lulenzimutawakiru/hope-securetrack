@@ -92,15 +92,89 @@ const OVERRIDES: RbacRule[] = [
     prefix: "/dashboard/security/dual-control",
     anyOf: ["security.dual_control", "security.admin", "iam.security", "finance.approve", "payroll.approve"],
   },
-  // Platform cPanel — staff only (layout also gates is_platform_admin)
+  // Enterprise Control Plane — staff only (layout also gates is_platform_admin)
   {
     prefix: "/platform/tenants",
     anyOf: ["platform.view", "platform.admin", "platform.tenants"],
   },
   {
-    prefix: "/platform",
+    prefix: "/platform/companies",
+    anyOf: ["platform.view", "platform.admin", "platform.tenants"],
+  },
+  {
+    prefix: "/platform/users",
+    anyOf: ["platform.view", "platform.admin", "platform.tenants"],
+  },
+  {
+    prefix: "/platform/security",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+  {
+    prefix: "/platform/monitoring",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+  {
+    prefix: "/platform/ai",
+    anyOf: ["platform.view", "platform.admin", "platform.flags"],
+  },
+  {
+    prefix: "/platform/compliance",
     anyOf: ["platform.view", "platform.admin"],
   },
+  {
+    prefix: "/platform/governance",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/integrations",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/workflows",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/api",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+  {
+    prefix: "/platform/storage",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/database",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+  {
+    prefix: "/platform/backup",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+  {
+    prefix: "/platform/deploy",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+  {
+    prefix: "/platform/notifications",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/support",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/config",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform/studio",
+    anyOf: ["platform.view", "platform.admin"],
+  },
+  {
+    prefix: "/platform",
+    anyOf: ["platform.view", "platform.admin", "platform.ops_portal"],
+  },
+
+
   {
     prefix: "/dashboard/chat/notifications",
     anyOf: ["hc.view", "notifications.view", "dashboard.view"],

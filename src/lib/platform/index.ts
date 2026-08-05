@@ -14,8 +14,35 @@ export {
   cpanelListTenants,
   cpanelGetTenant,
   cpanelMutateTenant,
+  cpanelCreateTenant,
+  cpanelDeleteTenant,
+  cpanelSuggestSlug,
   cpanelOverview,
   type PlatformTenantRow,
   type PlatformTenantDetail,
   type TenantLifecycleAction,
 } from "./cpanel";
+export {
+  getCommandCenterSnapshot,
+  listAllCompanies,
+  listAllUsers,
+  CONTROL_PLANE_NAV,
+  type CommandCenterSnapshot,
+  type ControlPlaneLayer,
+} from "./control-plane";
+export {
+  CONTROL_PLANE_CAPABILITIES,
+  ACCESS_MATRIX,
+  ERP_MODULE_CATALOG,
+  SUBSCRIPTION_PLANS,
+  getPlanEntitlements,
+  PROVISIONING_WORKFLOW,
+  type ControlPlaneCapability,
+  type PlanEntitlements,
+  type SubscriptionPlanCode,
+} from "./control-plane-registry";
+export {
+  generateTenantEncryptionKey,
+  tenantDomainFromSlug,
+  type TenantEnterpriseConfig,
+} from "./tenant-crypto";

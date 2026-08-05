@@ -1,20 +1,28 @@
 "use client";
 
+/**
+ * Enterprise Command Center — SecureTrack OS administration home.
+ * Platform Super Admin only (enforced by layout + APIs).
+ */
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
   Users,
-  Layers,
   Activity,
+  Server,
+  Shield,
   CreditCard,
   Workflow,
-  Server,
-  Sparkles,
-  ArrowRight,
-  PauseCircle,
-  PlayCircle,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
   Timer,
+  ArrowRight,
+  Brain,
+  Layers,
+  LineChart,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -22,88 +30,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
-import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import type { CommandCenterSnapshot } from "@/lib/platform/control-plane";
 
-type Overview = {
-  tenants: number;
-  tenants_active: number;
-  tenants_trial: number;
-  tenants_suspended: number;
-  companies: number;
-  users: number;
-  active_subscriptions: number;
-  open_provision_jobs: number;
-  events_24h: number;
-};
-
-type TenantRow = {
-  id: string;
-  slug: string;
-  name: string;
-  status: string;
-  plan_code?: string | null;
-  company_count?: number;
-  user_count?: number;
-  created_at?: string | null;
-};
-
-const QUICK = [
-  {
-    title: "All tenants",
-    href: "/platform/tenants",
-    icon: Building2,
-    desc: "Directory · suspend · plan · modules",
-  },
-  {
-    title: "Provision tenant",
-    href: "/platform/provisioning",
-    icon: Sparkles,
-    desc: "Create org · company · admin · wizard",
-  },
-  {
-    title: "Subscriptions",
-    href: "/platform/subscriptions",
-    icon: CreditCard,
-    desc: "Plans · seats · billing status",
-  },
-  {
-    title: "Feature flags",
-    href: "/platform/flags",
-    icon: Layers,
-    desc: "Global defaults · per-tenant overrides",
-  },
-  {
-    title: "Event stream",
-    href: "/platform/events",
-    icon: Activity,
-    desc: "Domain events · audit feed",
-  },
-  {
-    title: "Background jobs",
-    href: "/platform/jobs",
-    icon: Server,
-    desc: "Queue · workers · retries",
-  },
-];
-
-export default function PlatformCpanelHome() {
+export default function EnterpriseCommandCenterPage() {
   const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [recent, setRecent] = useState<TenantRow[]>([]);
+  const [data, setData] = useState<CommandCenterSnapshot | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [ov, list] = await Promise.all([
-          fetch("/api/platform/tenants?overview=1").then((r) => r.json()),
-          fetch("/api/platform/tenants?limit=8").then((r) => r.json()),
-        ]);
-        if (ov?.ok !== false) setOverview(ov.data ?? ov);
-        const tenants = list?.data?.tenants ?? list?.tenants ?? [];
-        setRecent(Array.isArray(tenants) ? tenants : []);
-      } catch {
-        setOverview(null);
-        setRecent([]);
+        const res = await fetch("/api/platform/command-center");
+        const json = await res.json();
+        if (!res.ok || json?.ok === false) {
+          throw new Error(json?.error?.message || "Failed to load command center");
+        }
+        setData(json.data ?? json);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Load failed");
       } finally {
         setLoading(false);
       }
@@ -112,154 +56,348 @@ export default function PlatformCpanelHome() {
   }, []);
 
   if (loading) {
-    return <LoadingState message="Loading platform cPanel…" />;
+    return <LoadingState message="Loading Enterprise Command Center…" />;
   }
 
+  if (error || !data) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm">
+        <p className="font-medium text-destructive">Command center unavailable</p>
+        <p className="text-muted-foreground mt-1">{error || "No data"}</p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Ensure you are signed in as platform staff (is_platform_admin, no tenant).
+        </p>
+      </div>
+    );
+  }
+
+  const h = data.health;
+  const e = data.estate;
+  const s = data.security;
+  const b = data.business;
+  const j = data.jobs;
+
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
-        title="Platform control panel"
-        description={`${APP_NAME} · ${APP_TAGLINE} · manage every tenant like a hosting cPanel`}
+        title="Enterprise Command Center"
+        description="SecureTrack ERP operating system — platform, tenant, and company administration"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" asChild>
-              <Link href="/register">Public register</Link>
+              <Link href="/platform/tenants">Manage tenants</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link href="/platform/provisioning">
-                <Sparkles className="h-4 w-4 mr-1" /> New tenant
-              </Link>
+              <Link href="/platform/provisioning">Provision tenant</Link>
             </Button>
           </div>
         }
       />
 
-      <div className="rounded-xl border bg-gradient-to-r from-hope-navy to-[#0d2847] text-white p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <Server className="h-8 w-8 text-hope-gold shrink-0" />
-          <div>
-            <p className="text-hope-gold text-xs font-semibold uppercase tracking-wide">
-              Multi-tenant operating system
-            </p>
-            <p className="text-sm text-white/85 mt-1">
-              This plane governs the whole ERP estate: tenants, companies,
-              subscriptions, modules, flags, jobs, and lifecycle — without
-              leaking into tenant-user sessions.
-            </p>
-            <p className="text-xs text-white/50 mt-2">
-              Hierarchy: Tenant → Company → Branch → User → Role → Permissions →
-              Subscription → Feature access
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatCard
-          title="Tenants"
-          value={String(overview?.tenants ?? 0)}
-          icon={Building2}
-        />
-        <StatCard
-          title="Active"
-          value={String(overview?.tenants_active ?? 0)}
-          icon={PlayCircle}
-        />
-        <StatCard
-          title="Trial"
-          value={String(overview?.tenants_trial ?? 0)}
-          icon={Timer}
-        />
-        <StatCard
-          title="Suspended"
-          value={String(overview?.tenants_suspended ?? 0)}
-          icon={PauseCircle}
-        />
-        <StatCard
-          title="Companies"
-          value={String(overview?.companies ?? 0)}
-          icon={Layers}
-        />
-        <StatCard
-          title="Users"
-          value={String(overview?.users ?? 0)}
-          icon={Users}
-        />
-        <StatCard
-          title="Active subs"
-          value={String(overview?.active_subscriptions ?? 0)}
-          icon={CreditCard}
-        />
-        <StatCard
-          title="Open jobs"
-          value={String(overview?.open_provision_jobs ?? 0)}
-          icon={Workflow}
-        />
-      </div>
-
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-        {QUICK.map((m) => (
-          <Link
-            key={m.href}
-            href={m.href}
-            className="group flex items-center gap-3 rounded-lg border p-3 hover:border-primary/40 hover:bg-muted/40 transition"
-          >
-            <div className="rounded-md bg-primary/10 p-2">
-              <m.icon className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm group-hover:text-primary">
-                {m.title}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">{m.desc}</p>
-            </div>
-            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
-          </Link>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Recent tenants</CardTitle>
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/platform/tenants">View all</Link>
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {recent.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No tenants yet. Provision the first organization.
-            </p>
-          )}
-          {recent.map((t) => (
-            <Link
-              key={t.id}
-              href={`/platform/tenants/${t.id}`}
-              className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
+      {/* Architecture banner */}
+      <div className="rounded-xl border bg-gradient-to-r from-[#0b1e36] to-[#0d3d4d] text-white p-4">
+        <p className="text-hope-gold text-[10px] font-semibold uppercase tracking-wider">
+          Three-layer control plane
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {(
+            [
+              ["platform", data.layers.platform],
+              ["tenant", data.layers.tenant],
+              ["company", data.layers.company],
+            ] as const
+          ).map(([key, layer], i) => (
+            <div
+              key={key}
+              className="rounded-lg border border-white/10 bg-white/5 p-3"
             >
-              <div className="min-w-0">
-                <p className="font-medium truncate">{t.name}</p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  {t.slug} · {t.plan_code || "—"} · {t.company_count ?? 0} cos ·{" "}
-                  {t.user_count ?? 0} users
-                </p>
-              </div>
-              <Badge
-                variant={
-                  t.status === "active"
-                    ? "secondary"
-                    : t.status === "suspended"
-                      ? "destructive"
-                      : "outline"
-                }
-                className="text-[10px] capitalize shrink-0"
-              >
-                {t.status}
+              <p className="text-xs text-hope-gold font-semibold">
+                {i + 1}. {layer.label}
+              </p>
+              <p className="text-[11px] text-white/70 mt-1 leading-snug">
+                {layer.description}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-white/40 mt-3">
+          Isolated from /dashboard ERP operations · Roles: Platform Owner · CTO ·
+          Security · DevOps · Compliance
+        </p>
+      </div>
+
+      {/* Platform health */}
+      <section>
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Server className="h-4 w-4" /> Platform health
+          <Badge
+            variant={
+              h.status === "healthy"
+                ? "secondary"
+                : h.status === "degraded"
+                  ? "outline"
+                  : "destructive"
+            }
+            className="text-[10px] capitalize"
+          >
+            {h.status}
+          </Badge>
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          <HealthPill ok={h.database_ok} label="Database" detail={h.database_latency_ms != null ? `${h.database_latency_ms}ms` : undefined} />
+          <HealthPill ok={h.redis_configured} label="Redis rate limits" />
+          <HealthPill ok={h.job_worker_configured} label="Job worker secret" />
+          <HealthPill ok={h.ai_configured} label="AI gateway" />
+          <HealthPill ok={h.resend_configured} label="Email (Resend)" />
+          <HealthPill ok={h.mfa_enforced} label="MFA enforced" />
+          <HealthPill ok={h.dual_control} label="Dual control" />
+          <HealthPill ok={!h.payment_sandbox} label="Payments live" detail={h.payment_sandbox ? "sandbox" : "prod"} />
+        </div>
+      </section>
+
+      {/* Estate metrics */}
+      <section>
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Building2 className="h-4 w-4" /> Estate & business
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Tenants" value={String(e.tenants_total)} icon={Building2} />
+          <StatCard title="Active" value={String(e.tenants_active)} icon={CheckCircle2} />
+          <StatCard title="Trial" value={String(e.tenants_trial)} icon={Timer} />
+          <StatCard title="Suspended" value={String(e.tenants_suspended)} icon={XCircle} />
+          <StatCard title="Companies" value={String(e.companies)} icon={Layers} />
+          <StatCard title="Users" value={String(e.users)} icon={Users} />
+          <StatCard title="Active licenses" value={String(e.active_subscriptions)} icon={CreditCard} />
+          <StatCard title="Expiring trials (7d)" value={String(b.expiring_trials_7d)} icon={Timer} />
+        </div>
+        {b.plan_breakdown.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {b.plan_breakdown.map((p) => (
+              <Badge key={p.plan} variant="outline" className="text-[10px] capitalize">
+                {p.plan}: {p.count}
               </Badge>
+            ))}
+            <Badge variant="secondary" className="text-[10px]">
+              Module enablements: {b.module_enabled_rows}
+            </Badge>
+          </div>
+        )}
+      </section>
+
+      {/* Jobs + security */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Workflow className="h-4 w-4" /> Background jobs & queues
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Metric label="Pending" value={j.pending} />
+              <Metric label="Running" value={j.running} />
+              <Metric label="Failed" value={j.failed} tone={j.failed ? "danger" : undefined} />
+              <Metric label="Dead letter" value={j.dead} tone={j.dead ? "danger" : undefined} />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/platform/jobs">
+                  Job queue <ArrowRight className="h-3 w-3 ml-1" />
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/platform/monitoring">Monitoring</Link>
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Events (24h): {e.events_24h} · Open provision jobs:{" "}
+              {e.open_provision_jobs}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="h-4 w-4" /> Security overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Metric
+                label="Failed logins (24h)"
+                value={s.failed_logins_24h}
+                tone={s.failed_logins_24h > 20 ? "danger" : undefined}
+              />
+              <Metric
+                label="Open alerts"
+                value={s.open_alerts}
+                tone={s.open_alerts ? "danger" : undefined}
+              />
+              <Metric label="MFA-enabled users" value={s.mfa_enabled_users} />
+              <Metric label="Privileged users" value={s.privileged_users} />
+              <Metric label="Platform admins" value={s.platform_admins} />
+            </div>
+            <Button size="sm" variant="outline" className="mt-3" asChild>
+              <Link href="/platform/security">
+                Security console <ArrowRight className="h-3 w-3 ml-1" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent activity */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Recent tenants</CardTitle>
+            <Button size="sm" variant="ghost" asChild>
+              <Link href="/platform/tenants">View all</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.recent_tenants.map((t) => (
+              <Link
+                key={t.id}
+                href={`/platform/tenants/${t.id}`}
+                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{t.name}</p>
+                  <p className="text-[11px] font-mono text-muted-foreground">
+                    {t.slug} · {t.plan_code || "—"}
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  {t.status}
+                </Badge>
+              </Link>
+            ))}
+            {data.recent_tenants.length === 0 && (
+              <p className="text-sm text-muted-foreground">No tenants yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" /> Security events
+            </CardTitle>
+            <Button size="sm" variant="ghost" asChild>
+              <Link href="/platform/events">Stream</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-1 max-h-64 overflow-y-auto">
+            {data.recent_security_events.map((ev) => (
+              <div
+                key={ev.id}
+                className="flex justify-between gap-2 text-xs border-b py-1.5 last:border-0"
+              >
+                <span className="font-medium truncate">{ev.event_type}</span>
+                <span className="text-muted-foreground shrink-0">
+                  {ev.created_at
+                    ? new Date(ev.created_at).toLocaleString()
+                    : ""}
+                </span>
+              </div>
+            ))}
+            {data.recent_security_events.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No recent security-tagged events.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick launch */}
+      <section>
+        <h2 className="text-sm font-semibold mb-3">Control plane surfaces</h2>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { href: "/platform/security", icon: Shield, title: "Security", desc: "MFA · alerts · privileged access" },
+            { href: "/platform/monitoring", icon: LineChart, title: "Monitoring", desc: "Jobs · errors · performance" },
+            { href: "/platform/ai", icon: Brain, title: "AI config", desc: "Gateway · governance · flags" },
+            { href: "/platform/compliance", icon: Activity, title: "Compliance", desc: "Audit · dual control · holds" },
+            { href: "/platform/companies", icon: Layers, title: "Companies", desc: "Legal entities estate-wide" },
+            { href: "/platform/users", icon: Users, title: "Users", desc: "Cross-tenant identity" },
+            { href: "/platform/subscriptions", icon: CreditCard, title: "Subscriptions", desc: "Plans · licenses · trials" },
+            { href: "/platform/integrations", icon: Server, title: "Integrations", desc: "Providers · webhooks · keys" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group flex items-start gap-3 rounded-lg border p-3 hover:border-primary/40 hover:bg-muted/30 transition"
+            >
+              <item.icon className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-medium group-hover:text-primary">
+                  {item.title}
+                </p>
+                <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+              </div>
             </Link>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      <p className="text-[10px] text-muted-foreground">
+        Snapshot {new Date(data.generated_at).toLocaleString()} · Control plane
+        never mixes with tenant ERP UI sessions
+      </p>
+    </div>
+  );
+}
+
+function HealthPill({
+  ok,
+  label,
+  detail,
+}: {
+  ok: boolean;
+  label: string;
+  detail?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs">
+      <span className="flex items-center gap-1.5">
+        {ok ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+        ) : (
+          <XCircle className="h-3.5 w-3.5 text-destructive" />
+        )}
+        {label}
+      </span>
+      {detail ? (
+        <span className="text-muted-foreground font-mono">{detail}</span>
+      ) : (
+        <span className="text-muted-foreground">{ok ? "ok" : "off"}</span>
+      )}
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "danger";
+}) {
+  return (
+    <div className="rounded-md border px-3 py-2">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p
+        className={`text-lg font-semibold ${
+          tone === "danger" && value > 0 ? "text-destructive" : ""
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

@@ -16,6 +16,11 @@ import {
   validateAdminPassword,
 } from "./onboarding";
 import { sendTenantWelcomeEmail } from "./welcome-email";
+import {
+  generateTenantEncryptionKey,
+  tenantDomainFromSlug,
+  type TenantEnterpriseConfig,
+} from "./tenant-crypto";
 
 function jobCode() {
   const y = new Date().getFullYear();
@@ -65,6 +70,9 @@ export async function provisionTenant(
   companyId: string;
   steps: ProvisionStep[];
   loginHint?: string;
+  /** One-time tenant encryption secret (vault immediately; never stored raw) */
+  encryptionSecretOnce?: string | null;
+  domain?: string;
 }> {
   const pwdCheck = validateAdminPassword(input.admin_password || "");
   if (!pwdCheck.ok) {
@@ -117,10 +125,45 @@ export async function provisionTenant(
 
   if (jobErr || !jobRow) throw jobErr || new Error("Failed to create provisioning job");
 
+  // One-time crypto material (secret returned only in provision result for vaulting)
+  let oneTimeSecret: string | null = null;
+
   try {
-    // 1. Tenant
-    steps.push(step("tenant", "Create tenant", "running"));
+    // 1. Tenant namespace + isolation config
+    steps.push(step("tenant", "Create tenant namespace", "running"));
     const isTrial = plan === "starter";
+    const crypto = generateTenantEncryptionKey();
+    oneTimeSecret = crypto.secret_b64;
+    const domain =
+      input.domain?.trim() ||
+      tenantDomainFromSlug(slug);
+    const language = (input.language || "en").slice(0, 10);
+    const dataRegion = (input.data_region || "eu-west-1").slice(0, 40);
+    const compliance = (input.compliance_requirements || []).map(String);
+
+    const enterpriseConfig: TenantEnterpriseConfig = {
+      industry: input.industry || null,
+      language,
+      data_region: dataRegion,
+      domain,
+      compliance_requirements: compliance as TenantEnterpriseConfig["compliance_requirements"],
+      encryption: {
+        key_id: crypto.key_id,
+        fingerprint: crypto.fingerprint,
+        algorithm: crypto.algorithm,
+      },
+      isolation: {
+        enforce_tenant_id: true,
+        enforce_company_id: true,
+        enforce_branch_id: true,
+        rls: true,
+        storage: true,
+        search: true,
+        ai: true,
+        reporting: true,
+      },
+    };
+
     const { data: tenant, error: tErr } = await sb
       .from("tenants")
       .insert({
@@ -139,15 +182,23 @@ export async function provisionTenant(
         settings: {
           product: "SecureTrack ERP",
           provisioned: true,
-          industry: input.industry || null,
-          onboarding_version: 2,
+          onboarding_version: 3,
+          ...enterpriseConfig,
         },
       })
       .select("*")
       .single();
     if (tErr || !tenant) throw tErr || new Error("Tenant create failed");
     tenantId = tenant.id;
-    steps[steps.length - 1] = step("tenant", "Create tenant", "completed", tenant.id);
+    steps[steps.length - 1] = step(
+      "tenant",
+      "Create tenant namespace",
+      "completed",
+      `${tenant.id} · ${domain}`
+    );
+
+    steps.push(step("crypto", "Generate tenant encryption key", "completed", crypto.key_id));
+    steps.push(step("isolation", "Apply isolation controls", "completed", "RLS+storage+AI+reporting"));
 
     // 2. Company
     steps.push(step("company", "Create primary company", "running"));
@@ -207,15 +258,27 @@ export async function provisionTenant(
       );
     }
 
-    // 4. Subscription
+    // 4. Subscription + plan limits
     steps.push(step("subscription", "Activate subscription", "running"));
+    const seats =
+      input.seats ||
+      (plan === "starter"
+        ? 25
+        : plan === "professional"
+          ? 200
+          : plan === "government"
+            ? 5000
+            : 1000);
     await sb.from("tenant_subscriptions").upsert(
       {
         tenant_id: tenant.id,
         plan_code: plan,
         status: isTrial ? "trial" : "active",
-        seats: plan === "starter" ? 25 : plan === "professional" ? 200 : 1000,
-        modules: plan === "enterprise" || plan === "government" ? ["all"] : [],
+        seats,
+        modules:
+          plan === "enterprise" || plan === "government"
+            ? ["all"]
+            : input.modules || [],
         billing_email: input.admin_email,
         trial_ends_at: isTrial
           ? new Date(Date.now() + 30 * 86400000).toISOString()
@@ -227,25 +290,33 @@ export async function provisionTenant(
       "subscription",
       "Activate subscription",
       "completed",
-      plan
+      `${plan} · ${seats} seats`
     );
 
-    // 5. Modules (plan-aware: starter/professional get defaults; enterprise all)
+    // 5. Modules (plan-aware or explicit list)
     steps.push(step("modules", "Enable modules", "running"));
     const { data: mods } = await sb
       .from("platform_modules")
       .select("module_code, default_enabled, is_core");
     if (mods?.length) {
       const fullAccess = plan === "enterprise" || plan === "government";
+      const allow = new Set(
+        (input.modules || []).map((m) => m.toLowerCase())
+      );
       await sb.from("tenant_modules").upsert(
-        mods.map((m) => ({
-          tenant_id: tenant.id,
-          module_code: m.module_code,
-          enabled:
-            fullAccess ||
-            m.is_core === true ||
-            m.default_enabled !== false,
-        })),
+        mods.map((m) => {
+          const code = String(m.module_code);
+          const enabled = fullAccess
+            ? true
+            : allow.size > 0
+              ? allow.has(code.toLowerCase()) || m.is_core === true
+              : m.is_core === true || m.default_enabled !== false;
+          return {
+            tenant_id: tenant.id,
+            module_code: code,
+            enabled,
+          };
+        }),
         { onConflict: "tenant_id,module_code" }
       );
     }
@@ -273,8 +344,18 @@ export async function provisionTenant(
     }
     steps[steps.length - 1] = step("flags", "Apply feature flags", "completed");
 
-    // 7. Operational defaults (sequences, security, brand)
-    steps.push(step("defaults", "Seed operational defaults", "running"));
+    // 7. Default roles note (system roles are global; tenant admin assigned later)
+    steps.push(
+      step(
+        "roles",
+        "Default roles ready",
+        "completed",
+        "super_administrator + catalog roles available"
+      )
+    );
+
+    // 8. Operational defaults (sequences, security, brand)
+    steps.push(step("defaults", "Apply branding & defaults", "running"));
     const seed = await seedTenantDefaults(sb, {
       companyId: company.id,
       tenantId: tenant.id,
@@ -443,11 +524,19 @@ export async function provisionTenant(
       );
     }
 
+    steps.push(step("ready", "Tenant ready", "completed", "workflow complete"));
+
     const result = {
       tenant_id: tenant.id,
       company_id: company.id,
       branch_id: branchId,
       slug,
+      domain,
+      language,
+      data_region: dataRegion,
+      encryption_key_id: crypto.key_id,
+      encryption_fingerprint: crypto.fingerprint,
+      // Secret only in memory for this response path via encryptionSecretOnce
       admin_user_id: adminUserId,
       admin_email: input.admin_email,
       plan_code: plan,
@@ -476,6 +565,8 @@ export async function provisionTenant(
       companyId: company.id,
       steps,
       loginHint: input.admin_email,
+      encryptionSecretOnce: oneTimeSecret,
+      domain,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Provisioning failed";

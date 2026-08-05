@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { PlatformShell } from "@/components/platform/platform-shell";
 
 /**
- * SecureTrack platform cPanel — control plane for the entire ERP estate.
+ * SecureTrack Enterprise Control Plane (OS administration layer).
+ *
+ * Completely separated from tenant ERP (/dashboard). Three layers:
+ *   1. Platform Administration
+ *   2. Tenant Administration
+ *   3. Company Administration
  *
  * Restricted to SecureTrack staff (is_platform_admin + no tenant).
  * Tenant super admins are redirected to the ERP dashboard.

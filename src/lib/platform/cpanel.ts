@@ -1,10 +1,22 @@
 /**
  * Platform cPanel — cross-tenant control plane for SecureTrack staff.
  * Uses service-role admin client; callers MUST verify isPlatformAdmin first.
+ *
+ * Full tenant CRUD:
+ *  - Create  → cpanelCreateTenant (full provision)
+ *  - Read    → cpanelListTenants / cpanelGetTenant
+ *  - Update  → cpanelMutateTenant (update_meta, plan, lifecycle, modules, flags)
+ *  - Delete  → cpanelDeleteTenant (soft by default; hard optional)
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { provisionTenant } from "@/lib/platform/provision";
+import type { ProvisionTenantInput } from "@/lib/platform/types";
+import {
+  allocateUniqueSlug,
+  validateAdminPassword,
+} from "@/lib/platform/onboarding";
 
 export type PlatformTenantRow = {
   id: string;
@@ -53,15 +65,16 @@ export async function cpanelListTenants(opts?: {
   let q = sb
     .from("tenants")
     .select(
-      "id,slug,name,legal_name,status,plan_code,primary_currency,country_code,timezone,primary_contact_email,trial_ends_at,created_at,updated_at,settings"
+      "id,slug,name,legal_name,status,plan_code,primary_currency,country_code,timezone,primary_contact_email,trial_ends_at,created_at,updated_at,settings,deleted_at"
     )
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (opts?.status) q = q.eq("status", opts.status);
   if (opts?.plan) q = q.eq("plan_code", opts.plan);
   if (opts?.search?.trim()) {
-    const s = opts.search.trim();
+    const s = opts.search.trim().replace(/[%_,.()"'\\]/g, " ").slice(0, 80);
     q = q.or(
       `name.ilike.%${s}%,slug.ilike.%${s}%,primary_contact_email.ilike.%${s}%`
     );
@@ -379,12 +392,36 @@ export async function cpanelMutateTenant(
     ] as const) {
       if (payload[key] !== undefined) patch[key] = payload[key];
     }
+
+    // Enterprise config lives under settings (domain, language, region, compliance, industry)
+    const settingsMerge: Record<string, unknown> = {
+      ...((tenant.settings as Record<string, unknown>) || {}),
+    };
     if (payload.settings && typeof payload.settings === "object") {
-      patch.settings = {
-        ...((tenant.settings as Record<string, unknown>) || {}),
-        ...(payload.settings as Record<string, unknown>),
-      };
+      Object.assign(settingsMerge, payload.settings as Record<string, unknown>);
     }
+    for (const key of [
+      "industry",
+      "language",
+      "data_region",
+      "domain",
+      "compliance_requirements",
+    ] as const) {
+      if (payload[key] !== undefined) {
+        settingsMerge[key] = payload[key];
+      }
+    }
+    // Never allow clients to overwrite crypto material
+    const prev = (tenant.settings as Record<string, unknown>) || {};
+    if (prev.encryption) settingsMerge.encryption = prev.encryption;
+    if (prev.isolation && !payload.settings) {
+      // keep isolation unless explicitly patched via settings.isolation
+      if (!("isolation" in settingsMerge)) {
+        settingsMerge.isolation = prev.isolation;
+      }
+    }
+    patch.settings = settingsMerge;
+
     const { data, error } = await sb
       .from("tenants")
       .update(patch)
@@ -440,6 +477,191 @@ export async function cpanelMutateTenant(
   }
 
   throw new Error(`Unknown action: ${action}`);
+}
+
+/**
+ * Create a tenant with full stack: company, HQ, subscription, modules,
+ * wizard, and administrator auth user (same path as public provision).
+ */
+export async function cpanelCreateTenant(
+  input: ProvisionTenantInput,
+  actorId: string
+): Promise<{
+  tenantId: string;
+  companyId: string;
+  jobCode: string;
+  slug: string;
+  domain?: string;
+  encryption_secret_once?: string | null;
+}> {
+  const pwd = validateAdminPassword(input.admin_password || "");
+  if (!pwd.ok) {
+    throw new Error(pwd.errors[0] || "Invalid administrator password");
+  }
+  if (!input.organization_name?.trim() || input.organization_name.trim().length < 2) {
+    throw new Error("organization_name is required (min 2 characters)");
+  }
+  if (!input.admin_email?.trim()) {
+    throw new Error("admin_email is required");
+  }
+
+  const sb = admin();
+  const result = await provisionTenant(sb, {
+    ...input,
+    organization_name: input.organization_name.trim(),
+    admin_email: input.admin_email.trim().toLowerCase(),
+  });
+
+  await emitPlatformEvent(sb, result.tenantId, "tenant.created", actorId, {
+    via: "platform_cpanel",
+    job_code: result.job.job_code,
+    admin_email: input.admin_email,
+    plan_code: input.plan_code || "starter",
+  });
+
+  const { data: t } = await sb
+    .from("tenants")
+    .select("slug")
+    .eq("id", result.tenantId)
+    .maybeSingle();
+
+  return {
+    tenantId: result.tenantId,
+    companyId: result.companyId,
+    jobCode: result.job.job_code,
+    slug: (t?.slug as string) || input.slug || "",
+    domain: result.domain,
+    // One-time only — caller must vault and never log
+    encryption_secret_once: result.encryptionSecretOnce || null,
+  };
+}
+
+/**
+ * Soft-delete a tenant (default): marks deleted_at + cancelled.
+ * Hard delete: only when `hard: true` and tenant is cancelled/soft-deleted
+ * (or force: true). Deactivates memberships; does not drop auth users
+ * (use offboarding purge for destructive wipe).
+ */
+export async function cpanelDeleteTenant(
+  tenantId: string,
+  actorId: string,
+  opts?: { hard?: boolean; force?: boolean; reason?: string }
+): Promise<{ mode: "soft" | "hard"; tenant_id: string }> {
+  const sb = admin();
+  const { data: tenant, error } = await sb
+    .from("tenants")
+    .select("id,slug,name,status,deleted_at,settings")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (error || !tenant) throw new Error(error?.message || "Tenant not found");
+
+  const reason = opts?.reason || "Deleted by platform admin";
+
+  if (!opts?.hard) {
+    const settings = {
+      ...((tenant.settings as Record<string, unknown>) || {}),
+      deleted_reason: reason,
+      deleted_at: new Date().toISOString(),
+      deleted_by: actorId,
+    };
+    const { error: uErr } = await sb
+      .from("tenants")
+      .update({
+        status: "cancelled",
+        deleted_at: new Date().toISOString(),
+        settings,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", tenantId);
+    if (uErr) throw new Error(uErr.message);
+
+    await sb
+      .from("tenant_subscriptions")
+      .update({ status: "cancelled" })
+      .eq("tenant_id", tenantId);
+
+    // Deactivate company memberships under this tenant
+    const { data: cos } = await sb
+      .from("companies")
+      .select("id")
+      .eq("tenant_id", tenantId);
+    const companyIds = (cos || []).map((c) => c.id as string);
+    if (companyIds.length) {
+      await sb
+        .from("user_company_memberships")
+        .update({ status: "inactive" })
+        .in("company_id", companyIds);
+      await sb
+        .from("companies")
+        .update({ is_active: false })
+        .in("id", companyIds);
+    }
+
+    await emitPlatformEvent(sb, tenantId, "tenant.deleted", actorId, {
+      mode: "soft",
+      reason,
+    });
+    return { mode: "soft", tenant_id: tenantId };
+  }
+
+  // Hard delete
+  const softAlready = Boolean(tenant.deleted_at) || tenant.status === "cancelled";
+  if (!softAlready && !opts?.force) {
+    throw new Error(
+      "Hard delete requires a soft-deleted or cancelled tenant, or force: true"
+    );
+  }
+
+  // Clear FKs that block delete where possible
+  await sb.from("tenant_setup_progress").delete().eq("tenant_id", tenantId);
+  await sb.from("tenant_feature_flags").delete().eq("tenant_id", tenantId);
+  await sb.from("tenant_modules").delete().eq("tenant_id", tenantId);
+  await sb.from("tenant_subscriptions").delete().eq("tenant_id", tenantId);
+  await sb.from("tenant_provisioning_jobs").delete().eq("tenant_id", tenantId);
+
+  const { data: cos } = await sb
+    .from("companies")
+    .select("id")
+    .eq("tenant_id", tenantId);
+  const companyIds = (cos || []).map((c) => c.id as string);
+  if (companyIds.length) {
+    await sb.from("user_company_memberships").delete().in("company_id", companyIds);
+    // Null out tenant_id on companies rather than cascade-deleting all ERP data
+    await sb
+      .from("companies")
+      .update({ tenant_id: null, is_active: false })
+      .in("id", companyIds);
+  }
+
+  await sb
+    .from("user_profiles")
+    .update({ tenant_id: null, is_active: false })
+    .eq("tenant_id", tenantId);
+
+  const { error: dErr } = await sb.from("tenants").delete().eq("id", tenantId);
+  if (dErr) throw new Error(dErr.message);
+
+  // Event after delete (no tenant_id FK required if nullable)
+  try {
+    await sb.from("domain_events").insert({
+      event_type: "tenant.purged",
+      aggregate_type: "tenant",
+      aggregate_id: tenantId,
+      actor_id: actorId,
+      payload: { mode: "hard", slug: tenant.slug, name: tenant.name, reason },
+      source_module: "platform",
+      severity: "warning",
+    });
+  } catch {
+    /* non-fatal */
+  }
+
+  return { mode: "hard", tenant_id: tenantId };
+}
+
+/** Ensure unique slug helper for create UI */
+export async function cpanelSuggestSlug(name: string): Promise<string> {
+  return allocateUniqueSlug(admin(), name);
 }
 
 async function emitPlatformEvent(

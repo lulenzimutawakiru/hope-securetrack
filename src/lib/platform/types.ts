@@ -111,4 +111,16 @@ export type ProvisionTenantInput = {
   industry?: string;
   plan_code?: string;
   create_demo_branch?: boolean;
+  /** ISO language code e.g. en, fr, sw */
+  language?: string;
+  /** Data residency region e.g. eu-west-1, af-south-1 */
+  data_region?: string;
+  /** Preferred subdomain label (generates {slug}.securetrack.com) */
+  domain?: string;
+  /** Compliance frameworks required for this tenant */
+  compliance_requirements?: string[];
+  /** Max seats for subscription */
+  seats?: number;
+  /** Module codes to enable (default: plan defaults) */
+  modules?: string[];
 };
