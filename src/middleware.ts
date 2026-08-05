@@ -164,6 +164,8 @@ export async function middleware(request: NextRequest) {
 
     const isAuthRoute =
       pathname.startsWith("/login") || pathname.startsWith("/register");
+    // MFA step-up requires an existing session (AAL1); not public, not auth bounce
+    const isMfaRoute = pathname === "/mfa" || pathname.startsWith("/mfa/");
     // Device machine webhooks authenticate via push token in the route handler
     const isPublicRoute =
       pathname === "/" ||
@@ -179,7 +181,7 @@ export async function middleware(request: NextRequest) {
       // Slack Events API (signature verified in route)
       pathname === "/api/v2/integrations/slack/events";
 
-    if (!user && !isAuthRoute && !isPublicRoute) {
+    if (!user && !isAuthRoute && !isPublicRoute && !isMfaRoute) {
       if (pathname.startsWith("/api/")) {
         return withCorrelation(
           applySecurityHeaders(
@@ -217,6 +219,16 @@ export async function middleware(request: NextRequest) {
       }
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
+      return withCorrelation(
+        applySecurityHeaders(NextResponse.redirect(url)),
+        request
+      );
+    }
+
+    // MFA page requires a session
+    if (isMfaRoute && !user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
       return withCorrelation(
         applySecurityHeaders(NextResponse.redirect(url)),
         request

@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { createAccessRequest, checkPassword } from "@/lib/idm";
+import { MfaSetupPanel } from "@/components/security/mfa-setup";
 
 export default function IdentitySelfServicePage() {
   const { auth } = useUser();
@@ -117,16 +118,6 @@ export default function IdentitySelfServicePage() {
     }
   };
 
-  const enableMfaFlag = async () => {
-    if (!userId) return;
-    await createClient()
-      .from("user_profiles")
-      .update({ require_mfa: true, mfa_enforced: true })
-      .eq("id", userId);
-    toast.success("MFA required on your account");
-    await load();
-  };
-
   if (loading) return <LoadingState message="Loading self-service…" />;
   if (!profile) {
     return (
@@ -169,7 +160,16 @@ export default function IdentitySelfServicePage() {
           <CardHeader className="pb-2"><CardTitle className="text-base">Access</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-1">
             <div>Primary role: <strong>{role?.name || "—"}</strong></div>
-            <div>MFA: {(profile.require_mfa || profile.mfa_enabled || profile.mfa_enforced) ? "Required / On" : "Optional"}</div>
+            <div>
+              MFA:{" "}
+              <strong>
+                {profile.mfa_enabled
+                  ? "Enabled"
+                  : profile.require_mfa || profile.mfa_enforced
+                    ? "Required — enroll below"
+                    : "Optional"}
+              </strong>
+            </div>
             <div>Type: <span className="capitalize">{String(profile.user_type || "employee")}</span></div>
           </CardContent>
         </Card>
@@ -197,8 +197,10 @@ export default function IdentitySelfServicePage() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Button size="sm" variant="outline" onClick={enableMfaFlag}>
-              <Fingerprint className="h-3.5 w-3.5 mr-1" /> Enable MFA
+            <Button size="sm" variant="outline" asChild>
+              <a href="#mfa-setup">
+                <Fingerprint className="h-3.5 w-3.5 mr-1" /> MFA setup
+              </a>
             </Button>
             <Dialog open={reqOpen} onOpenChange={setReqOpen}>
               <DialogTrigger asChild>
@@ -249,6 +251,10 @@ export default function IdentitySelfServicePage() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      <div id="mfa-setup" className="mb-6 scroll-mt-24">
+        <MfaSetupPanel />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

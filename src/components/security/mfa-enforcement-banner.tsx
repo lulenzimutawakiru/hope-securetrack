@@ -68,7 +68,9 @@ export function MfaEnforcementBanner() {
           </p>
         </div>
         <Button size="sm" variant="outline" className="shrink-0 border-amber-600/50" asChild>
-          <Link href="/dashboard/identity/self-service">Enable MFA</Link>
+          <Link href="/dashboard/identity/self-service#mfa-setup">
+            Set up authenticator
+          </Link>
         </Button>
       </div>
     </div>

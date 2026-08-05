@@ -6,6 +6,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
+import {
+  mfaEnforcementEnabled as mfaEnvEnforced,
+  resolveMfaStatus,
+} from "@/lib/security/mfa";
 
 /** Roles that must complete MFA when MFA_ENFORCE_PRIVILEGED=true (default in production) */
 export const PRIVILEGED_ROLE_SLUGS = new Set([
@@ -69,10 +73,7 @@ export function authError(
  * - Non-production: OFF unless MFA_ENFORCE_PRIVILEGED=true
  */
 export function mfaEnforcementEnabled(): boolean {
-  const raw = process.env.MFA_ENFORCE_PRIVILEGED;
-  if (raw === "false" || raw === "0") return false;
-  if (raw === "true" || raw === "1") return true;
-  return process.env.NODE_ENV === "production";
+  return mfaEnvEnforced();
 }
 
 /**
@@ -84,6 +85,11 @@ export async function requireApiAuth(opts?: {
   allowPlatformAdmin?: boolean;
   /** Require MFA for privileged roles (or always if requireMfa: true) */
   requireMfa?: boolean | "privileged";
+  /**
+   * Skip MFA enforcement (enroll / challenge / verify routes must remain
+   * reachable at AAL1 so users can complete step-up).
+   */
+  skipMfaCheck?: boolean;
 }): Promise<{ ctx: AuthedContext } | { response: NextResponse }> {
   const supabase = await createClient();
   const {
@@ -197,11 +203,17 @@ export async function requireApiAuth(opts?: {
     isElevated = false;
   }
 
-  // AAL2 / MFA: prefer Supabase assurance level when present
-  const aal = (user as { aal?: string; app_metadata?: { aal?: string } }).aal
-    || (user as { app_metadata?: { aal?: string } }).app_metadata?.aal;
-  const mfaEnabled = Boolean(profile.mfa_enabled) || aal === "aal2";
-  const mfaOk = mfaEnabled;
+  // Resolve real AAL + verified factors (Supabase MFA)
+  const mfaStatus = await resolveMfaStatus(supabase, user, {
+    mfa_enabled: Boolean(profile.mfa_enabled),
+    require_mfa: Boolean(profile.require_mfa),
+    mfa_enforced: Boolean(profile.mfa_enforced),
+    is_platform_admin: Boolean(profile.is_platform_admin),
+    tenant_id: tenantId,
+    roleSlug,
+  });
+  // Session is MFA-clean when AAL2, or no factor is enrolled yet
+  const mfaOk = mfaStatus.aal2 || !mfaStatus.hasVerifiedFactor;
 
   if (opts?.permissions?.length) {
     const allowAdmin = opts.allowPlatformAdmin !== false && isPlatformAdmin;
@@ -218,19 +230,19 @@ export async function requireApiAuth(opts?: {
   }
 
   const needMfa =
-    opts?.requireMfa === true ||
-    (opts?.requireMfa === "privileged" && isPrivilegedRole && mfaEnforcementEnabled()) ||
-    (mfaEnforcementEnabled() &&
-      isPrivilegedRole &&
-      (Boolean(profile.require_mfa) || Boolean(profile.mfa_enforced)));
+    !opts?.skipMfaCheck &&
+    (opts?.requireMfa === true ||
+      (opts?.requireMfa === "privileged" &&
+        isPrivilegedRole &&
+        mfaEnforcementEnabled()) ||
+      (mfaEnforcementEnabled() && isPrivilegedRole));
 
-  if (needMfa && !mfaOk) {
+  if (needMfa && !mfaStatus.mfaSatisfiedForPrivileged) {
+    const message = mfaStatus.hasVerifiedFactor
+      ? "Multi-factor verification required. Open /mfa to enter your authenticator code."
+      : "Multi-factor authentication is required for your role. Enroll an authenticator under Identity → Security / MFA.";
     return {
-      response: authError(
-        "Multi-factor authentication required for this action. Enable MFA in Identity self-service.",
-        403,
-        "MFA_REQUIRED"
-      ),
+      response: authError(message, 403, "MFA_REQUIRED"),
     };
   }
 
@@ -245,7 +257,7 @@ export async function requireApiAuth(opts?: {
         role_id: profile.role_id as string | null,
         is_platform_admin: Boolean(profile.is_platform_admin),
         email: (profile as { email?: string }).email,
-        mfa_enabled: Boolean(profile.mfa_enabled),
+        mfa_enabled: mfaStatus.profile.mfa_enabled,
         require_mfa: Boolean(profile.require_mfa),
         mfa_enforced: Boolean(profile.mfa_enforced),
       },

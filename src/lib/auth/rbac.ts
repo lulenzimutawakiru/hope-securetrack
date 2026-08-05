@@ -74,7 +74,11 @@ const OVERRIDES: RbacRule[] = [
   },
   {
     prefix: "/dashboard/identity/self-service",
-    anyOf: ["iam.view", "iam.sessions", "dashboard.view", "profile.self"],
+    anyOf: ["iam.view", "iam.sessions", "dashboard.view", "profile.self", "iam.mfa"],
+  },
+  {
+    prefix: "/dashboard/identity/security",
+    anyOf: ["iam.security", "iam.mfa", "iam.manage", "security.admin"],
   },
   {
     prefix: "/dashboard/identity/sessions",

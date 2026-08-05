@@ -233,6 +233,33 @@ export default function LoginPage() {
         }
       }
 
+      // MFA step-up: password session is AAL1 when a verified factor exists
+      try {
+        const { data: aal } =
+          await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (
+          aal?.currentLevel === "aal1" &&
+          aal?.nextLevel === "aal2"
+        ) {
+          const next = new URLSearchParams(window.location.search).get("next");
+          const safe =
+            next &&
+            next.startsWith("/") &&
+            !next.startsWith("//") &&
+            !next.includes("://") &&
+            !next.includes("\\") &&
+            /^\/[a-zA-Z0-9/_\-?=&%.]*$/.test(next)
+              ? next
+              : "/dashboard";
+          toast.message("Enter your authenticator code to continue");
+          router.push(`/mfa?next=${encodeURIComponent(safe)}`);
+          router.refresh();
+          return;
+        }
+      } catch {
+        /* MFA API unavailable — continue to dashboard */
+      }
+
       toast.success("Welcome back!");
       const next = new URLSearchParams(window.location.search).get("next");
       const safe =

@@ -51,6 +51,8 @@ export type ApiHandlerOptions<T extends z.ZodTypeAny | undefined = undefined> = 
   permissions?: string[];
   allowPlatformAdmin?: boolean;
   requireMfa?: boolean | "privileged";
+  /** Allow AAL1 sessions (MFA enroll / challenge / verify endpoints). */
+  skipMfaCheck?: boolean;
   /** Rate limit: requests per windowMs */
   rateLimit?: { limit: number; windowMs: number; key?: string };
   /** Zod schema for JSON body (POST/PUT/PATCH) */
@@ -160,6 +162,7 @@ export function createApiHandler<T extends z.ZodTypeAny | undefined = undefined>
           permissions: effectivePermissions,
           allowPlatformAdmin: opts.allowPlatformAdmin,
           requireMfa: opts.requireMfa,
+          skipMfaCheck: opts.skipMfaCheck,
         });
         if ("response" in auth) {
           auth.response.headers.set("x-correlation-id", correlationId);
