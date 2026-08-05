@@ -120,10 +120,9 @@ function esc(s) {
 const permValues = slugs
   .map((slug) => {
     const mod = slug.split(".")[0] || "general";
-    const name = slug
-      .split(/[._]/)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+    // Name must be unique (permissions_name_key) — include slug so it never
+    // collides with seed rows that used different display names.
+    const name = `perm:${slug}`;
     return `  ('${esc(name)}', '${esc(slug)}', '${esc(mod)}', 'Catalog permission: ${esc(slug)}')`;
   })
   .join(",\n");
