@@ -343,13 +343,20 @@ export function enrichPermissions(
   isStaffPlatformAdmin = false
 ): string[] {
   let permissions = [...base];
+
+  // Tenant users never hold platform.* control-plane entitlements even if a
+  // role row was mis-seeded (mirrors requireApiAuth server strip).
+  if (!isStaffPlatformAdmin) {
+    permissions = permissions.filter((p) => !p.startsWith("platform."));
+  }
+
   if (roleSlug === "super_administrator") {
     // Tenant super admins keep full tenant business access but NOT the
     // platform control plane, which is SecureTrack-staff only.
     permissions = Array.from(
       new Set([
         ...permissions,
-        ...SUPER_ADMIN_EXTRAS.filter((p) => !PLATFORM_STAFF_EXTRAS.includes(p)),
+        ...SUPER_ADMIN_EXTRAS.filter((p) => !p.startsWith("platform.")),
       ])
     );
   }
@@ -358,8 +365,27 @@ export function enrichPermissions(
       new Set([...permissions, ...SUPER_ADMIN_EXTRAS, ...PLATFORM_STAFF_EXTRAS])
     );
   }
+  // Baseline: every authenticated user can open the home shell.
+  // Module tiles / nav still require their own permissions.
   if (!permissions.includes("dashboard.view")) {
     permissions = [...permissions, "dashboard.view"];
   }
   return permissions;
+}
+
+/** True if user holds the permission (exact slug match). */
+export function permissionGranted(
+  userPermissions: string[] | null | undefined,
+  permission: string
+): boolean {
+  return Boolean(userPermissions?.includes(permission));
+}
+
+/** True if user holds any of the listed permissions. */
+export function anyPermissionGranted(
+  userPermissions: string[] | null | undefined,
+  permissions: string[]
+): boolean {
+  if (!userPermissions?.length || !permissions.length) return false;
+  return permissions.some((p) => userPermissions.includes(p));
 }

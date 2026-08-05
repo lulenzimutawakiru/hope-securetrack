@@ -75,11 +75,17 @@ export type PlatformModule = {
 };
 
 export type SetupStep = {
+  id?: string;
   step_key: string;
   step_label?: string | null;
   status: string;
   sort_order?: number;
   completed_at?: string | null;
+  metadata?: {
+    description?: string;
+    href?: string;
+    [key: string]: unknown;
+  } | null;
 };
 
 export type PlatformStats = {
@@ -101,6 +107,8 @@ export type ProvisionTenantInput = {
   admin_password: string;
   country_code?: string;
   currency?: string;
+  timezone?: string;
+  industry?: string;
   plan_code?: string;
   create_demo_branch?: boolean;
 };

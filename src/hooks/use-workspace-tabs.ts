@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/constants";
+import { useUser } from "@/hooks/use-user";
+import { canAccessRoute } from "@/lib/auth/rbac";
 
 const STORAGE_KEY = "hope:workspace-tabs:v1";
 const MAX_TABS = 12;
@@ -54,6 +56,7 @@ function loadTabs(): WorkspaceTab[] {
 export function useWorkspaceTabs() {
   const pathname = usePathname();
   const router = useRouter();
+  const { auth, loading: authLoading, isPlatformAdmin } = useUser();
   const [tabs, setTabs] = useState<WorkspaceTab[]>(() => loadTabs());
   const [ready, setReady] = useState(false);
 
@@ -67,9 +70,33 @@ export function useWorkspaceTabs() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs));
   }, [tabs, ready]);
 
+  // Drop tabs the user is no longer allowed to open (role change / re-login)
+  useEffect(() => {
+    if (!ready || authLoading) return;
+    setTabs((prev) => {
+      const filtered = prev.filter(
+        (t) =>
+          t.href === "/dashboard" ||
+          canAccessRoute(auth?.permissions, t.href, { isPlatformAdmin })
+      );
+      if (filtered.length === prev.length) return prev;
+      if (!filtered.length) {
+        return [{ href: "/dashboard", title: "Dashboard", pinned: true }];
+      }
+      return filtered;
+    });
+  }, [ready, authLoading, auth?.permissions, isPlatformAdmin]);
+
   // Open / focus tab on navigation
   useEffect(() => {
     if (!ready || !pathname?.startsWith("/dashboard")) return;
+    // Never add a tab for a route the user cannot access
+    if (
+      !authLoading &&
+      !canAccessRoute(auth?.permissions, pathname, { isPlatformAdmin })
+    ) {
+      return;
+    }
     const title = titleForPath(pathname);
     setTabs((prev) => {
       const exists = prev.find((t) => t.href === pathname);
@@ -89,15 +116,20 @@ export function useWorkspaceTabs() {
       }
       return next;
     });
-  }, [pathname, ready]);
+  }, [pathname, ready, authLoading, auth?.permissions, isPlatformAdmin]);
 
   const activeHref = pathname || "/dashboard";
 
   const openTab = useCallback(
     (href: string) => {
+      if (
+        !canAccessRoute(auth?.permissions, href, { isPlatformAdmin })
+      ) {
+        return;
+      }
       router.push(href);
     },
-    [router]
+    [router, auth?.permissions, isPlatformAdmin]
   );
 
   const closeTab = useCallback(

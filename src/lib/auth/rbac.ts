@@ -4,6 +4,12 @@
  * Source of truth for *data* remains requireApiAuth + CRUD engine + RLS.
  * This module gates UI navigation and deep links so modules are only
  * reachable with the matching role permission (same slugs as NAV_ITEMS).
+ *
+ * Policy:
+ * - Platform staff (`isPlatformAdmin`) may open any route.
+ * - Tenant super_administrator must still hold the required permission
+ *   (granted via role_permissions / SUPER_ADMIN_EXTRAS enrichment) — no blanket bypass.
+ * - Unknown /dashboard/* modules fail closed (empty requirement = deny).
  */
 
 import { NAV_ITEMS } from "@/lib/constants";
@@ -15,20 +21,72 @@ export type RbacRule = {
   anyOf: string[];
 };
 
-/** Explicit overrides (longest match wins after NAV_ITEMS). */
+/** Explicit overrides (checked first; longest prefix wins among all rules). */
 const OVERRIDES: RbacRule[] = [
   // Self-service areas — available to any signed-in user with baseline access
   {
     prefix: "/dashboard/settings/profile",
+    anyOf: ["settings.view", "settings.manage", "dashboard.view", "profile.self", "profile.view"],
+  },
+  {
+    prefix: "/dashboard/settings/setup",
     anyOf: ["settings.view", "settings.manage", "dashboard.view"],
   },
   {
+    prefix: "/dashboard/settings/security",
+    anyOf: ["settings.manage", "settings.admin", "iam.security", "security.admin"],
+  },
+  {
+    prefix: "/dashboard/settings/integrations",
+    anyOf: ["settings.integrations", "settings.manage", "intg.manage"],
+  },
+  {
+    prefix: "/dashboard/settings/numbering",
+    anyOf: ["settings.sequences", "settings.manage"],
+  },
+  {
+    prefix: "/dashboard/settings/workflows",
+    anyOf: ["settings.workflows", "settings.manage"],
+  },
+  {
+    prefix: "/dashboard/settings/branding",
+    anyOf: ["settings.branding", "settings.manage", "brand.view", "brand.manage"],
+  },
+  {
+    prefix: "/dashboard/settings/email",
+    anyOf: ["settings.manage", "comm.manage", "comm.admin"],
+  },
+  {
+    prefix: "/dashboard/settings/modules",
+    anyOf: ["settings.manage", "settings.admin", "platform.flags"],
+  },
+  {
+    prefix: "/dashboard/settings/backup",
+    anyOf: ["settings.manage", "settings.admin", "security.admin"],
+  },
+  {
+    prefix: "/dashboard/settings/audit",
+    anyOf: ["settings.manage", "audit.view", "eal.view"],
+  },
+  {
+    prefix: "/dashboard/settings",
+    anyOf: ["settings.view", "settings.manage"],
+  },
+  {
     prefix: "/dashboard/identity/self-service",
-    anyOf: ["iam.view", "iam.sessions", "dashboard.view"],
+    anyOf: ["iam.view", "iam.sessions", "dashboard.view", "profile.self"],
   },
   {
     prefix: "/dashboard/identity/sessions",
     anyOf: ["iam.sessions", "iam.view", "iam.security", "dashboard.view"],
+  },
+  {
+    prefix: "/dashboard/identity/permissions",
+    anyOf: ["iam.roles", "iam.manage", "iam.view"],
+  },
+  {
+    prefix: "/dashboard/security/dual-control",
+    anyOf: ["security.dual_control", "security.admin", "iam.security", "finance.approve", "payroll.approve"],
   },
   {
     prefix: "/dashboard/chat/notifications",
@@ -165,7 +223,13 @@ const OVERRIDES: RbacRule[] = [
 ];
 
 function rulesFromNav(): RbacRule[] {
-  return NAV_ITEMS.map((item) => ({
+  // Root shells (/dashboard, /platform) are handled exactly in
+  // resolveRoutePermissions — never as a prefix for child modules.
+  // Otherwise every unmapped /dashboard/* path would only need dashboard.view.
+  return NAV_ITEMS.filter((item) => {
+    const href = item.href.replace(/\/$/, "") || item.href;
+    return href !== "/dashboard" && href !== "/platform";
+  }).map((item) => ({
     prefix: item.href.replace(/\/$/, "") || item.href,
     anyOf: [item.permission],
   }));
@@ -193,8 +257,11 @@ function rules(): RbacRule[] {
 
 /**
  * Resolve required permissions for a dashboard/platform pathname.
- * Returns null when path is outside protected modules (allow with auth only)
- * or the root dashboard home.
+ *
+ * Returns:
+ * - `null` — path is outside protected trees (no RBAC gate; auth-only).
+ * - `[]` — protected tree but no matching module rule → **deny** (fail closed).
+ * - `string[]` — any one of these permissions grants access.
  */
 export function resolveRoutePermissions(
   pathname: string
@@ -215,13 +282,20 @@ export function resolveRoutePermissions(
     }
   }
 
-  // Unknown module under /dashboard — require dashboard.view (fail closed-ish)
-  if (path.startsWith("/dashboard")) return ["dashboard.view"];
+  // Unknown module under protected trees — fail closed
   if (path.startsWith("/platform")) return ["platform.view"];
+  if (path.startsWith("/dashboard")) return [];
   return null;
 }
 
-/** True if the permission set satisfies the route. */
+/**
+ * True if the permission set satisfies the route.
+ *
+ * - Platform staff bypass all route gates.
+ * - Super administrators do **not** get a blanket bypass; they must hold the
+ *   permission (normally via SUPER_ADMIN_EXTRAS on the client / role seed on server).
+ * - Empty `required` means the path is unmapped and access is denied.
+ */
 export function canAccessRoute(
   userPermissions: string[] | null | undefined,
   pathname: string,
@@ -230,25 +304,45 @@ export function canAccessRoute(
   if (opts?.isPlatformAdmin) return true;
 
   const required = resolveRoutePermissions(pathname);
-  if (!required || required.length === 0) return true;
+  // Outside RBAC trees
+  if (required === null) return true;
+  // Unmapped protected path — deny
+  if (required.length === 0) return false;
 
   const perms = userPermissions || [];
-  if (opts?.isSuperAdmin) {
-    // Super admin extras already merged into perms via enrichPermissions;
-    // still check in case list is incomplete.
-    return required.some((p) => perms.includes(p)) || perms.length > 0;
-  }
+  // Super-admin extras are already in `perms` via enrichPermissions; no extra bypass.
+  void opts?.isSuperAdmin;
   return required.some((p) => perms.includes(p));
+}
+
+/**
+ * Filter a list of hrefs (or objects with href) to those the user may open.
+ */
+export function filterAccessibleRoutes<T extends { href: string }>(
+  items: readonly T[],
+  userPermissions: string[] | null | undefined,
+  opts?: { isPlatformAdmin?: boolean }
+): T[] {
+  return items.filter((item) =>
+    canAccessRoute(userPermissions, item.href, opts)
+  );
 }
 
 /** Human-readable denial reason. */
 export function routeAccessDenial(
   pathname: string
 ): { title: string; description: string; required: string[] } {
-  const required = resolveRoutePermissions(pathname) || ["dashboard.view"];
+  const required = resolveRoutePermissions(pathname);
+  const list =
+    required && required.length > 0
+      ? required
+      : ["(module not registered for your role)"];
   return {
     title: "Access restricted by role",
-    description: `Your role does not include permission for this module. Required: ${required.join(" or ")}. Contact an administrator to request access.`,
-    required,
+    description:
+      required && required.length > 0
+        ? `Your role does not include permission for this module. Required: ${required.join(" or ")}. Contact an administrator to request access.`
+        : "This area is not available for your role. Contact an administrator if you need access.",
+    required: list,
   };
 }

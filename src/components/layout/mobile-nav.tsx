@@ -54,11 +54,12 @@ export function MobileNav() {
   const { auth, loading, hasPermission, isPlatformAdmin } = useUser();
 
   const tabs = TABS.map((tab) => {
-    const allowed =
-      loading ||
-      isPlatformAdmin ||
-      hasPermission(tab.permission) ||
-      canAccessRoute(auth?.permissions, tab.href, { isPlatformAdmin });
+    // Fail closed while loading — only show Home to avoid module leakage.
+    const allowed = loading
+      ? tab.href === "/dashboard"
+      : isPlatformAdmin ||
+        hasPermission(tab.permission) ||
+        canAccessRoute(auth?.permissions, tab.href, { isPlatformAdmin });
     return {
       ...tab,
       href:

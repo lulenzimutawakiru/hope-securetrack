@@ -206,14 +206,18 @@ export function CommandPalette() {
     [router]
   );
 
-  const nav = NAV_ITEMS.filter(
-    (item) => loading || hasPermission(item.permission)
-  );
+  // Fail closed: no nav entries or search sources until permissions resolve.
+  const nav = loading
+    ? []
+    : NAV_ITEMS.filter((item) => hasPermission(item.permission));
 
   // Only query entities the user can view (keeps server calls permission-safe
   // and avoids noisy 403s for gated modules).
   const sources = useMemo(
-    () => RECORD_SOURCES.filter((s) => loading || hasPermission(s.permission)),
+    () =>
+      loading
+        ? []
+        : RECORD_SOURCES.filter((s) => hasPermission(s.permission)),
     [hasPermission, loading]
   );
 

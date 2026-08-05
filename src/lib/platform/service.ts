@@ -106,6 +106,19 @@ export async function getSetupProgress(tenantId: string): Promise<SetupStep[]> {
   })) as SetupStep[];
 }
 
+export async function completeSetupStep(
+  stepId: string,
+  status: "completed" | "skipped" | "in_progress" = "completed"
+): Promise<SetupStep> {
+  return (await mustUpdate("tenant_setup_progress", stepId, {
+    status,
+    completed_at:
+      status === "completed" || status === "skipped"
+        ? new Date().toISOString()
+        : null,
+  })) as SetupStep;
+}
+
 export async function listFeatureFlags() {
   return mustList("platform_feature_flags", {
     pageSize: 100,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Settings,
@@ -32,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
+import { useUser } from "@/hooks/use-user";
+import { canAccessRoute } from "@/lib/auth/rbac";
 
 const PILLARS = [
   "Company",
@@ -48,6 +50,12 @@ const MODULES = [
     href: "/dashboard/enterprise",
     icon: Building2,
     desc: "Multi-company · org chart · governance · risk · AI",
+  },
+  {
+    title: "Go-live setup",
+    href: "/dashboard/settings/setup",
+    icon: Activity,
+    desc: "Onboarding wizard · branding · team · go-live checklist",
   },
   {
     title: "Company",
@@ -154,6 +162,7 @@ const MODULES = [
 ];
 
 export default function SettingsHubPage() {
+  const { auth, loading: authLoading, isPlatformAdmin, hasPermission } = useUser();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     branches: 0,
@@ -165,8 +174,24 @@ export default function SettingsHubPage() {
   });
   const [recent, setRecent] = useState<Array<Record<string, unknown>>>([]);
 
+  const visibleModules = useMemo(() => {
+    if (authLoading) return [];
+    if (isPlatformAdmin) return MODULES;
+    return MODULES.filter((m) =>
+      canAccessRoute(auth?.permissions, m.href, { isPlatformAdmin })
+    );
+  }, [authLoading, auth?.permissions, isPlatformAdmin]);
+
+  const canManage = hasPermission("settings.manage");
+
   useEffect(() => {
+    if (authLoading) return;
     async function load() {
+      // Stats only for managers — viewers still see allowed module tiles
+      if (!canManage && !isPlatformAdmin) {
+        setLoading(false);
+        return;
+      }
       const supabase = createClient();
       const dayAgo = new Date(Date.now() - 7 * 86400000).toISOString();
       const [
@@ -221,9 +246,11 @@ export default function SettingsHubPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [authLoading, canManage, isPlatformAdmin]);
 
-  if (loading) return <LoadingState message="Loading configuration center…" />;
+  if (authLoading || loading) {
+    return <LoadingState message="Loading configuration center…" />;
+  }
 
   return (
     <div>
@@ -273,23 +300,30 @@ export default function SettingsHubPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-8">
-        {MODULES.map((m) => (
-          <Link key={m.href + m.title} href={m.href}>
-            <Card className="h-full hover:border-hope-teal transition-colors cursor-pointer">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <m.icon className="h-4 w-4 text-hope-teal" />
-                  {m.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">{m.desc}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+        {visibleModules.length === 0 ? (
+          <p className="text-sm text-muted-foreground col-span-full rounded-lg border p-4">
+            No settings areas are available for your role.
+          </p>
+        ) : (
+          visibleModules.map((m) => (
+            <Link key={m.href + m.title} href={m.href}>
+              <Card className="h-full hover:border-hope-teal transition-colors cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <m.icon className="h-4 w-4 text-hope-teal" />
+                    {m.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">{m.desc}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))
+        )}
       </div>
 
+      {(canManage || isPlatformAdmin) && (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Recent configuration changes</CardTitle>
@@ -334,6 +368,7 @@ export default function SettingsHubPage() {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

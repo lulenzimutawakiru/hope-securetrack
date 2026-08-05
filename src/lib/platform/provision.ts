@@ -1,19 +1,21 @@
 /**
  * Auto tenant provisioning for SecureTrack ERP.
- * Creates tenant → company → branch → admin membership → modules → flags → setup wizard.
- * Admin auth user creation is REQUIRED - provisioning fails if it cannot be created.
+ * Creates tenant → company → branch → admin membership → modules → flags →
+ * sequences → security → setup wizard → welcome email.
+ * Admin auth user creation is REQUIRED — provisioning fails if it cannot be created.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProvisionStep, ProvisionTenantInput, ProvisioningJob } from "./types";
-
-function slugify(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60) || `tenant-${Date.now()}`;
-}
+import {
+  allocateUniqueSlug,
+  assertAdminEmailAvailable,
+  buildWizardRows,
+  resolveLocaleDefaults,
+  seedTenantDefaults,
+  validateAdminPassword,
+} from "./onboarding";
+import { sendTenantWelcomeEmail } from "./welcome-email";
 
 function jobCode() {
   const y = new Date().getFullYear();
@@ -21,26 +23,80 @@ function jobCode() {
   return `PROV-${y}-${r}`;
 }
 
-function step(key: string, label: string, status: ProvisionStep["status"], detail?: string): ProvisionStep {
+function step(
+  key: string,
+  label: string,
+  status: ProvisionStep["status"],
+  detail?: string
+): ProvisionStep {
   return { key, label, status, detail, at: new Date().toISOString() };
+}
+
+async function markTenantFailed(
+  sb: SupabaseClient,
+  tenantId: string | null,
+  message: string
+) {
+  if (!tenantId) return;
+  try {
+    await sb
+      .from("tenants")
+      .update({
+        status: "suspended",
+        settings: {
+          product: "SecureTrack ERP",
+          provisioned: false,
+          provision_error: message.slice(0, 500),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", tenantId);
+  } catch {
+    /* best effort */
+  }
 }
 
 export async function provisionTenant(
   sb: SupabaseClient,
   input: ProvisionTenantInput
-): Promise<{ job: ProvisioningJob; tenantId: string; companyId: string; steps: ProvisionStep[] }> {
-  // The tenant is unusable without a working administrator login.
-  // Require an explicit password so we never generate one the caller cannot
-  // see (a generated temp password = permanent "invalid credentials" lockout).
-  if (!input.admin_password || input.admin_password.length < 8) {
-    throw new Error("admin_password (min 8 characters) is required to provision a tenant");
+): Promise<{
+  job: ProvisioningJob;
+  tenantId: string;
+  companyId: string;
+  steps: ProvisionStep[];
+  loginHint?: string;
+}> {
+  const pwdCheck = validateAdminPassword(input.admin_password || "");
+  if (!pwdCheck.ok) {
+    throw new Error(pwdCheck.errors[0] || "Invalid administrator password");
   }
+
   const steps: ProvisionStep[] = [];
   const code = jobCode();
-  const slug = input.slug || slugify(input.organization_name);
-  const plan = input.plan_code || "enterprise";
-  const country = input.country_code || "UG";
-  const currency = input.currency || "UGX";
+  const locale = resolveLocaleDefaults({
+    country_code: input.country_code,
+    currency: input.currency,
+    timezone: input.timezone,
+  });
+  const plan = input.plan_code || "starter";
+  const country = locale.country_code;
+  const currency = locale.currency;
+  const timezone = locale.timezone;
+  let tenantId: string | null = null;
+
+  // Fail early before creating any tenant rows
+  steps.push(step("preflight", "Preflight checks", "running"));
+  await assertAdminEmailAvailable(sb, input.admin_email);
+  const slug = await allocateUniqueSlug(
+    sb,
+    input.slug || input.organization_name
+  );
+  steps[steps.length - 1] = step(
+    "preflight",
+    "Preflight checks",
+    "completed",
+    `slug=${slug}`
+  );
 
   const { data: jobRow, error: jobErr } = await sb
     .from("tenant_provisioning_jobs")
@@ -64,22 +120,33 @@ export async function provisionTenant(
   try {
     // 1. Tenant
     steps.push(step("tenant", "Create tenant", "running"));
+    const isTrial = plan === "starter";
     const { data: tenant, error: tErr } = await sb
       .from("tenants")
       .insert({
         slug,
         name: input.organization_name,
         legal_name: input.organization_name,
-        status: "active",
+        status: isTrial ? "trial" : "active",
         plan_code: plan,
         primary_currency: currency,
         country_code: country,
+        timezone,
         primary_contact_email: input.admin_email,
-        settings: { product: "SecureTrack ERP", provisioned: true },
+        trial_ends_at: isTrial
+          ? new Date(Date.now() + 30 * 86400000).toISOString()
+          : null,
+        settings: {
+          product: "SecureTrack ERP",
+          provisioned: true,
+          industry: input.industry || null,
+          onboarding_version: 2,
+        },
       })
       .select("*")
       .single();
     if (tErr || !tenant) throw tErr || new Error("Tenant create failed");
+    tenantId = tenant.id;
     steps[steps.length - 1] = step("tenant", "Create tenant", "completed", tenant.id);
 
     // 2. Company
@@ -91,7 +158,7 @@ export async function provisionTenant(
         name: input.organization_name,
         code: `${companyCode}-${String(Date.now()).slice(-4)}`,
         legal_name: input.organization_name,
-        country: country === "UG" ? "Uganda" : country,
+        country: locale.countryName,
         tenant_id: tenant.id,
         is_primary: true,
         is_active: true,
@@ -101,7 +168,12 @@ export async function provisionTenant(
       .select("*")
       .single();
     if (cErr || !company) throw cErr || new Error("Company create failed");
-    steps[steps.length - 1] = step("company", "Create primary company", "completed", company.id);
+    steps[steps.length - 1] = step(
+      "company",
+      "Create primary company",
+      "completed",
+      company.id
+    );
 
     // 3. Branch
     steps.push(step("branch", "Create HQ branch", "running"));
@@ -114,15 +186,25 @@ export async function provisionTenant(
           name: "Head Office",
           code: "HQ",
           city: country === "UG" ? "Kampala" : null,
-          country: country === "UG" ? "Uganda" : country,
+          country: locale.countryName,
           is_active: true,
         })
         .select("id")
         .single();
       branchId = branch?.id || null;
-      steps[steps.length - 1] = step("branch", "Create HQ branch", "completed", branchId || undefined);
+      steps[steps.length - 1] = step(
+        "branch",
+        "Create HQ branch",
+        "completed",
+        branchId || undefined
+      );
     } catch {
-      steps[steps.length - 1] = step("branch", "Create HQ branch", "skipped", "Branch table optional fields");
+      steps[steps.length - 1] = step(
+        "branch",
+        "Create HQ branch",
+        "skipped",
+        "Branch table optional fields"
+      );
     }
 
     // 4. Subscription
@@ -131,37 +213,54 @@ export async function provisionTenant(
       {
         tenant_id: tenant.id,
         plan_code: plan,
-        status: plan === "starter" ? "trial" : "active",
+        status: isTrial ? "trial" : "active",
         seats: plan === "starter" ? 25 : plan === "professional" ? 200 : 1000,
         modules: plan === "enterprise" || plan === "government" ? ["all"] : [],
         billing_email: input.admin_email,
-        trial_ends_at:
-          plan === "starter"
-            ? new Date(Date.now() + 30 * 86400000).toISOString()
-            : null,
+        trial_ends_at: isTrial
+          ? new Date(Date.now() + 30 * 86400000).toISOString()
+          : null,
       },
       { onConflict: "tenant_id" }
     );
-    steps[steps.length - 1] = step("subscription", "Activate subscription", "completed", plan);
+    steps[steps.length - 1] = step(
+      "subscription",
+      "Activate subscription",
+      "completed",
+      plan
+    );
 
-    // 5. Modules
+    // 5. Modules (plan-aware: starter/professional get defaults; enterprise all)
     steps.push(step("modules", "Enable modules", "running"));
-    const { data: mods } = await sb.from("platform_modules").select("module_code");
+    const { data: mods } = await sb
+      .from("platform_modules")
+      .select("module_code, default_enabled, is_core");
     if (mods?.length) {
+      const fullAccess = plan === "enterprise" || plan === "government";
       await sb.from("tenant_modules").upsert(
         mods.map((m) => ({
           tenant_id: tenant.id,
           module_code: m.module_code,
-          enabled: true,
+          enabled:
+            fullAccess ||
+            m.is_core === true ||
+            m.default_enabled !== false,
         })),
         { onConflict: "tenant_id,module_code" }
       );
     }
-    steps[steps.length - 1] = step("modules", "Enable modules", "completed", String(mods?.length || 0));
+    steps[steps.length - 1] = step(
+      "modules",
+      "Enable modules",
+      "completed",
+      String(mods?.length || 0)
+    );
 
     // 6. Feature flags
     steps.push(step("flags", "Apply feature flags", "running"));
-    const { data: flags } = await sb.from("platform_feature_flags").select("flag_key,default_enabled");
+    const { data: flags } = await sb
+      .from("platform_feature_flags")
+      .select("flag_key,default_enabled");
     if (flags?.length) {
       await sb.from("tenant_feature_flags").upsert(
         flags.map((f) => ({
@@ -174,39 +273,37 @@ export async function provisionTenant(
     }
     steps[steps.length - 1] = step("flags", "Apply feature flags", "completed");
 
-    // 7. Setup wizard steps
-    steps.push(step("wizard", "Generate setup wizard", "running"));
-    const wizardSteps = [
-      { key: "tenant", label: "Tenant created", order: 1 },
-      { key: "company", label: "Company configured", order: 2 },
-      { key: "branch", label: "Branch / HQ", order: 3 },
-      { key: "admin", label: "Administrator account", order: 4 },
-      { key: "roles", label: "Roles & permissions", order: 5 },
-      { key: "modules", label: "Modules enabled", order: 6 },
-      { key: "branding", label: "Branding & templates", order: 7 },
-      { key: "sequences", label: "Number sequences", order: 8 },
-      { key: "security", label: "Security policies", order: 9 },
-      { key: "go_live", label: "Go-live checklist", order: 10 },
-    ];
-    await sb.from("tenant_setup_progress").upsert(
-      wizardSteps.map((s) => ({
-        tenant_id: tenant.id,
-        company_id: company.id,
-        step_key: s.key,
-        step_label: s.label,
-        sort_order: s.order,
-        status: ["tenant", "company", "branch", "modules"].includes(s.key)
-          ? "completed"
-          : "pending",
-        completed_at: ["tenant", "company", "branch", "modules"].includes(s.key)
-          ? new Date().toISOString()
-          : null,
-      })),
-      { onConflict: "tenant_id,step_key" }
+    // 7. Operational defaults (sequences, security, brand)
+    steps.push(step("defaults", "Seed operational defaults", "running"));
+    const seed = await seedTenantDefaults(sb, {
+      companyId: company.id,
+      tenantId: tenant.id,
+      organizationName: input.organization_name,
+      adminEmail: input.admin_email,
+      industry: input.industry,
+      countryName: locale.countryName,
+    });
+    steps[steps.length - 1] = step(
+      "defaults",
+      "Seed operational defaults",
+      "completed",
+      seed.notes.join("; ")
     );
-    steps[steps.length - 1] = step("wizard", "Generate setup wizard", "completed");
 
-    // 8. Domain event
+    // 8. Setup wizard steps
+    steps.push(step("wizard", "Generate setup wizard", "running"));
+    const wizardRows = buildWizardRows(tenant.id, company.id);
+    await sb.from("tenant_setup_progress").upsert(wizardRows, {
+      onConflict: "tenant_id,step_key",
+    });
+    steps[steps.length - 1] = step(
+      "wizard",
+      "Generate setup wizard",
+      "completed",
+      `${wizardRows.length} steps`
+    );
+
+    // 9. Domain event
     steps.push(step("event", "Emit provisioned event", "running"));
     await sb.from("domain_events").insert({
       event_type: "tenant.provisioned",
@@ -219,13 +316,15 @@ export async function provisionTenant(
         admin_email: input.admin_email,
         plan_code: plan,
         slug,
+        industry: input.industry || null,
+        onboarding_version: 2,
       },
       source_module: "platform",
       severity: "info",
     });
     steps[steps.length - 1] = step("event", "Emit provisioned event", "completed");
 
-    // 9. Admin user (required - tenant is unusable without a working admin login)
+    // 10. Admin user (required)
     steps.push(step("admin", "Create administrator", "running"));
     let adminUserId: string | null = null;
     try {
@@ -245,7 +344,6 @@ export async function provisionTenant(
       if (uErr) throw uErr;
       adminUserId = created.user?.id || null;
 
-      // Resolve super_administrator or any system role
       const { data: role } = await sb
         .from("roles")
         .select("id")
@@ -265,6 +363,8 @@ export async function provisionTenant(
           email: input.admin_email,
           is_active: true,
           is_platform_admin: false,
+          // Self-chosen password at signup — no forced reset
+          must_change_password: false,
         });
 
         await sb.from("user_company_memberships").upsert(
@@ -281,9 +381,16 @@ export async function provisionTenant(
 
         await sb
           .from("tenant_setup_progress")
-          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          })
           .eq("tenant_id", tenant.id)
           .eq("step_key", "admin");
+      } else if (adminUserId && !role?.id) {
+        throw new Error(
+          "super_administrator role is missing — seed roles before provisioning"
+        );
       }
 
       steps[steps.length - 1] = step(
@@ -299,11 +406,41 @@ export async function provisionTenant(
         "failed",
         e instanceof Error ? e.message : "Admin create failed"
       );
-
-      // A tenant without an auth user is unreachable ("invalid login
-      // credentials" for every admin). Fail the job loudly so the caller
-      // sees the real error instead of a false "provisioned" response.
       throw e;
+    }
+
+    // 11. Welcome email (non-blocking)
+    steps.push(step("welcome", "Send welcome email", "running"));
+    try {
+      const appUrl = (
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.VERCEL_URL ||
+        "http://localhost:3000"
+      ).replace(/\/$/, "");
+      const base =
+        appUrl.startsWith("http") ? appUrl : `https://${appUrl}`;
+      const welcome = await sendTenantWelcomeEmail({
+        to: input.admin_email,
+        adminName: input.admin_name,
+        organizationName: input.organization_name,
+        planCode: plan,
+        slug,
+        loginUrl: `${base}/login`,
+        setupUrl: `${base}/dashboard/settings/setup`,
+      });
+      steps[steps.length - 1] = step(
+        "welcome",
+        "Send welcome email",
+        welcome.sent ? "completed" : "skipped",
+        welcome.sent ? "sent" : welcome.error || "skipped"
+      );
+    } catch (e) {
+      steps[steps.length - 1] = step(
+        "welcome",
+        "Send welcome email",
+        "skipped",
+        e instanceof Error ? e.message : "email failed"
+      );
     }
 
     const result = {
@@ -314,6 +451,9 @@ export async function provisionTenant(
       admin_user_id: adminUserId,
       admin_email: input.admin_email,
       plan_code: plan,
+      timezone,
+      currency,
+      setup_path: "/dashboard/settings/setup",
     };
 
     const { data: done } = await sb
@@ -335,9 +475,11 @@ export async function provisionTenant(
       tenantId: tenant.id,
       companyId: company.id,
       steps,
+      loginHint: input.admin_email,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Provisioning failed";
+    await markTenantFailed(sb, tenantId, msg);
     await sb
       .from("tenant_provisioning_jobs")
       .update({

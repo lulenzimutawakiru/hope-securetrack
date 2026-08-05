@@ -9,6 +9,7 @@ import { ServiceWorkerRegister } from "@/components/enterprise/service-worker-re
 import { MfaEnforcementBanner } from "@/components/security/mfa-enforcement-banner";
 import { DashboardRbacGuard } from "@/components/security/dashboard-rbac-guard";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { OnboardingBanner } from "@/components/platform/onboarding-banner";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
         <MfaEnforcementBanner />
+        <OnboardingBanner />
         <OfflineBanner />
         <WorkspaceTabs />
         <main

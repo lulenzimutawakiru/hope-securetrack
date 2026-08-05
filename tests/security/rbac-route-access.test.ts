@@ -24,6 +24,7 @@ describe("RBAC route access", () => {
       canAccessRoute(perms, "/dashboard/settings/profile")
     ).toBe(true);
     expect(canAccessRoute(perms, "/dashboard/settings")).toBe(false);
+    expect(canAccessRoute(["settings.view"], "/dashboard/settings")).toBe(true);
   });
 
   it("denies finance without finance.view", () => {
@@ -49,6 +50,19 @@ describe("RBAC route access", () => {
     ).toBe(true);
   });
 
+  it("super admin does not get blanket bypass without permission", () => {
+    expect(
+      canAccessRoute(["dashboard.view"], "/dashboard/finance", {
+        isSuperAdmin: true,
+      })
+    ).toBe(false);
+    expect(
+      canAccessRoute(["dashboard.view", "finance.view"], "/dashboard/finance", {
+        isSuperAdmin: true,
+      })
+    ).toBe(true);
+  });
+
   it("requires hc.view for SecureChat", () => {
     expect(resolveRoutePermissions("/dashboard/chat")).toContain("hc.view");
     expect(canAccessRoute(["dashboard.view"], "/dashboard/chat")).toBe(false);
@@ -59,5 +73,26 @@ describe("RBAC route access", () => {
     expect(resolveRoutePermissions("/dashboard")).toEqual(["dashboard.view"]);
     expect(canAccessRoute([], "/dashboard")).toBe(false);
     expect(canAccessRoute(["dashboard.view"], "/dashboard")).toBe(true);
+  });
+
+  it("fails closed for unmapped dashboard paths", () => {
+    expect(resolveRoutePermissions("/dashboard/__no_such_module__")).toEqual(
+      []
+    );
+    expect(
+      canAccessRoute(["dashboard.view"], "/dashboard/__no_such_module__")
+    ).toBe(false);
+  });
+
+  it("gates dual-control by security.dual_control not platform.view", () => {
+    expect(
+      canAccessRoute(["platform.view"], "/dashboard/security/dual-control")
+    ).toBe(false);
+    expect(
+      canAccessRoute(
+        ["security.dual_control"],
+        "/dashboard/security/dual-control"
+      )
+    ).toBe(true);
   });
 });

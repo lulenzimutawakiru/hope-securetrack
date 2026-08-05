@@ -129,8 +129,10 @@ export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
   const isCollapsed = forceExpanded ? false : collapsed;
 
   const items = useMemo(() => {
-    const permitted = NAV_ITEMS.filter(
-      (item) => loading || hasPermission(item.permission)
+    // Fail closed while auth is loading — never flash unauthorized modules.
+    if (loading) return [] as typeof NAV_ITEMS[number][];
+    const permitted = NAV_ITEMS.filter((item) =>
+      hasPermission(item.permission)
     );
     const q = navQuery.trim().toLowerCase();
     if (!q) return permitted;
@@ -271,7 +273,11 @@ export function Sidebar({ forceExpanded, onNavigate }: SidebarProps) {
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2 scrollbar-thin">
           {items.length === 0 && !isCollapsed && (
             <p className="px-2 py-3 text-xs text-sidebar-foreground/50">
-              No modules match “{navQuery.trim()}”.
+              {loading
+                ? "Loading your permissions…"
+                : navQuery.trim()
+                  ? `No modules match “${navQuery.trim()}”.`
+                  : "No modules assigned to your role."}
             </p>
           )}
           {navQuery.trim() || isCollapsed

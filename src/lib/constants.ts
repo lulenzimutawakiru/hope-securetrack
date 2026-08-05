@@ -447,7 +447,7 @@ export const NAV_ITEMS = [
   { title: "Platform Admin", href: "/platform", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
   { title: "Background Jobs", href: "/platform/jobs", icon: "Server", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
   { title: "Platform Ops", href: "/platform/ops", icon: "Activity", permission: PERMISSIONS.PLATFORM_VIEW, group: "platform" },
-  { title: "Dual Control", href: "/dashboard/security/dual-control", icon: "Shield", permission: PERMISSIONS.PLATFORM_VIEW, group: "security" },
+  { title: "Dual Control", href: "/dashboard/security/dual-control", icon: "Shield", permission: "security.dual_control", group: "security" },
   { title: "Workflows", href: "/dashboard/workflows", icon: "Activity", permission: PERMISSIONS.DASHBOARD_VIEW, group: "platform" },
   { title: "Communications", href: "/dashboard/communications", icon: "Mail", permission: PERMISSIONS.COMM_VIEW, group: "platform" },
   { title: "Media Library", href: "/dashboard/media", icon: "Image", permission: PERMISSIONS.MEDIA_VIEW, group: "platform" },
@@ -455,5 +455,5 @@ export const NAV_ITEMS = [
   { title: "Integrations", href: "/dashboard/integrations", icon: "Plug", permission: PERMISSIONS.INTG_VIEW, group: "platform" },
   { title: "Users", href: "/dashboard/users", icon: "Users", permission: PERMISSIONS.USERS_VIEW, group: "platform" },
   { title: "Audit & Compliance", href: "/dashboard/audit", icon: "ScrollText", permission: PERMISSIONS.AUDIT_VIEW, group: "security" },
-  { title: "Settings", href: "/dashboard/settings", icon: "Settings", permission: PERMISSIONS.SETTINGS_MANAGE, group: "platform" },
+  { title: "Settings", href: "/dashboard/settings", icon: "Settings", permission: PERMISSIONS.SETTINGS_VIEW, group: "platform" },
 ] as const;

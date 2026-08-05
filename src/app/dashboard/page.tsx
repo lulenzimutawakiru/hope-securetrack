@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Factory,
@@ -33,37 +33,64 @@ import { ModuleTile } from "@/components/enterprise/module-tile";
 import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
+import { filterAccessibleRoutes } from "@/lib/auth/rbac";
 import type { DashboardStats, ProductionBatch, FraudAlert, VerificationLog } from "@/types/database";
 import { ENTERPRISE_PIPELINE } from "@/lib/workflows";
 
 const WORKSPACES = [
-  { title: "Production", href: "/dashboard/production", icon: Factory, description: "MES · batches · OEE", badge: "Ops" },
-  { title: "Advanced Labels", href: "/dashboard/labels", icon: Printer, description: "Templates · GS1 · print", badge: "Labels" },
-  { title: "Inventory", href: "/dashboard/inventory", icon: Warehouse, description: "Stock · GRN · transfers", badge: "WMS" },
-  { title: "Finance", href: "/dashboard/finance", icon: Landmark, description: "GL · treasury · costing", badge: "ERP" },
-  { title: "Projects", href: "/dashboard/projects", icon: FolderKanban, description: "PPM · Gantt · billing", badge: "PPM" },
-  { title: "Fleet", href: "/dashboard/fleet", icon: Car, description: "Vehicles · GPS · fuel", badge: "TMS" },
-  { title: "Attendance", href: "/dashboard/attendance", icon: Clock, description: "Geofence · biometrics", badge: "WFM" },
-  { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, description: "Routes · POD · drivers", badge: "Logistics" },
-  { title: "Advanced Sales", href: "/dashboard/sales", icon: ShoppingCart, description: "Pipeline · quotes · orders", badge: "Rev" },
-  { title: "HR", href: "/dashboard/hr", icon: Users, description: "People · leave · payroll", badge: "HCM" },
-  { title: "Reports & BI", href: "/dashboard/reports", icon: BarChart3, description: "KPIs · AI · board packs", badge: "BI" },
-  { title: "Security", href: "/dashboard/fraud", icon: ShieldCheck, description: "QR · fraud · verify", badge: "IAM" },
-  { title: "Notifications", href: "/dashboard/notifications", icon: Bell, description: "Inbox · rules · Resend", badge: "Comms" },
+  { title: "Production", href: "/dashboard/production", icon: Factory, description: "MES · batches · OEE", badge: "Ops", permission: "production.view" },
+  { title: "Advanced Labels", href: "/dashboard/labels", icon: Printer, description: "Templates · GS1 · print", badge: "Labels", permission: "lbl.view" },
+  { title: "Inventory", href: "/dashboard/inventory", icon: Warehouse, description: "Stock · GRN · transfers", badge: "WMS", permission: "inventory.view" },
+  { title: "Finance", href: "/dashboard/finance", icon: Landmark, description: "GL · treasury · costing", badge: "ERP", permission: "finance.view" },
+  { title: "Projects", href: "/dashboard/projects", icon: FolderKanban, description: "PPM · Gantt · billing", badge: "PPM", permission: "ppm.view" },
+  { title: "Fleet", href: "/dashboard/fleet", icon: Car, description: "Vehicles · GPS · fuel", badge: "TMS", permission: "fleet.view" },
+  { title: "Attendance", href: "/dashboard/attendance", icon: Clock, description: "Geofence · biometrics", badge: "WFM", permission: "att.view" },
+  { title: "Dispatch", href: "/dashboard/dispatch", icon: Truck, description: "Routes · POD · drivers", badge: "Logistics", permission: "dispatch.view" },
+  { title: "Advanced Sales", href: "/dashboard/sales", icon: ShoppingCart, description: "Pipeline · quotes · orders", badge: "Rev", permission: "sales.view" },
+  { title: "HR", href: "/dashboard/hr", icon: Users, description: "People · leave · payroll", badge: "HCM", permission: "hr.view" },
+  { title: "Reports & BI", href: "/dashboard/reports", icon: BarChart3, description: "KPIs · AI · board packs", badge: "BI", permission: "reports.view" },
+  { title: "Security", href: "/dashboard/fraud", icon: ShieldCheck, description: "QR · fraud · verify", badge: "IAM", permission: "fraud.manage" },
+  { title: "Notifications", href: "/dashboard/notifications", icon: Bell, description: "Inbox · rules · Resend", badge: "Comms", permission: "notifications.view" },
 ];
 
 export default function DashboardPage() {
-  const { auth } = useUser();
+  const { auth, loading: authLoading, hasPermission, isPlatformAdmin } = useUser();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentBatches, setRecentBatches] = useState<ProductionBatch[]>([]);
   const [recentAlerts, setRecentAlerts] = useState<FraudAlert[]>([]);
   const [recentVerifications, setRecentVerifications] = useState<VerificationLog[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const canProduction = hasPermission("production.view") || hasPermission("mes.view");
+  const canQr = hasPermission("qr.view");
+  const canInventory = hasPermission("inventory.view");
+  const canFraud = hasPermission("fraud.manage");
+  const canVerify = hasPermission("verification.view");
+  const canPrint = hasPermission("print.view") || hasPermission("printing.create") || hasPermission("lbl.view");
+  const canReports = hasPermission("reports.view");
+  const canAttendance = hasPermission("att.view") || hasPermission("att.clock");
+  const canAi = hasPermission("reports.assistant") || hasPermission("reports.ai") || hasPermission("hc.ai");
+
+  const visibleWorkspaces = useMemo(() => {
+    if (authLoading) return [];
+    if (isPlatformAdmin) return WORKSPACES;
+    return WORKSPACES.filter((w) => hasPermission(w.permission));
+  }, [authLoading, isPlatformAdmin, hasPermission]);
+
+  const visiblePipeline = useMemo(() => {
+    if (authLoading) return [];
+    return filterAccessibleRoutes(ENTERPRISE_PIPELINE, auth?.permissions, {
+      isPlatformAdmin,
+    });
+  }, [authLoading, auth?.permissions, isPlatformAdmin]);
+
   useEffect(() => {
+    if (authLoading) return;
+
     async function load() {
       const today = new Date().toISOString().slice(0, 10);
       const todayStart = `${today}T00:00:00`;
+      const zero = 0;
 
       try {
         const [
@@ -80,45 +107,64 @@ export default function DashboardPage() {
           alertsRes,
           verificationsRes,
         ] = await Promise.all([
-          crudCount("production_batches", {
-            created_at: { gte: todayStart },
-          }),
-          crudCount("production_batches", {
-            production_status: ["in_progress", "qc_pending"],
-          }),
-          crudCount("qr_codes"),
-          crudCount("qr_codes", {
-            status: ["printed", "verified", "packed", "dispatched", "sold"],
-          }),
-          crudCount("verification_logs", {
-            verified_at: { gte: todayStart },
-          }),
-          crudCount("fraud_alerts", {
-            status: ["open", "investigating"],
-          }),
-          crudCount("reams", { inventory_status: "in_warehouse" }),
-          crudCount("cartons", { inventory_status: "in_warehouse" }),
-          crudCount("print_jobs", {
-            status: ["pending", "queued", "printing"],
-          }),
-          crudList<ProductionBatch>("production_batches", {
-            page: 1,
-            pageSize: 5,
-            sort: "created_at",
-            order: "desc",
-          }),
-          crudList<FraudAlert>("fraud_alerts", {
-            page: 1,
-            pageSize: 5,
-            sort: "created_at",
-            order: "desc",
-          }),
-          crudList<VerificationLog>("verification_logs", {
-            page: 1,
-            pageSize: 5,
-            sort: "verified_at",
-            order: "desc",
-          }),
+          canProduction
+            ? crudCount("production_batches", { created_at: { gte: todayStart } })
+            : Promise.resolve(zero),
+          canProduction
+            ? crudCount("production_batches", {
+                production_status: ["in_progress", "qc_pending"],
+              })
+            : Promise.resolve(zero),
+          canQr ? crudCount("qr_codes") : Promise.resolve(zero),
+          canQr
+            ? crudCount("qr_codes", {
+                status: ["printed", "verified", "packed", "dispatched", "sold"],
+              })
+            : Promise.resolve(zero),
+          canVerify
+            ? crudCount("verification_logs", { verified_at: { gte: todayStart } })
+            : Promise.resolve(zero),
+          canFraud
+            ? crudCount("fraud_alerts", { status: ["open", "investigating"] })
+            : Promise.resolve(zero),
+          canInventory
+            ? crudCount("reams", { inventory_status: "in_warehouse" })
+            : Promise.resolve(zero),
+          canInventory
+            ? crudCount("cartons", { inventory_status: "in_warehouse" })
+            : Promise.resolve(zero),
+          canPrint
+            ? crudCount("print_jobs", {
+                status: ["pending", "queued", "printing"],
+              })
+            : Promise.resolve(zero),
+          canProduction
+            ? crudList<ProductionBatch>("production_batches", {
+                page: 1,
+                pageSize: 5,
+                sort: "created_at",
+                order: "desc",
+              })
+            : Promise.resolve({ ok: false as const, data: { data: [] as ProductionBatch[] } }),
+          canFraud
+            ? crudList<FraudAlert>("fraud_alerts", {
+                page: 1,
+                pageSize: 5,
+                sort: "created_at",
+                order: "desc",
+              })
+            : Promise.resolve({ ok: false as const, data: { data: [] as FraudAlert[] } }),
+          canVerify
+            ? crudList<VerificationLog>("verification_logs", {
+                page: 1,
+                pageSize: 5,
+                sort: "verified_at",
+                order: "desc",
+              })
+            : Promise.resolve({
+                ok: false as const,
+                data: { data: [] as VerificationLog[] },
+              }),
         ]);
 
         setStats({
@@ -132,10 +178,20 @@ export default function DashboardPage() {
           inventoryCartons,
           pendingPrintJobs,
         });
-        setRecentBatches(batchesRes.ok ? batchesRes.data.data : []);
-        setRecentAlerts(alertsRes.ok ? alertsRes.data.data : []);
+        setRecentBatches(
+          batchesRes && "ok" in batchesRes && batchesRes.ok
+            ? batchesRes.data.data
+            : []
+        );
+        setRecentAlerts(
+          alertsRes && "ok" in alertsRes && alertsRes.ok
+            ? alertsRes.data.data
+            : []
+        );
         setRecentVerifications(
-          verificationsRes.ok ? verificationsRes.data.data : []
+          verificationsRes && "ok" in verificationsRes && verificationsRes.ok
+            ? verificationsRes.data.data
+            : []
         );
       } catch {
         setStats({
@@ -155,9 +211,19 @@ export default function DashboardPage() {
     }
 
     load();
-  }, []);
+  }, [
+    authLoading,
+    canProduction,
+    canQr,
+    canInventory,
+    canFraud,
+    canVerify,
+    canPrint,
+  ]);
 
-  if (loading) return <LoadingState message="Loading executive workspace…" />;
+  if (authLoading || loading) {
+    return <LoadingState message="Loading your workspace…" />;
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -192,32 +258,38 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
-              <Link href="/dashboard/production">
-                <Factory className="h-4 w-4 mr-2" />
-                New batch
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-            >
-              <Link href="/dashboard/attendance/clock">
-                <Clock className="h-4 w-4 mr-2" />
-                Clock in
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-            >
-              <Link href="/dashboard/reports/assistant">
-                <Sparkles className="h-4 w-4 mr-2" />
-                AI assistant
-              </Link>
-            </Button>
+            {canProduction && (
+              <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+                <Link href="/dashboard/production">
+                  <Factory className="h-4 w-4 mr-2" />
+                  New batch
+                </Link>
+              </Button>
+            )}
+            {canAttendance && (
+              <Button
+                asChild
+                variant="outline"
+                className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link href="/dashboard/attendance/clock">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Clock in
+                </Link>
+              </Button>
+            )}
+            {canAi && (
+              <Button
+                asChild
+                variant="outline"
+                className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link href="/dashboard/reports/assistant">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI assistant
+                </Link>
+              </Button>
+            )}
             <Button
               asChild
               variant="outline"
@@ -229,114 +301,144 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* KPIs */}
+      {/* KPIs — only modules the role can access */}
       <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 xl:grid-cols-4">
-        <KpiMetric
-          title="Batches today"
-          value={formatNumber(stats?.batchesToday ?? 0)}
-          description={`${stats?.batchesInProgress ?? 0} in progress`}
-          icon={Factory}
-          trend="up"
-          trendLabel="Live"
-          tone="info"
-        />
-        <KpiMetric
-          title="QR codes"
-          value={formatNumber(stats?.qrGenerated ?? 0)}
-          description={`${stats?.qrPrinted ?? 0} printed`}
-          icon={QrCode}
-          tone="default"
-        />
-        <KpiMetric
-          title="Verifications today"
-          value={formatNumber(stats?.verificationsToday ?? 0)}
-          icon={ShieldCheck}
-          tone="success"
-        />
-        <KpiMetric
-          title="Open fraud alerts"
-          value={formatNumber(stats?.openFraudAlerts ?? 0)}
-          description={stats?.openFraudAlerts ? "Requires attention" : "All clear"}
-          icon={AlertTriangle}
-          tone={stats?.openFraudAlerts ? "danger" : "success"}
-          trend={stats?.openFraudAlerts ? "down" : "flat"}
-          trendLabel={stats?.openFraudAlerts ? "Action" : "Stable"}
-        />
+        {canProduction && (
+          <KpiMetric
+            title="Batches today"
+            value={formatNumber(stats?.batchesToday ?? 0)}
+            description={`${stats?.batchesInProgress ?? 0} in progress`}
+            icon={Factory}
+            trend="up"
+            trendLabel="Live"
+            tone="info"
+          />
+        )}
+        {canQr && (
+          <KpiMetric
+            title="QR codes"
+            value={formatNumber(stats?.qrGenerated ?? 0)}
+            description={`${stats?.qrPrinted ?? 0} printed`}
+            icon={QrCode}
+            tone="default"
+          />
+        )}
+        {canVerify && (
+          <KpiMetric
+            title="Verifications today"
+            value={formatNumber(stats?.verificationsToday ?? 0)}
+            icon={ShieldCheck}
+            tone="success"
+          />
+        )}
+        {canFraud && (
+          <KpiMetric
+            title="Open fraud alerts"
+            value={formatNumber(stats?.openFraudAlerts ?? 0)}
+            description={stats?.openFraudAlerts ? "Requires attention" : "All clear"}
+            icon={AlertTriangle}
+            tone={stats?.openFraudAlerts ? "danger" : "success"}
+            trend={stats?.openFraudAlerts ? "down" : "flat"}
+            trendLabel={stats?.openFraudAlerts ? "Action" : "Stable"}
+          />
+        )}
       </section>
 
-      <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 xl:grid-cols-4">
-        <KpiMetric
-          title="Warehouse reams"
-          value={formatNumber(stats?.inventoryReams ?? 0)}
-          icon={Package}
-        />
-        <KpiMetric
-          title="Warehouse cartons"
-          value={formatNumber(stats?.inventoryCartons ?? 0)}
-          icon={Warehouse}
-        />
-        <KpiMetric
-          title="Pending print jobs"
-          value={formatNumber(stats?.pendingPrintJobs ?? 0)}
-          icon={Printer}
-          tone={stats?.pendingPrintJobs ? "warning" : "default"}
-        />
-        <KpiMetric
-          title="System health"
-          value="Operational"
-          description="Services online"
-          icon={TrendingUp}
-          tone="success"
-          trend="up"
-          trendLabel="99.9%"
-        />
-      </section>
+      {(canInventory || canPrint) && (
+        <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 xl:grid-cols-4">
+          {canInventory && (
+            <KpiMetric
+              title="Warehouse reams"
+              value={formatNumber(stats?.inventoryReams ?? 0)}
+              icon={Package}
+            />
+          )}
+          {canInventory && (
+            <KpiMetric
+              title="Warehouse cartons"
+              value={formatNumber(stats?.inventoryCartons ?? 0)}
+              icon={Warehouse}
+            />
+          )}
+          {canPrint && (
+            <KpiMetric
+              title="Pending print jobs"
+              value={formatNumber(stats?.pendingPrintJobs ?? 0)}
+              icon={Printer}
+              tone={stats?.pendingPrintJobs ? "warning" : "default"}
+            />
+          )}
+          <KpiMetric
+            title="System health"
+            value="Operational"
+            description="Services online"
+            icon={TrendingUp}
+            tone="success"
+            trend="up"
+            trendLabel="99.9%"
+          />
+        </section>
+      )}
 
       {/* Workspaces */}
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-2">
           <div>
             <p className="text-overline">Workspaces</p>
-            <h2 className="text-lg font-semibold tracking-tight">Enterprise modules</h2>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Your modules
+            </h2>
           </div>
-          <Link
-            href="/dashboard/reports"
-            className="text-xs font-medium text-accent inline-flex items-center gap-1 hover:underline"
-          >
-            Analytics hub
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          {canReports && (
+            <Link
+              href="/dashboard/reports"
+              className="text-xs font-medium text-accent inline-flex items-center gap-1 hover:underline"
+            >
+              Analytics hub
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {WORKSPACES.map((w) => (
-            <ModuleTile key={w.href} {...w} />
-          ))}
-        </div>
+        {visibleWorkspaces.length === 0 ? (
+          <p className="text-sm text-muted-foreground rounded-lg border p-4">
+            No enterprise modules are assigned to your role yet. Contact an
+            administrator if you need access.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {visibleWorkspaces.map(({ permission: _p, ...w }) => (
+              <ModuleTile key={w.href} {...w} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Pipeline */}
-      <Card className="surface-card border shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Enterprise production pipeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {ENTERPRISE_PIPELINE.map((step) => (
-              <Link
-                key={step.stage}
-                href={step.href}
-                className="rounded-xl border bg-muted/30 p-3 hover:bg-muted/60 hover:border-accent/30 transition-colors"
-              >
-                <p className="text-sm font-semibold">{step.title}</p>
-                <p className="text-caption mt-1 line-clamp-2">{step.description}</p>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {visiblePipeline.length > 0 && (
+        <Card className="surface-card border shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Enterprise production pipeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {visiblePipeline.map((step) => (
+                <Link
+                  key={step.stage}
+                  href={step.href}
+                  className="rounded-xl border bg-muted/30 p-3 hover:bg-muted/60 hover:border-accent/30 transition-colors"
+                >
+                  <p className="text-sm font-semibold">{step.title}</p>
+                  <p className="text-caption mt-1 line-clamp-2">{step.description}</p>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Activity columns */}
       <section className="grid gap-4 lg:grid-cols-3">
+        {canProduction && (
         <Card className="surface-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Recent batches</CardTitle>
@@ -365,7 +467,9 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
+        {canFraud && (
         <Card className="surface-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Fraud alerts</CardTitle>
@@ -392,7 +496,9 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
+        {canVerify && (
         <Card className="surface-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Verifications</CardTitle>
@@ -423,6 +529,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </section>
     </div>
   );

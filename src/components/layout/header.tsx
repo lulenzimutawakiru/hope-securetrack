@@ -84,8 +84,10 @@ export function Header({ title }: { title?: string }) {
     router.refresh();
   };
 
-  const canViewSettings = hasPermission("settings.view");
-  const canViewNotifications = hasPermission("notifications.view");
+  const canViewSettings =
+    hasPermission("settings.view") || hasPermission("settings.manage");
+  const canViewNotifications =
+    hasPermission("notifications.view") || hasPermission("notifications.manage");
 
   return (
     <header className="sticky top-0 z-30 flex h-[var(--header-height)] items-center justify-between gap-2 border-b bg-card/90 px-3 sm:px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-card/75">
@@ -137,7 +139,7 @@ export function Header({ title }: { title?: string }) {
           <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
         </Button>
 
-        <NotificationBell />
+        {canViewNotifications ? <NotificationBell /> : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -173,14 +175,12 @@ export function Header({ title }: { title?: string }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
-            {canViewSettings && (
-              <DropdownMenuItem
-                onClick={() => router.push("/dashboard/settings/profile")}
-              >
-                <User className="mr-2 h-4 w-4" />
-                {t("header.profile")}
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem
+              onClick={() => router.push("/dashboard/settings/profile")}
+            >
+              <User className="mr-2 h-4 w-4" />
+              {t("header.profile")}
+            </DropdownMenuItem>
             {canViewSettings && (
               <DropdownMenuItem
                 onClick={() => router.push("/dashboard/settings")}

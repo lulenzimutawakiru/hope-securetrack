@@ -53,8 +53,10 @@ export default function ProvisioningPage() {
       toast.error("Organization and admin email required");
       return;
     }
-    if (!form.admin_password || form.admin_password.length < 8) {
-      toast.error("Admin password (min 8 characters) is required for the new tenant");
+    if (!form.admin_password || form.admin_password.length < 10) {
+      toast.error(
+        "Admin password (min 10 chars, upper, number, special) is required"
+      );
       return;
     }
     setBusy(true);
@@ -171,10 +173,10 @@ export default function ProvisioningPage() {
               <Input
                 type="password"
                 required
-                minLength={8}
+                minLength={10}
                 value={form.admin_password}
                 onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
-                placeholder="Min 8 characters"
+                placeholder="Min 10 chars · upper · number · special"
               />
             </div>
             <div>

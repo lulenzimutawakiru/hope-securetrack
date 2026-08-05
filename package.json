@@ -34,6 +34,7 @@
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
     "db:seed": "supabase db seed",
+    "db:gen-role-catalog": "node scripts/gen-role-catalog-migration.mjs",
     "test:e2e:payroll": "playwright test e2e/payroll-dual-control.spec.ts",
     "audit:bundle": "node scripts/bundle-audit.mjs"
   },
