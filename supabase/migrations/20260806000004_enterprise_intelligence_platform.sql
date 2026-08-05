@@ -8,9 +8,21 @@
 -- ------------------------------------------------------------
 -- 1. Report schedules: explicit delivery channels + last error
 -- ------------------------------------------------------------
+-- delivery_channels already exists as JSONB (see 00019); only add last_error here.
 ALTER TABLE public.bi_report_schedules
-  ADD COLUMN IF NOT EXISTS delivery_channels TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS last_error TEXT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'bi_report_schedules'
+      AND column_name = 'delivery_channels'
+  ) THEN
+    ALTER TABLE public.bi_report_schedules
+      ADD COLUMN delivery_channels JSONB DEFAULT '["email"]'::jsonb;
+  END IF;
+END $$;
 
 -- ------------------------------------------------------------
 -- 2. Tenant pass on BI tables (parity with business tables).
@@ -736,15 +748,15 @@ ON CONFLICT (company_id, chart_key) DO NOTHING;
 -- ------------------------------------------------------------
 INSERT INTO public.bi_report_schedules
   (company_id, schedule_code, name, frequency_label, cron_expression, format, recipients, delivery_channels, parameters, is_active)
-SELECT c.id, v.schedule_code, v.name, v.frequency_label, v.cron_expression, v.format, v.recipients::jsonb, v.delivery_channels::text[], '{}'::jsonb, true
+SELECT c.id, v.schedule_code, v.name, v.frequency_label, v.cron_expression, v.format, v.recipients::jsonb, v.delivery_channels::jsonb, '{}'::jsonb, true
 FROM public.companies c
 CROSS JOIN (VALUES
-  ('SCH-EXEC-D','Daily Executive Briefing','daily','0 6 * * *','pdf','["exec@company.com"]','{email}'),
-  ('SCH-BOARD-W','Weekly Board KPI Pack','weekly','0 7 * * 1','pdf','["board@company.com","md@company.com"]','{email}'),
-  ('SCH-FIN-M','Monthly Finance Pack','monthly','0 6 1 * *','excel','["finance@company.com"]','{email,excel}'),
-  ('SCH-PAY-M','Monthly Payroll Summary','monthly','0 7 1 * *','pdf','["hr@company.com","payroll@company.com"]','{email}'),
-  ('SCH-SEC-D','Daily Security Exceptions','daily','0 6 * * *','pdf','["security@company.com"]','{email}'),
-  ('SCH-INV-W','Weekly Inventory Position','weekly','0 6 * * 1','csv','["warehouse@company.com"]','{email,csv}')
+  ('SCH-EXEC-D','Daily Executive Briefing','daily','0 6 * * *','pdf','["exec@company.com"]','["email"]'),
+  ('SCH-BOARD-W','Weekly Board KPI Pack','weekly','0 7 * * 1','pdf','["board@company.com","md@company.com"]','["email"]'),
+  ('SCH-FIN-M','Monthly Finance Pack','monthly','0 6 1 * *','excel','["finance@company.com"]','["email","excel"]'),
+  ('SCH-PAY-M','Monthly Payroll Summary','monthly','0 7 1 * *','pdf','["hr@company.com","payroll@company.com"]','["email"]'),
+  ('SCH-SEC-D','Daily Security Exceptions','daily','0 6 * * *','pdf','["security@company.com"]','["email"]'),
+  ('SCH-INV-W','Weekly Inventory Position','weekly','0 6 * * 1','csv','["warehouse@company.com"]','["email","csv"]')
 ) AS v(schedule_code, name, frequency_label, cron_expression, format, recipients, delivery_channels)
 WHERE NOT EXISTS (
   SELECT 1 FROM public.bi_report_schedules s
