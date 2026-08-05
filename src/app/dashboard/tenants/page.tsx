@@ -116,9 +116,12 @@ export default function TenantsAdminPage() {
     <div>
       <PageHeader
         title="Multi-tenant administration"
-        description={`${APP_NAME} · tenants · companies · memberships · company switcher`}
+        description={`${APP_NAME} · tenants · companies · memberships · company switcher. Full estate cPanel: /platform/tenants (staff only).`}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/platform/tenants">Platform cPanel</Link>
+            </Button>
             <Button size="sm" variant="outline" onClick={() => { setLoading(true); load(); }}>
               <RefreshCw className="h-4 w-4 mr-1" /> Refresh
             </Button>

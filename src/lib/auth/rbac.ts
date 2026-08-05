@@ -92,6 +92,15 @@ const OVERRIDES: RbacRule[] = [
     prefix: "/dashboard/security/dual-control",
     anyOf: ["security.dual_control", "security.admin", "iam.security", "finance.approve", "payroll.approve"],
   },
+  // Platform cPanel — staff only (layout also gates is_platform_admin)
+  {
+    prefix: "/platform/tenants",
+    anyOf: ["platform.view", "platform.admin", "platform.tenants"],
+  },
+  {
+    prefix: "/platform",
+    anyOf: ["platform.view", "platform.admin"],
+  },
   {
     prefix: "/dashboard/chat/notifications",
     anyOf: ["hc.view", "notifications.view", "dashboard.view"],

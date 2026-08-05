@@ -10,3 +10,12 @@ export {
   setupProgressSummary,
   wizardHrefForKey,
 } from "./onboarding";
+export {
+  cpanelListTenants,
+  cpanelGetTenant,
+  cpanelMutateTenant,
+  cpanelOverview,
+  type PlatformTenantRow,
+  type PlatformTenantDetail,
+  type TenantLifecycleAction,
+} from "./cpanel";

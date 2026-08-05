@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PlatformShell } from "@/components/platform/platform-shell";
 
 /**
- * SecureTrack platform control plane is restricted to SecureTrack staff.
+ * SecureTrack platform cPanel — control plane for the entire ERP estate.
  *
- * The database enforces this via is_platform_admin() (flagged profile with
- * no tenant) and the API layer via requireApiAuth. This layout is the
- * defense-in-depth page gate: tenant users (including tenant super admins)
- * are redirected before any platform page mounts.
+ * Restricted to SecureTrack staff (is_platform_admin + no tenant).
+ * Tenant super admins are redirected to the ERP dashboard.
  */
 export const dynamic = "force-dynamic";
 
@@ -22,7 +21,7 @@ export default async function PlatformAdminLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/login?next=/platform");
   }
 
   const { data: profile } = await supabase
@@ -38,5 +37,5 @@ export default async function PlatformAdminLayout({
     redirect("/dashboard");
   }
 
-  return <>{children}</>;
+  return <PlatformShell>{children}</PlatformShell>;
 }
