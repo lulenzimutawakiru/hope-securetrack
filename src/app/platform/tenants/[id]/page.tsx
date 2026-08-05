@@ -377,18 +377,20 @@ export default function PlatformTenantDetailPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="grid grid-cols-2 gap-2 text-xs">
-              {[
-                ["tenant_id", isolation.enforce_tenant_id],
-                ["company_id", isolation.enforce_company_id],
-                ["branch_id", isolation.enforce_branch_id],
-                ["RLS", isolation.rls],
-                ["Storage", isolation.storage],
-                ["Search", isolation.search],
-                ["AI", isolation.ai],
-                ["Reporting", isolation.reporting],
-              ].map(([label, on]) => (
+              {(
+                [
+                  ["tenant_id", isolation.enforce_tenant_id],
+                  ["company_id", isolation.enforce_company_id],
+                  ["branch_id", isolation.enforce_branch_id],
+                  ["RLS", isolation.rls],
+                  ["Storage", isolation.storage],
+                  ["Search", isolation.search],
+                  ["AI", isolation.ai],
+                  ["Reporting", isolation.reporting],
+                ] as Array<[string, unknown]>
+              ).map(([label, on]) => (
                 <div
-                  key={String(label)}
+                  key={label}
                   className="flex items-center justify-between rounded border px-2 py-1.5"
                 >
                   <span className="font-mono">{label}</span>

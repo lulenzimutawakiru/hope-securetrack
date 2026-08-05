@@ -166,38 +166,42 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       is: { deleted_at: null },
     }).catch(() => 0),
     countTable("tenant_modules", { eq: { enabled: true } }).catch(() => 0),
-    sb
-      .from("tenants")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "trial")
-      .gte("trial_ends_at", now)
-      .lte("trial_ends_at", weekAhead)
-      .is("deleted_at", null)
+    Promise.resolve(
+      sb
+        .from("tenants")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "trial")
+        .gte("trial_ends_at", now)
+        .lte("trial_ends_at", weekAhead)
+        .is("deleted_at", null)
+    )
       .then((r) => r.count ?? 0)
       .catch(() => 0),
-    sb
-      .from("tenants")
-      .select("plan_code")
-      .is("deleted_at", null)
-      .limit(2000)
+    Promise.resolve(
+      sb.from("tenants").select("plan_code").is("deleted_at", null).limit(2000)
+    )
       .then((r) => r.data || [])
       .catch(() => [] as Array<{ plan_code: string | null }>),
-    sb
-      .from("tenants")
-      .select("id,name,slug,status,plan_code,created_at")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(8)
+    Promise.resolve(
+      sb
+        .from("tenants")
+        .select("id,name,slug,status,plan_code,created_at")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(8)
+    )
       .then((r) => r.data || [])
       .catch(() => []),
-    sb
-      .from("domain_events")
-      .select("id,event_type,severity,created_at")
-      .or(
-        "event_type.ilike.%mfa%,event_type.ilike.%login%,event_type.ilike.%security%,event_type.ilike.%elevat%,severity.eq.critical,severity.eq.warning"
-      )
-      .order("created_at", { ascending: false })
-      .limit(12)
+    Promise.resolve(
+      sb
+        .from("domain_events")
+        .select("id,event_type,severity,created_at")
+        .or(
+          "event_type.ilike.%mfa%,event_type.ilike.%login%,event_type.ilike.%security%,event_type.ilike.%elevat%,severity.eq.critical,severity.eq.warning"
+        )
+        .order("created_at", { ascending: false })
+        .limit(12)
+    )
       .then((r) => r.data || [])
       .catch(() => []),
   ]);
