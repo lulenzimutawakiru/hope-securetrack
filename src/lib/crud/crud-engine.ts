@@ -36,6 +36,7 @@ import { validatePayload } from "@/lib/crud/entity-schemas";
 export type EngineErrorCode =
   | "UNKNOWN_ENTITY"
   | "MISSING_PERMISSION"
+  | "FORBIDDEN"
   | "CROSS_TENANT"
   | "CROSS_COMPANY"
   | "NOT_FOUND"
@@ -125,6 +126,15 @@ function withEntity(
     throw new EngineError(
       "MISSING_PERMISSION",
       `Missing permission: ${permission}`,
+      403
+    );
+  }
+  // Control-plane entities are SecureTrack staff only. Tenant users can never
+  // reach them through the generic CRUD surface, even with settings.manage.
+  if (def.staffOnly && !scope.isPlatformAdmin) {
+    throw new EngineError(
+      "FORBIDDEN",
+      `${entity} is restricted to SecureTrack platform staff`,
       403
     );
   }

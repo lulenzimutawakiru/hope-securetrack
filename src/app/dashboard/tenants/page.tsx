@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, Plus, RefreshCw, Users, Layers } from "lucide-react";
+import { Building2, Plus, RefreshCw, Users, Layers, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import { APP_NAME } from "@/lib/constants";
 import { toast } from "sonner";
 
 export default function TenantsAdminPage() {
-  const { auth } = useUser();
+  const { auth, isPlatformAdmin } = useUser();
   const [loading, setLoading] = useState(true);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [companies, setCompanies] = useState<Array<Record<string, unknown>>>([]);
@@ -110,6 +110,26 @@ export default function TenantsAdminPage() {
     }
   };
 
+  // Tenant management is SecureTrack-staff only. The RBAC route guard denies
+  // non-staff already; this is defense in depth so tenant users can never
+  // reach the creation UI even if a deep link renders.
+  if (!isPlatformAdmin) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
+          <h2 className="mt-4 text-lg font-semibold">
+            Tenant management is staff-only
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tenant administration is available only in the SecureTrack ERP
+            platform portal.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) return <LoadingState message="Loading multi-tenant platform…" />;
 
   return (
@@ -125,12 +145,16 @@ export default function TenantsAdminPage() {
             <Button size="sm" variant="outline" onClick={() => { setLoading(true); load(); }}>
               <RefreshCw className="h-4 w-4 mr-1" /> Refresh
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setOpenCompany(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Company
-            </Button>
-            <Button size="sm" onClick={() => setOpenTenant(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Tenant
-            </Button>
+            {isPlatformAdmin && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setOpenCompany(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Company
+                </Button>
+                <Button size="sm" onClick={() => setOpenTenant(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Tenant
+                </Button>
+              </>
+            )}
           </div>
         }
       />

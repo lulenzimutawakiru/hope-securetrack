@@ -120,6 +120,7 @@ function mapEngineError(e: unknown): NextResponse {
     }
     if (
       e.code === "MISSING_PERMISSION" ||
+      e.code === "FORBIDDEN" ||
       e.code === "CROSS_TENANT" ||
       e.code === "CROSS_COMPANY"
     ) {

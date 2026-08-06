@@ -14,7 +14,6 @@ export const runtime = "nodejs";
 
 export const POST = createApiHandler(
   {
-    auth: true,
     module: "auth.logout",
   },
   async () => {

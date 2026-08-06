@@ -433,7 +433,7 @@ export async function provisionTenant(
 
       if (adminUserId && role?.id) {
         const names = (input.admin_name || "Tenant Admin").split(" ");
-        await sb.from("user_profiles").upsert({
+        const { error: profileErr } = await sb.from("user_profiles").upsert({
           id: adminUserId,
           company_id: company.id,
           active_company_id: company.id,
@@ -447,20 +447,32 @@ export async function provisionTenant(
           // Self-chosen password at signup — no forced reset
           must_change_password: false,
         });
+        if (profileErr) {
+          throw new Error(
+            `Admin profile could not be created: ${profileErr.message}`
+          );
+        }
 
-        await sb.from("user_company_memberships").upsert(
-          {
-            user_id: adminUserId,
-            company_id: company.id,
-            tenant_id: tenant.id,
-            role_id: role.id,
-            is_default: true,
-            status: "active",
-          },
-          { onConflict: "user_id,company_id" }
-        );
+        const { error: membershipErr } = await sb
+          .from("user_company_memberships")
+          .upsert(
+            {
+              user_id: adminUserId,
+              company_id: company.id,
+              tenant_id: tenant.id,
+              role_id: role.id,
+              is_default: true,
+              status: "active",
+            },
+            { onConflict: "user_id,company_id" }
+          );
+        if (membershipErr) {
+          throw new Error(
+            `Admin membership could not be created: ${membershipErr.message}`
+          );
+        }
 
-        await sb
+        const { error: progressErr } = await sb
           .from("tenant_setup_progress")
           .update({
             status: "completed",
@@ -468,6 +480,11 @@ export async function provisionTenant(
           })
           .eq("tenant_id", tenant.id)
           .eq("step_key", "admin");
+        if (progressErr) {
+          throw new Error(
+            `Setup progress could not be marked complete: ${progressErr.message}`
+          );
+        }
       } else if (adminUserId && !role?.id) {
         throw new Error(
           "super_administrator role is missing — seed roles before provisioning"

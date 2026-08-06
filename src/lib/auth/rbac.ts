@@ -97,6 +97,13 @@ const OVERRIDES: RbacRule[] = [
     prefix: "/platform/tenants",
     anyOf: ["platform.view", "platform.admin", "platform.tenants"],
   },
+  // Tenant management lives in the SecureTrack ERP portal only (staff-only).
+  // Tenant users never hold tenant.* on the client, so this route now denies
+  // deep links even if a role row was mis-seeded.
+  {
+    prefix: "/dashboard/tenants",
+    anyOf: ["platform.view", "platform.admin", "platform.tenants"],
+  },
   {
     prefix: "/platform/companies",
     anyOf: ["platform.view", "platform.admin", "platform.tenants"],

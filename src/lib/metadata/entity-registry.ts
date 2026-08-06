@@ -74,6 +74,11 @@ export interface EntityDefinition {
   primaryKey: string;
   /** Owning module for audit + permission grouping. */
   module: EntityModule;
+  /**
+   * Control-plane entity: generic CRUD access is restricted to SecureTrack
+   * platform staff (is_platform_admin with no tenant).
+   */
+  staffOnly: boolean;
   viewPermission: string;
   createPermission: string;
   updatePermission: string;
@@ -128,6 +133,8 @@ export const DEFAULT_WRITE_BLACKLIST = [
 export const ENTITY_REGISTRY: Record<string, EntityDefinition> = {};
 
 export type DefineEntityOptions = {
+  /** When true, generic CRUD access is restricted to SecureTrack platform staff. */
+  staffOnly?: boolean;
   softDelete?: boolean;
   deletedColumn?: string;
   archivedAt?: boolean;
@@ -173,6 +180,7 @@ export function defineEntity(
     table,
     primaryKey: "id",
     module,
+    staffOnly: opts.staffOnly ?? false,
     viewPermission,
     createPermission,
     updatePermission,
@@ -3973,11 +3981,11 @@ defineEntity("pkg_pallet_cartons", "pkg_pallet_cartons", "scm", { view: "invento
 defineEntity("pkg_pallets", "pkg_pallets", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
 defineEntity("pkg_qc_checks", "pkg_qc_checks", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
 defineEntity("pkg_weights", "pkg_weights", "scm", { view: "inventory.view", create: "inventory.manage", update: "inventory.manage", delete: "inventory.admin" }, { softDelete: true, searchable: [] });
-defineEntity("platform_announcements", "platform_announcements", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("platform_feature_flags", "platform_feature_flags", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("platform_health_checks", "platform_health_checks", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("platform_modules", "platform_modules", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("platform_plans", "platform_plans", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("platform_announcements", "platform_announcements", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
+defineEntity("platform_feature_flags", "platform_feature_flags", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
+defineEntity("platform_health_checks", "platform_health_checks", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
+defineEntity("platform_modules", "platform_modules", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
+defineEntity("platform_plans", "platform_plans", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
 defineEntity("ppm_ai_insights", "ppm_ai_insights", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
 defineEntity("ppm_approvals", "ppm_approvals", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
 defineEntity("ppm_budgets", "ppm_budgets", "ppm", { view: "ppm.view", create: "ppm.manage", update: "ppm.manage", delete: "ppm.admin" }, { softDelete: true, searchable: [] });
@@ -4044,11 +4052,11 @@ defineEntity("ta_interviews", "ta_interviews", "ta", { view: "ta.view", create: 
 defineEntity("ta_offers", "ta_offers", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
 defineEntity("ta_onboarding_tasks", "ta_onboarding_tasks", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
 defineEntity("ta_requisitions", "ta_requisitions", "ta", { view: "ta.view", create: "ta.manage", update: "ta.manage", delete: "ta.admin" }, { softDelete: true, searchable: [] });
-defineEntity("tenant_feature_flags", "tenant_feature_flags", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("tenant_provisioning_jobs", "tenant_provisioning_jobs", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenant_feature_flags", "tenant_feature_flags", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
+defineEntity("tenant_provisioning_jobs", "tenant_provisioning_jobs", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
 defineEntity("tenant_setup_progress", "tenant_setup_progress", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("tenant_subscriptions", "tenant_subscriptions", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
-defineEntity("tenants", "tenants", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
+defineEntity("tenant_subscriptions", "tenant_subscriptions", "settings", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
+defineEntity("tenants", "tenants", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { staffOnly: true, softDelete: true, searchable: [] });
 defineEntity("user_company_memberships", "user_company_memberships", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
 defineEntity("user_profiles", "user_profiles", "iam", { view: "iam.view", create: "iam.manage", update: "iam.manage", delete: "iam.admin" }, { softDelete: true, searchable: [] });
 defineEntity("user_role_changes", "user_role_changes", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });

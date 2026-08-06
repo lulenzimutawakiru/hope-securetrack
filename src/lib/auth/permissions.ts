@@ -347,7 +347,9 @@ export function enrichPermissions(
   // Tenant users never hold platform.* control-plane entitlements even if a
   // role row was mis-seeded (mirrors requireApiAuth server strip).
   if (!isStaffPlatformAdmin) {
-    permissions = permissions.filter((p) => !p.startsWith("platform."));
+    permissions = permissions.filter(
+      (p) => !p.startsWith("platform.") && !p.startsWith("tenant.")
+    );
   }
 
   if (roleSlug === "super_administrator") {
@@ -356,7 +358,9 @@ export function enrichPermissions(
     permissions = Array.from(
       new Set([
         ...permissions,
-        ...SUPER_ADMIN_EXTRAS.filter((p) => !p.startsWith("platform.")),
+        ...SUPER_ADMIN_EXTRAS.filter(
+          (p) => !p.startsWith("platform.") && !p.startsWith("tenant.")
+        ),
       ])
     );
   }
