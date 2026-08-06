@@ -37,7 +37,7 @@ export async function listCompanyPeopleServer(
   const search = opts.search?.trim().toLowerCase();
 
   // Primary: profiles on this company
-  let q = sb
+  const q = sb
     .from("user_profiles")
     .select("id, first_name, last_name, email, avatar_url, job_title, is_active")
     .eq("company_id", companyId)

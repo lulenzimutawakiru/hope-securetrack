@@ -13,6 +13,7 @@ import {
   crudUpdate,
 } from "@/lib/api/crud-client";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function mustCreate<T = any>(
   entity: string,
   body: Record<string, unknown>
@@ -22,6 +23,7 @@ export async function mustCreate<T = any>(
   return res.data;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function mustUpdate<T = any>(
   entity: string,
   id: string,
@@ -32,6 +34,7 @@ export async function mustUpdate<T = any>(
   return res.data;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function mustList<T = any>(
   entity: string,
   opts?: {
@@ -57,6 +60,7 @@ export async function mustList<T = any>(
   return res.data.data;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function mustGet<T = any>(
   entity: string,
   id: string

@@ -171,7 +171,7 @@ export function assertScopedRow(
  * Callers still own select/filter; company filter is pre-applied.
  */
 export function adminFrom(scoped: ScopedAdmin, table: string) {
-  let q = scoped.client.from(table);
+  const q = scoped.client.from(table);
   if (!scoped.scope.isElevated && scoped.scope.companyId) {
     // PostgREST filter is applied by chaining .eq after select in callers.
     // Return a thin wrapper that always injects company_id.

@@ -279,20 +279,24 @@ class QueryBuilder {
     return out;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   then<TResult1 = any, TResult2 = any>(
     onfulfilled?:
       | ((value: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: any;
           error: { message: string } | null;
           count?: number | null;
         }) => TResult1 | PromiseLike<TResult1>)
       | null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
     return this.execute().then(onfulfilled as never, onrejected as never);
   }
 
   private async execute(): Promise<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any;
     error: { message: string } | null;
     count?: number | null;

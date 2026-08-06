@@ -143,7 +143,7 @@ export default function LoginPage() {
       url.searchParams.set("provider_id", p.id);
       if (p.company_id) url.searchParams.set("company_id", p.company_id);
       url.searchParams.set("return_to", "/dashboard");
-      window.location.href = url.toString();
+      window.location.assign(url.toString());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "SSO failed");
       setSsoLoading(false);

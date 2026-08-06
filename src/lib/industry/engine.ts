@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 /**
  * Industry Configuration Engine for SecureTrack ERP
  * Provides constants and helpers to initialise a tenant for a specific sector.
@@ -139,7 +141,7 @@ export function listIndustries(): string[] {
  * This function should be called when provisioning a new tenant.
  */
 export async function seedTenantDefaults(
-  supabase: any,
+  supabase: SupabaseClient,
   tenantId: string,
   industry: string
 ) {
