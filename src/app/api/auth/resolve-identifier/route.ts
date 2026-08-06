@@ -50,6 +50,7 @@ function uniqueMatches(rows: MatchRow[]): MatchRow[] {
 export const POST = createApiHandler(
   {
     auth: false,
+    requireBaselinePermission: false, // pre-auth identifier resolution
     bodySchema: schema,
     rateLimit: { limit: 40, windowMs: 60_000, key: "resolve-identifier" },
     module: "identity",

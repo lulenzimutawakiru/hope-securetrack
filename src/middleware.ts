@@ -169,6 +169,8 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/forgot-password") ||
       pathname.startsWith("/reset-password") ||
       pathname.startsWith("/api/health") ||
+      // Pre-auth employee-ID/username resolver (rate-limited in route)
+      pathname.startsWith("/api/auth/resolve-identifier") ||
       pathname.startsWith("/api/attendance/devices") ||
       // Slack Events API (signature verified in route)
       pathname === "/api/v2/integrations/slack/events";
