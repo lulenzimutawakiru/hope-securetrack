@@ -36,6 +36,9 @@ export default function LoginPage() {
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaSiteKey, setCaptchaSiteKey] = useState<string | null>(null);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
+  const [companyCode, setCompanyCode] = useState("");
+  const [identifierAmbiguous, setIdentifierAmbiguous] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
   const [ssoLoading, setSsoLoading] = useState(false);
 
@@ -84,6 +87,29 @@ export default function LoginPage() {
     }, 400);
     return () => clearTimeout(t);
   }, [email]);
+
+  const resolveIdentifier = async (company?: string) => {
+    try {
+      const res = await fetch("/api/auth/resolve-identifier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: email.trim(),
+          company_code: company || companyCode || null,
+        }),
+      });
+      const json = await res.json();
+      return (json?.data ?? json) as {
+        resolved?: boolean;
+        ambiguous?: boolean;
+        direct?: boolean;
+        email?: string | null;
+        options?: Array<{ company_code: string | null; company_name: string }>;
+      } | null;
+    } catch {
+      return null;
+    }
+  };
 
   const callLoginGuard = async (
     event: "check" | "fail" | "success",
@@ -174,8 +200,36 @@ export default function LoginPage() {
       }
 
       const supabase = createClient();
+
+      // Employee ID / username / email login: resolve the identifier to the
+      // canonical auth email before calling Supabase Auth.
+      let signInEmail = email;
+      if (!email.includes("@")) {
+        setResolving(true);
+        try {
+          const resolved = await resolveIdentifier();
+          if (resolved?.direct) {
+            signInEmail = email;
+          } else if (resolved?.resolved && resolved.email) {
+            signInEmail = resolved.email;
+            setIdentifierAmbiguous(false);
+          } else if (resolved?.ambiguous && !companyCode) {
+            setIdentifierAmbiguous(true);
+            setLoading(false);
+            setResolving(false);
+            toast.error("This identifier exists in more than one organization. Enter your organization code to continue.");
+            return;
+          } else {
+            // Not resolvable ? fail uniformly so identifier existence is not leaked.
+            signInEmail = "invalid@local.invalid";
+          }
+        } finally {
+          setResolving(false);
+        }
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: signInEmail,
         password,
       });
 
@@ -320,17 +374,38 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4" noValidate>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Employee ID / Username / Email</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="name@company.com"
+                type="text"
+                placeholder="e.g. EMP-2026-00042, jane.doe, or name@company.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setIdentifierAmbiguous(false);
+                }}
                 required
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
+            {identifierAmbiguous && (
+              <div className="space-y-2 rounded-md border border-amber-300/40 bg-amber-50/40 p-3">
+                <Label htmlFor="company_code">Organization code</Label>
+                <Input
+                  id="company_code"
+                  type="text"
+                  placeholder="e.g. HDG"
+                  value={companyCode}
+                  onChange={(e) => setCompanyCode(e.target.value)}
+                  autoComplete="organization"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your employee ID exists in multiple organizations. Enter the
+                  company code shown on your payslip or ID card, then sign in
+                  again.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -382,10 +457,10 @@ export default function LoginPage() {
               </p>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+              {loading || resolving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  Signing in...
+                  {resolving ? "Resolving identifier..." : "Signing in..."}
                 </>
               ) : (
                 "Sign In"

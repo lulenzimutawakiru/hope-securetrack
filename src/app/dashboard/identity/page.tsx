@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Shield, Users, KeyRound, MonitorSmartphone, AlertTriangle, Scale,
   ArrowRight, Lock, UserCog, UserPlus, Upload, ShieldCheck, Fingerprint,
-  GitBranch, FileText,
+  GitBranch, FileText, Hash,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -23,6 +23,7 @@ const MODULES = [
   { title: "Person Directory", href: "/dashboard/identity/persons", icon: Users, desc: "Universal Person IDs" },
   { title: "Employee Lifecycle", href: "/dashboard/identity/lifecycle", icon: GitBranch, desc: "Hire → active → exit · all modules" },
   { title: "Hire & Provision", href: "/dashboard/identity/hire", icon: UserPlus, desc: "HR hire → auto ERP · email · ID · MFA" },
+  { title: "Employee Numbering", href: "/dashboard/identity/numbering", icon: Hash, desc: "Auto employee ID generation" },
   { title: "Provision Engine", href: "/dashboard/identity/engine", icon: GitBranch, desc: "Checklist jobs · re-run · deprovision" },
   { title: "Org Structure", href: "/dashboard/identity/org", icon: Users, desc: "Branches · plants · depts · cost centres" },
   { title: "Security Clearance", href: "/dashboard/identity/clearance", icon: ShieldCheck, desc: "Visitor → system owner · module matrix" },

@@ -225,6 +225,7 @@ export const POST = createApiHandler(
 
     const profilePayload = {
       id: userId,
+      tenant_id: ctx.tenantId ?? null,
       company_id: reqRow.company_id,
       role_id: roleId,
       first_name: reqRow.first_name,

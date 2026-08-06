@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/crud-compat";
 import { generateUsername, ensureUniqueUsername } from "./username";
+import { nextEmployeeId } from "./numbering";
 import { generateTempPassword, passwordExpiresAt, simpleHashHint, validatePassword } from "./password";
 import type { BulkUserRow, PasswordPolicy, ProvisionInput } from "./types";
 
@@ -119,13 +120,23 @@ export async function createProvisionRequest(input: {
   require_approval?: boolean;
 }) {
   const request_number = await nextProvisionNumber(input.company_id);
+
+  let employeeId = input.data.employee_id || null;
+  if (!employeeId) {
+    try {
+      employeeId = await nextEmployeeId({ companyId: input.company_id });
+    } catch {
+      employeeId = null; // numbering optional; provisioning continues
+    }
+  }
+
   const username =
     input.data.username ||
     (await resolveUsername(input.company_id, {
       first_name: input.data.first_name,
       last_name: input.data.last_name,
       email: input.data.email,
-      employee_id: input.data.employee_id,
+      employee_id: employeeId,
       department: input.data.department,
     }));
 
@@ -145,7 +156,7 @@ export async function createProvisionRequest(input: {
       phone: input.data.phone,
       username,
       user_type: input.data.user_type || "employee",
-      employee_id: input.data.employee_id,
+      employee_id: employeeId,
       employee_record_id: input.data.employee_record_id,
       department: input.data.department,
       division: input.data.division,
