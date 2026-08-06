@@ -227,6 +227,7 @@ export const POST = createApiHandler(
       id: userId,
       tenant_id: ctx.tenantId ?? null,
       company_id: reqRow.company_id,
+      active_company_id: reqRow.company_id,
       role_id: roleId,
       first_name: reqRow.first_name,
       last_name: reqRow.last_name,
@@ -264,6 +265,25 @@ export const POST = createApiHandler(
       .upsert(profilePayload, { onConflict: "id" });
     if (profileErr) {
       return apiError("INTERNAL", profileErr.message, 500);
+    }
+
+    const { error: membershipErr } = await admin
+      .from("user_company_memberships")
+      .upsert(
+        {
+          user_id: userId,
+          company_id: reqRow.company_id,
+          tenant_id: ctx.tenantId ?? null,
+          role_id: roleId,
+          is_default: true,
+          status: "active",
+          joined_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,company_id" }
+      );
+    if (membershipErr) {
+      return apiError("INTERNAL", membershipErr.message, 500);
     }
 
     const roleIds: string[] =

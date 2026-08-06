@@ -55,17 +55,24 @@ export async function logTicketEvent(input: {
   actor_id?: string | null;
   actor_name?: string | null;
 }) {
-  await sb().from("sd_ticket_events").insert({
-    company_id: input.company_id,
-    ticket_id: input.ticket_id,
-    event_type: input.event_type,
-    message: input.message,
-    old_value: input.old_value,
-    new_value: input.new_value,
-    is_public: input.is_public ?? true,
-    actor_id: input.actor_id,
-    actor_name: input.actor_name,
-  });
+  const { error } = await sb()
+    .from("sd_ticket_events")
+    .insert({
+      company_id: input.company_id,
+      ticket_id: input.ticket_id,
+      event_type: input.event_type,
+      message: input.message,
+      old_value: input.old_value,
+      new_value: input.new_value,
+      is_public: input.is_public ?? true,
+      actor_id: input.actor_id,
+      actor_name: input.actor_name,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    throw new Error(`Failed to record ticket event: ${error.message}`);
+  }
 }
 
 async function loadSlaPolicy(companyId: string, priority: string) {
@@ -395,6 +402,35 @@ export async function escalateTicket(input: {
   actor_id?: string | null;
   actor_name?: string | null;
 }) {
+  const now = new Date().toISOString();
+  const { data: current } = await sb()
+    .from("support_tickets")
+    .select("priority,escalation_level")
+    .eq("id", input.ticket_id)
+    .single();
+  if (!current) {
+    throw new Error("Ticket not found");
+  }
+
+  // Immutable escalation audit trail first: a failure here aborts the
+  // escalation before any ticket state changes.
+  const { error: escError } = await sb()
+    .from("sd_escalation_events")
+    .insert({
+      company_id: input.company_id,
+      ticket_id: input.ticket_id,
+      from_level: current.escalation_level ?? 0,
+      to_level: input.level,
+      trigger_type: "manual",
+      reason: input.reason,
+      notified_user_ids: [],
+    })
+    .select("id")
+    .single();
+  if (escError) {
+    throw new Error(`Failed to record escalation: ${escError.message}`);
+  }
+
   await logTicketEvent({
     company_id: input.company_id,
     ticket_id: input.ticket_id,
@@ -405,23 +441,31 @@ export async function escalateTicket(input: {
     actor_name: input.actor_name,
     is_public: false,
   });
+
   // Bump priority if not already critical; persist escalation level
-  const { data: t } = await sb()
-    .from("support_tickets")
-    .select("priority,escalation_level")
-    .eq("id", input.ticket_id)
-    .single();
   const patch: Record<string, unknown> = {
     escalation_level: input.level,
-    escalated_at: new Date().toISOString(),
-    last_escalation_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    escalated_at: now,
+    last_escalation_at: now,
+    updated_at: now,
   };
-  if (t && t.priority !== "critical" && input.level >= 2) {
+  if (current.priority !== "critical" && input.level >= 2) {
     patch.priority =
-      t.priority === "low" ? "medium" : t.priority === "medium" ? "high" : "critical";
+      current.priority === "low"
+        ? "medium"
+        : current.priority === "medium"
+          ? "high"
+          : "critical";
   }
-  await sb().from("support_tickets").update(patch).eq("id", input.ticket_id);
+  const { error: updError } = await sb()
+    .from("support_tickets")
+    .update(patch)
+    .eq("id", input.ticket_id)
+    .select("id")
+    .single();
+  if (updError) {
+    throw new Error(`Failed to escalate ticket: ${updError.message}`);
+  }
 }
 
 export async function softDeleteTicket(ticketId: string) {

@@ -63,7 +63,12 @@ export type CrudAction =
 /** Permission spec: a single slug for every action, or per-action slugs. */
 export type EntityPermissions =
   | string
-  | { view?: string; create?: string; update?: string; delete?: string };
+  | {
+      view?: string | string[];
+      create?: string | string[];
+      update?: string | string[];
+      delete?: string | string[];
+    };
 
 /**
  * Universal Business Object capabilities. Every registered entity exposes the
@@ -179,12 +184,18 @@ export interface EntityDefinition {
    * platform staff (is_platform_admin with no tenant).
    */
   staffOnly: boolean;
-  viewPermission: string;
-  createPermission: string;
-  updatePermission: string;
-  deletePermission: string;
+  viewPermission: string | string[];
+  createPermission: string | string[];
+  updatePermission: string | string[];
+  deletePermission: string | string[];
   /** Hard isolation: every query is scoped by company (and tenant when known). */
   tenantScoped: boolean;
+  /**
+   * Company-level scoping. Defaults to true. Set false for root objects like
+   * `companies` that carry no company_id column (they are the scope root);
+   * they remain tenant-isolated through tenant_id.
+   */
+  companyScoped: boolean;
   /** True when the table has deleted_at (soft delete). */
   softDelete: boolean;
   /** Column used for the soft-delete flag. */
@@ -242,6 +253,8 @@ export type DefineEntityOptions = {
   archivedAt?: boolean;
   archiveColumn?: string;
   archiveTimestampColumn?: string;
+  /** Company-level scoping. Defaults to true; set false for scope-root entities. */
+  companyScoped?: boolean;
   searchable?: string[];
   sortable?: string[];
   createdBy?: boolean;
@@ -296,6 +309,7 @@ export function defineEntity(
     updatePermission,
     deletePermission,
     tenantScoped: true,
+    companyScoped: opts.companyScoped ?? true,
     softDelete: opts.softDelete ?? false,
     deletedColumn: opts.deletedColumn ?? (opts.softDelete ? "deleted_at" : undefined),
     archivedAt: opts.archivedAt,
@@ -316,7 +330,10 @@ export function defineEntity(
 }
 
 /** Map a CRUD action to the permission slug that guards it. */
-export function permissionForAction(def: EntityDefinition, action: CrudAction): string {
+export function permissionForAction(
+  def: EntityDefinition,
+  action: CrudAction
+): string | string[] {
   switch (action) {
     case "view":
     case "export":
@@ -359,6 +376,7 @@ defineEntity("companies", "companies", "settings", {
   update: "settings.manage",
   delete: "settings.admin",
 }, {
+  companyScoped: false,
   searchable: ["name", "code", "legal_name"],
 });
 
@@ -1060,8 +1078,8 @@ defineEntity("shift_templates", "shift_templates", "wfm", {
 // ---- Service desk ------------------------------------------------------
 defineEntity("support_tickets", "support_tickets", "sd", {
   view: "sd.view",
-  create: "sd.portal",
-  update: "sd.agent",
+  create: ["sd.manage", "sd.agent", "sd.admin", "sd.portal"],
+  update: ["sd.manage", "sd.agent", "sd.admin"],
   delete: "sd.admin",
 }, {
   softDelete: true,
@@ -1073,7 +1091,7 @@ defineEntity("support_tickets", "support_tickets", "sd", {
 
 defineEntity("sd_ticket_events", "sd_ticket_events", "sd", {
   view: "sd.view",
-  create: "sd.portal",
+  create: ["sd.manage", "sd.agent", "sd.field", "sd.portal"],
   update: "sd.manage",
   delete: "sd.admin",
 }, {
@@ -1081,6 +1099,18 @@ defineEntity("sd_ticket_events", "sd_ticket_events", "sd", {
   hasUpdatedAt: false,
   createdBy: false,
   updatedBy: false,
+});
+
+defineEntity("sd_escalation_events", "sd_escalation_events", "sd", {
+  view: "sd.view",
+  create: ["sd.manage", "sd.agent", "sd.admin"],
+  update: "sd.manage",
+  delete: "sd.admin",
+}, {
+  hasUpdatedAt: false,
+  createdBy: false,
+  updatedBy: false,
+  searchable: [],
 });
 
 // ---- Finance / accounting ----------------------------------------------

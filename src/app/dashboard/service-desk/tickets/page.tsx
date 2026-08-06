@@ -529,16 +529,20 @@ export default function ServiceDeskTicketsPage() {
                     variant="outline"
                     onClick={async () => {
                       if (!companyId) return;
-                      await escalateTicket({
-                        ticket_id: selected.id,
-                        company_id: companyId,
-                        level: 2,
-                        reason: "Manual escalation",
-                        actor_id: auth?.user?.id,
-                      });
-                      toast.success("Escalated");
-                      await refetchTickets();
-                      await loadEvents(selected.id);
+                      try {
+                        await escalateTicket({
+                          ticket_id: selected.id,
+                          company_id: companyId,
+                          level: 2,
+                          reason: "Manual escalation",
+                          actor_id: auth?.user?.id,
+                        });
+                        toast.success("Escalated");
+                        await refetchTickets();
+                        await loadEvents(selected.id);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Escalation failed");
+                      }
                     }}
                   >
                     <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Escalate
@@ -548,9 +552,13 @@ export default function ServiceDeskTicketsPage() {
                     variant="outline"
                     onClick={async () => {
                       if (!companyId) return;
-                      await duplicateTicket(selected.id, companyId, auth?.user?.id);
-                      toast.success("Duplicated");
-                      await refetchTickets();
+                      try {
+                        await duplicateTicket(selected.id, companyId, auth?.user?.id);
+                        toast.success("Duplicated");
+                        await refetchTickets();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Duplicate failed");
+                      }
                     }}
                   >
                     <Copy className="h-3.5 w-3.5 mr-1" /> Duplicate
@@ -559,10 +567,14 @@ export default function ServiceDeskTicketsPage() {
                     size="sm"
                     variant="ghost"
                     onClick={async () => {
-                      await softDeleteTicket(selected.id);
-                      toast.success("Archived");
-                      setSelected(null);
-                      await refetchTickets();
+                      try {
+                        await softDeleteTicket(selected.id);
+                        toast.success("Archived");
+                        setSelected(null);
+                        await refetchTickets();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Archive failed");
+                      }
                     }}
                   >
                     <Archive className="h-3.5 w-3.5 mr-1" /> Archive

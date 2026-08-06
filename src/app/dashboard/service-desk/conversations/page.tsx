@@ -63,6 +63,7 @@ export default function ConversationsPage() {
   const [query, setQuery] = useState("");
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const companyId = auth?.profile?.company_id as string | undefined;
   const userId = auth?.profile?.id as string | undefined;
@@ -72,14 +73,12 @@ export default function ConversationsPage() {
       : "Agent";
 
   const load = async () => {
+    setError(null);
     const supabase = createClient();
     const [ticketsRes, inboundRes] = await Promise.all([
       supabase
         .from("support_tickets")
-        .select(
-          "id,ticket_number,subject,status,priority,channel,requester_name,created_at," +
-            "sd_messages(id,channel,direction,author_name,body,created_at,is_public)"
-        )
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(80),
       supabase
@@ -88,9 +87,29 @@ export default function ConversationsPage() {
         .order("received_at", { ascending: false })
         .limit(80),
     ]);
+    if (ticketsRes.error) throw new Error(ticketsRes.error.message);
+    if (inboundRes.error) throw new Error(inboundRes.error.message);
 
     const tickets = (ticketsRes.data as unknown as Array<Record<string, unknown>>) || [];
     const inbound = (inboundRes.data as Array<Record<string, unknown>>) || [];
+
+    const ticketIds = tickets.map((t) => String(t.id)).filter(Boolean);
+    const messagesByTicket = new Map<string, SdMessage[]>();
+    if (ticketIds.length > 0) {
+      const messagesRes = await supabase
+        .from("sd_messages")
+        .select("*")
+        .in("ticket_id", ticketIds)
+        .order("created_at", { ascending: true });
+      if (messagesRes.error) throw new Error(messagesRes.error.message);
+      for (const row of (messagesRes.data as Array<Record<string, unknown>> | null) || []) {
+        const tid = String(row.ticket_id || "");
+        if (!tid) continue;
+        const list = messagesByTicket.get(tid) || [];
+        list.push(row as unknown as SdMessage);
+        messagesByTicket.set(tid, list);
+      }
+    }
 
     const ticketItems: ConversationItem[] = tickets.map((t) => ({
       id: String(t.id),
@@ -102,7 +121,7 @@ export default function ConversationsPage() {
       status: String(t.status || "new"),
       priority: String(t.priority || ""),
       created_at: String(t.created_at || ""),
-      messages: (t.sd_messages as SdMessage[] | null) || [],
+      messages: messagesByTicket.get(String(t.id)) || [],
     }));
 
     const inboundItems: ConversationItem[] = inbound
@@ -133,8 +152,20 @@ export default function ConversationsPage() {
     setLoading(false);
   };
 
+  const retry = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load conversations");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    load().catch(() => setLoading(false));
+    retry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -285,6 +316,23 @@ export default function ConversationsPage() {
   };
 
   if (loading) return <LoadingState message="Loading conversations…" />;
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Unified Conversations"
+          description="Omnichannel inbox · email · WhatsApp · chat · phone · IoT · AI-assisted replies"
+        />
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-8 text-center">
+          <p className="text-sm text-destructive-foreground">{error}</p>
+          <Button className="mt-4" size="sm" variant="outline" onClick={retry}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

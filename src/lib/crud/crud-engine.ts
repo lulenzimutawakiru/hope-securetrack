@@ -123,12 +123,12 @@ function withEntity(
     throw new EngineError("UNKNOWN_ENTITY", `Unknown entity: ${entity}`, 404);
   }
   const permission = permissionForAction(def, action);
-  if (!scope.isPlatformAdmin && !scope.permissions.includes(permission)) {
-    throw new EngineError(
-      "MISSING_PERMISSION",
-      `Missing permission: ${permission}`,
-      403
-    );
+  const granted = Array.isArray(permission)
+    ? permission.some((p) => scope.permissions.includes(p))
+    : scope.permissions.includes(permission);
+  if (!scope.isPlatformAdmin && !granted) {
+    const label = Array.isArray(permission) ? permission.join(" | ") : permission;
+    throw new EngineError("MISSING_PERMISSION", `Missing permission: ${label}`, 403);
   }
   // Control-plane entities are SecureTrack staff only. Tenant users can never
   // reach them through the generic CRUD surface, even with settings.manage.
@@ -140,6 +140,14 @@ function withEntity(
     );
   }
   return def;
+}
+
+/**
+ * Scope-root entities (e.g. `companies`) carry no company_id column ? they
+ * ARE the scope root and remain tenant-isolated through tenant_id only.
+ */
+function isCompanyRoot(def: EntityDefinition): boolean {
+  return def.companyScoped === false;
 }
 
 /** Drop identity + lifecycle fields that must never come from the client. */
@@ -171,11 +179,8 @@ async function fetchScopedRow(
   def: EntityDefinition,
   id: string
 ): Promise<Record<string, unknown>> {
-  let query = sb
-    .from(def.table)
-    .select("*")
-    .eq(def.primaryKey, id)
-    .eq("company_id", scope.companyId);
+  let query = sb.from(def.table).select("*").eq(def.primaryKey, id);
+  if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
   if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
   const { data, error } = await query.maybeSingle();
   if (error) {
@@ -185,9 +190,12 @@ async function fetchScopedRow(
     throw new EngineError("NOT_FOUND", `${def.entity} not found`, 404);
   }
   try {
+    // Scope-root rows (companies) have no company_id column; assert against the
+    // active scope so tenant isolation is still enforced.
+    const row = data as { tenant_id?: string; company_id?: string };
     assertTenantAndCompany(
       scope,
-      data as { tenant_id?: string; company_id?: string },
+      isCompanyRoot(def) ? { ...row, company_id: scope.companyId } : row,
       def.entity
     );
   } catch (e) {
@@ -343,7 +351,7 @@ function buildListQuery(
   opts: ListOptions
 ): QueryBuilder {
   let query = sb.from(def.table).select(opts.select || "*", { count: "exact" });
-  query = query.eq("company_id", scope.companyId);
+  if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
   if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
   if (!opts.includeDeleted && def.softDelete && def.deletedColumn) {
     query = query.is(def.deletedColumn, null);
@@ -469,7 +477,7 @@ export async function createEntity<T = Record<string, unknown>>(
   }
   const sb = deps.sb ?? (await createClient());
   const clean = stripBlacklist(payload);
-  clean.company_id = scope.companyId;
+  if (!isCompanyRoot(def)) clean.company_id = scope.companyId;
   if (scope.tenantId) clean.tenant_id = scope.tenantId;
   if (def.createdBy) clean.created_by = scope.userId;
   if (def.updatedBy) clean.updated_by = scope.userId;
@@ -510,11 +518,8 @@ export async function updateEntity<T = Record<string, unknown>>(
   if (def.hasUpdatedAt !== false) {
     clean.updated_at = new Date().toISOString();
   }
-  let query = sb
-    .from(def.table)
-    .update(clean)
-    .eq(def.primaryKey, id)
-    .eq("company_id", scope.companyId);
+  let query = sb.from(def.table).update(clean).eq(def.primaryKey, id);
+  if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
   if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
   const { data, error } = await query.select().single();
   if (error) {
@@ -553,19 +558,13 @@ export async function deleteEntity(
     if (def.hasUpdatedAt !== false) {
       patch.updated_at = new Date().toISOString();
     }
-    let query = sb
-      .from(def.table)
-      .update(patch)
-      .eq(def.primaryKey, id)
-      .eq("company_id", scope.companyId);
+    let query = sb.from(def.table).update(patch).eq(def.primaryKey, id);
+    if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
     if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
     ({ error } = await query);
   } else {
-    let query = sb
-      .from(def.table)
-      .delete()
-      .eq(def.primaryKey, id)
-      .eq("company_id", scope.companyId);
+    let query = sb.from(def.table).delete().eq(def.primaryKey, id);
+    if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
     if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
     ({ error } = await query);
   }
@@ -616,11 +615,8 @@ export async function restoreEntity<T = Record<string, unknown>>(
   if (def.hasUpdatedAt !== false) {
     patch.updated_at = new Date().toISOString();
   }
-  let query = sb
-    .from(def.table)
-    .update(patch)
-    .eq(def.primaryKey, id)
-    .eq("company_id", scope.companyId);
+  let query = sb.from(def.table).update(patch).eq(def.primaryKey, id);
+  if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
   if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
   const { data, error } = await query.select().single();
   if (error) {
@@ -664,11 +660,8 @@ export async function archiveEntity<T = Record<string, unknown>>(
   if (def.hasUpdatedAt !== false) {
     patch.updated_at = new Date().toISOString();
   }
-  let query = sb
-    .from(def.table)
-    .update(patch)
-    .eq(def.primaryKey, id)
-    .eq("company_id", scope.companyId);
+  let query = sb.from(def.table).update(patch).eq(def.primaryKey, id);
+  if (!isCompanyRoot(def)) query = query.eq("company_id", scope.companyId);
   if (scope.tenantId) query = query.eq("tenant_id", scope.tenantId);
   const { data, error } = await query.select().single();
   if (error) {
@@ -736,7 +729,7 @@ export async function importEntities(
   const sb = deps.sb ?? (await createClient());
   const cleaned = rows.map((row) => {
     const clean = stripBlacklist(row);
-    clean.company_id = scope.companyId;
+    if (!isCompanyRoot(def)) clean.company_id = scope.companyId;
     if (scope.tenantId) clean.tenant_id = scope.tenantId;
     if (def.createdBy) clean.created_by = scope.userId;
     if (def.updatedBy) clean.updated_by = scope.userId;
