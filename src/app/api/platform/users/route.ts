@@ -7,18 +7,13 @@
 
 import { z } from "zod";
 import { createApiHandler, apiOk, apiError } from "@/lib/api/handler";
+import { staffCanAccess } from "@/lib/platform";
 import { listAllUsers } from "@/lib/platform/control-plane";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function assertStaff(ctx: {
-  isPlatformAdmin?: boolean;
-  isElevated?: boolean;
-}) {
-  return Boolean(ctx.isPlatformAdmin || ctx.isElevated);
-}
 
 export const GET = createApiHandler(
   {
@@ -31,7 +26,7 @@ export const GET = createApiHandler(
   },
   async ({ ctx, req }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertStaff(ctx)) {
+    if (!staffCanAccess(ctx, "users")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
     const { searchParams } = new URL(req.url);
@@ -76,7 +71,7 @@ export const PATCH = createApiHandler(
   },
   async ({ ctx, body }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertStaff(ctx)) {
+    if (!staffCanAccess(ctx, "users")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
 
@@ -176,3 +171,5 @@ export const PATCH = createApiHandler(
     }
   }
 );
+
+

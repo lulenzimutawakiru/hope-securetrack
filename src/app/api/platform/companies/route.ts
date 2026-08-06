@@ -3,6 +3,7 @@
  */
 
 import { createApiHandler, apiOk, apiError } from "@/lib/api/handler";
+import { staffCanAccess } from "@/lib/platform";
 import { listAllCompanies } from "@/lib/platform/control-plane";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,12 @@ export const GET = createApiHandler(
   },
   async ({ ctx, req }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!ctx.isPlatformAdmin && !ctx.isElevated) {
-      return apiError("FORBIDDEN", "Platform staff only", 403);
+    if (!staffCanAccess(ctx, "companies")) {
+      return apiError(
+        "FORBIDDEN",
+        "Access denied by control-plane Access Matrix (capability: companies)",
+        403
+      );
     }
     const { searchParams } = new URL(req.url);
     try {
@@ -39,3 +44,4 @@ export const GET = createApiHandler(
     }
   }
 );
+

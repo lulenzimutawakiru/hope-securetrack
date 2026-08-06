@@ -67,6 +67,25 @@ export type CommandCenterSnapshot = {
     plan_breakdown: Array<{ plan: string; count: number }>;
     module_enabled_rows: number;
   };
+  api: {
+    requests_24h: number;
+    errors_24h: number;
+    avg_latency_ms: number | null;
+    error_rate_pct: number | null;
+  };
+  storage: {
+    objects: number;
+    usage_mb: number;
+  };
+  activity: {
+    active_users_7d: number;
+    audit_events_24h: number;
+  };
+  backup: {
+    status: "managed" | "unknown";
+    last_backup_at: string | null;
+    retention_days: number | null;
+  };
   recent_tenants: Array<{
     id: string;
     name: string;
@@ -235,6 +254,123 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     planMap.set(p, (planMap.get(p) || 0) + 1);
   }
 
+  // Platform telemetry: API gateway, storage, activity, backup posture
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const [
+    apiRequests24h,
+    apiErrors24h,
+    apiLatencyRows,
+    storageObjects,
+    storageMetaRows,
+    activeUsers7d,
+    auditEvents24h,
+    backupSettings,
+  ] = await Promise.all([
+    Promise.resolve(
+      sb
+        .from("intg_api_logs")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", dayAgo)
+        .then((r) => r.count ?? 0)
+    ).catch(() => 0),
+    Promise.resolve(
+      sb
+        .from("intg_api_logs")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", dayAgo)
+        .gte("status_code", 400)
+        .then((r) => r.count ?? 0)
+    ).catch(() => 0),
+    Promise.resolve(
+      sb
+        .from("intg_api_logs")
+        .select("duration_ms")
+        .gte("created_at", dayAgo)
+        .order("created_at", { ascending: false })
+        .limit(1000)
+        .then((r) => r.data || [])
+    ).catch(() => [] as Array<{ duration_ms: number | null }>),
+    Promise.resolve(
+      sb
+        .from("storage.objects")
+        .select("id", { count: "exact", head: true })
+        .then((r) => r.count ?? 0)
+    ).catch(() => 0),
+    Promise.resolve(
+      sb
+        .from("storage.objects")
+        .select("metadata")
+        .limit(10000)
+        .then((r) => r.data || [])
+    ).catch(() => [] as Array<{ metadata?: Record<string, unknown> | null }>),
+    Promise.resolve(
+      sb
+        .from("user_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true)
+        .gte("last_login_at", weekAgo)
+        .is("deleted_at", null)
+        .then((r) => r.count ?? 0)
+    ).catch(() => 0),
+    Promise.resolve(
+      sb
+        .from("audit_logs")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", dayAgo)
+        .then((r) => r.count ?? 0)
+    ).catch(() => 0),
+    Promise.resolve(
+      sb
+        .from("system_settings")
+        .select("key,value,updated_at")
+        .in("key", ["backup.retention_days", "backup.last_run_at"])
+        .order("updated_at", { ascending: false })
+        .limit(20)
+        .then((r) => r.data || [])
+    ).catch(() => [] as Array<{ key: string; value: unknown }>),
+  ]);
+
+  const latencies = (apiLatencyRows as Array<{ duration_ms: number | null }>)
+    .map((r) => r.duration_ms)
+    .filter((v): v is number => typeof v === "number" && v >= 0);
+  const avgLatencyMs =
+    latencies.length > 0
+      ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+      : null;
+  const errorRatePct =
+    apiRequests24h > 0
+      ? Math.round((apiErrors24h / apiRequests24h) * 1000) / 10
+      : null;
+
+  let storageBytes = 0;
+  for (const row of storageMetaRows as Array<{
+    metadata?: Record<string, unknown> | null;
+  }>) {
+    const size = Number(row.metadata?.size);
+    if (Number.isFinite(size) && size > 0) storageBytes += size;
+  }
+  const storageUsageMb = Math.round((storageBytes / (1024 * 1024)) * 10) / 10;
+
+  const backupMap = new Map<string, unknown>();
+  for (const row of backupSettings as Array<{ key: string; value: unknown }>) {
+    if (!backupMap.has(row.key)) backupMap.set(row.key, row.value);
+  }
+  const retentionRaw = backupMap.get("backup.retention_days");
+  const retentionDays =
+    typeof retentionRaw === "number" && Number.isFinite(retentionRaw)
+      ? retentionRaw
+      : typeof retentionRaw === "string" &&
+          retentionRaw.trim() !== "" &&
+          !Number.isNaN(Number(retentionRaw))
+        ? Number(retentionRaw)
+        : null;
+  const lastBackupRaw = backupMap.get("backup.last_run_at");
+  const lastBackupAt =
+    typeof lastBackupRaw === "string" &&
+    !Number.isNaN(Date.parse(lastBackupRaw))
+      ? new Date(lastBackupRaw).toISOString()
+      : null;
+
   const healthy =
     databaseOk &&
     (process.env.NODE_ENV !== "production" ||
@@ -317,6 +453,25 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
         .map(([plan, count]) => ({ plan, count }))
         .sort((a, b) => b.count - a.count),
       module_enabled_rows: moduleRows,
+    },
+    api: {
+      requests_24h: apiRequests24h,
+      errors_24h: apiErrors24h,
+      avg_latency_ms: avgLatencyMs,
+      error_rate_pct: errorRatePct,
+    },
+    storage: {
+      objects: storageObjects,
+      usage_mb: storageUsageMb,
+    },
+    activity: {
+      active_users_7d: activeUsers7d,
+      audit_events_24h: auditEvents24h,
+    },
+    backup: {
+      status: lastBackupAt ? "managed" : "unknown",
+      last_backup_at: lastBackupAt,
+      retention_days: retentionDays,
     },
     recent_tenants: (recentTenants as Array<Record<string, unknown>>).map(
       (t) => ({

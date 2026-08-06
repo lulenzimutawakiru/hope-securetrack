@@ -10,36 +10,18 @@ import {
   serverProcessPayrollRun,
 } from "@/lib/payroll/server-ops";
 import { apiError, apiOk, clientIp, rateLimitStrict } from "@/lib/api";
+import {
+  authorizeWorkerRequest,
+  resolveWorkerSecret,
+} from "@/lib/security/worker-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function authorizeWorker(req: NextRequest): boolean {
-  const secret = process.env.JOB_WORKER_SECRET || process.env.CRON_SECRET;
-  if (!secret) {
-    // Vercel Cron requests carry `User-Agent: vercel-cron/1.0` and, when
-    // CRON_SECRET is set on Vercel, an automatic `Authorization: Bearer`.
-    // Accept genuine platform cron invocations even without a local secret;
-    // otherwise fail closed in production (open only for local dev).
-    if (isVercelCron(req)) return true;
-    return process.env.NODE_ENV !== "production";
-  }
-  const header =
-    req.headers.get("x-job-secret") ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-    // Prefer header auth; query secret is accepted only outside production.
-    (process.env.NODE_ENV !== "production"
-      ? req.nextUrl.searchParams.get("secret")
-      : null) ||
-    "";
-  return Boolean(header) && header === secret;
-}
-
-function isVercelCron(req: NextRequest): boolean {
-  return (
-    /vercel-cron/i.test(req.headers.get("user-agent") || "") ||
-    Boolean(req.headers.get("x-vercel-cron-schedule"))
-  );
+  // Fail closed: only a real shared secret (header, constant-time compare) is
+  // accepted. Spoofable platform headers are never trusted.
+  return authorizeWorkerRequest(req, resolveWorkerSecret());
 }
 
 /**
@@ -240,7 +222,8 @@ async function drainNotificationQueue(
 
 /**
  * Process durable job queue (cron / platform worker).
- * Auth: JOB_WORKER_SECRET or CRON_SECRET header.
+ * Auth: JOB_WORKER_SECRET or CRON_SECRET via `x-job-secret` /
+ * `Authorization: Bearer` (constant-time, fail closed).
  */
 export async function POST(req: NextRequest) {
   if (!authorizeWorker(req)) {

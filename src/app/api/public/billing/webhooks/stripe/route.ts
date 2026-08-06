@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { completePaymentIntent } from "@/lib/billing/gateway";
 import { verifyStripeSignature } from "@/lib/providers/payments/stripe";
+import { timingSafeEqualString } from "@/lib/security/shared";
 import { ingressRateLimit } from "@/lib/security/public-ingress";
 
 export const dynamic = "force-dynamic";
@@ -21,10 +22,13 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
     const sig = req.headers.get("stripe-signature");
     if (!verifyStripeSignature(rawBody, sig)) {
-      // Fallback shared secret for non-Stripe test tooling
+      // Shared-secret fallback is for non-Stripe test tooling only and is
+      // never honored in production: a valid Stripe signature is the sole
+      // credential that can settle payments.
+      const isProd = process.env.NODE_ENV === "production";
       const alt = process.env.BILLING_WEBHOOK_SECRET?.trim();
       const provided = req.headers.get("x-webhook-secret") || "";
-      if (!alt || provided !== alt) {
+      if (isProd || !alt || !timingSafeEqualString(provided, alt)) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
       }
     }

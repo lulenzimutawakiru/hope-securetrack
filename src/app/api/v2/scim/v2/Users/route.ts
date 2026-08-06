@@ -40,8 +40,12 @@ export async function GET(req: NextRequest) {
   if (!rl.ok) return scimError(429, "Rate limit");
   if (!authorize(req)) return scimError(401, "Unauthorized");
 
-  const admin = createAdminClient();
   const cid = companyId();
+  // Fail closed: without a pinned default company, listing would return every
+  // tenant's users through the service-role client.
+  if (!cid) return scimError(503, "SCIM_DEFAULT_COMPANY_ID not set");
+
+  const admin = createAdminClient();
   const filter = req.nextUrl.searchParams.get("filter") || "";
   // userName eq "a@b.com"
   const emailMatch = filter.match(/userName\s+eq\s+"([^"]+)"/i);
@@ -49,7 +53,7 @@ export async function GET(req: NextRequest) {
     .from("user_profiles")
     .select("id, email, first_name, last_name, is_active, created_at")
     .limit(100);
-  if (cid) q = q.eq("company_id", cid);
+  q = q.eq("company_id", cid);
   if (emailMatch?.[1]) q = q.eq("email", emailMatch[1].toLowerCase());
 
   const { data, error } = await q;

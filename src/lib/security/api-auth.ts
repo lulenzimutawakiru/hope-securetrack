@@ -7,6 +7,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import {
+  resolvePlatformRole,
+  type PlatformStaffRole,
+} from "@/lib/platform/staff";
+import {
   mfaEnforcementEnabled as mfaEnvEnforced,
   resolveMfaStatus,
 } from "@/lib/security/mfa";
@@ -43,6 +47,8 @@ export type AuthedContext = {
   /** Resolved tenant — never from client body */
   tenantId: string | null;
   isPlatformAdmin: boolean;
+  /** Granular control-plane staff role (owner|cto|security|devops|compliance). */
+  platformRole: PlatformStaffRole | null;
   isSuperAdmin: boolean;
   /** JIT break-glass elevation active */
   isElevated: boolean;
@@ -103,7 +109,7 @@ export async function requireApiAuth(opts?: {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "id,company_id,tenant_id,active_company_id,role_id,is_platform_admin,email,mfa_enabled,require_mfa,mfa_enforced,roles!user_profiles_role_id_fkey(slug)"
+      "id,company_id,tenant_id,active_company_id,role_id,is_platform_admin,platform_role,email,mfa_enabled,require_mfa,mfa_enforced,roles!user_profiles_role_id_fkey(slug)"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -266,6 +272,7 @@ export async function requireApiAuth(opts?: {
       companyId,
       tenantId,
       isPlatformAdmin,
+      platformRole: resolvePlatformRole(profile)?.role ?? null,
       isSuperAdmin,
       isElevated,
       mfaOk,
@@ -273,4 +280,5 @@ export async function requireApiAuth(opts?: {
     },
   };
 }
+
 

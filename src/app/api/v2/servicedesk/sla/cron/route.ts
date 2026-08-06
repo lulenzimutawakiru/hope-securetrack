@@ -5,12 +5,17 @@
  *                                         escalate, enqueue notifications
  *   GET  /api/v2/servicedesk/sla/cron  -- same (Vercel Cron uses GET by default)
  *
- * Auth: CRON_SECRET or JOB_WORKER_SECRET (Authorization Bearer / x-job-secret).
+ * Auth: CRON_SECRET or JOB_WORKER_SECRET via `x-job-secret` /
+ * `Authorization: Bearer` (constant-time, fail closed).
  */
 
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, apiOk, clientIp, rateLimitStrict } from "@/lib/api";
+import {
+  authorizeWorkerRequest,
+  resolveWorkerSecret,
+} from "@/lib/security/worker-auth";
 import { runSlaEscalationScan } from "@/lib/service-desk/sla-engine";
 
 export const dynamic = "force-dynamic";
@@ -18,29 +23,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 function authorizeCron(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET || process.env.JOB_WORKER_SECRET;
-  if (!secret) {
-    // Vercel Cron requests carry `User-Agent: vercel-cron/1.0` (and, when
-    // CRON_SECRET is set on Vercel, an automatic `Authorization: Bearer`).
-    // Accept genuine platform cron invocations even without a local secret.
-    if (isVercelCron(req)) return true;
-    return process.env.NODE_ENV !== "production";
-  }
-  const header =
-    req.headers.get("x-job-secret") ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-    (process.env.NODE_ENV !== "production"
-      ? req.nextUrl.searchParams.get("secret")
-      : null) ||
-    "";
-  return Boolean(header) && header === secret;
-}
-
-function isVercelCron(req: NextRequest): boolean {
-  return (
-    /vercel-cron/i.test(req.headers.get("user-agent") || "") ||
-    Boolean(req.headers.get("x-vercel-cron-schedule"))
-  );
+  // Fail closed: only a real shared secret (header, constant-time compare) is
+  // accepted. Spoofable platform headers are never trusted.
+  return authorizeWorkerRequest(req, resolveWorkerSecret());
 }
 
 async function run(req: NextRequest) {

@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 
 const schema = z.object({
   content_base64: z.string().max(8_000_000).optional(),
-  content_url: z.string().url().optional(),
+  content_url: z.string().url().max(2048).optional(),
   mime_type: z.string().max(100).optional(),
 });
 

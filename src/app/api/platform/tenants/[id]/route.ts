@@ -15,16 +15,11 @@ import {
   cpanelDeleteTenant,
   type TenantLifecycleAction,
 } from "@/lib/platform/cpanel";
+import { staffCanAccess } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function assertStaff(ctx: {
-  isPlatformAdmin?: boolean;
-  isElevated?: boolean;
-}) {
-  return Boolean(ctx.isPlatformAdmin || ctx.isElevated);
-}
 
 const mutateSchema = z.object({
   action: z.enum([
@@ -82,7 +77,7 @@ export const GET = createApiHandler(
   },
   async ({ ctx, params }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertStaff(ctx)) {
+    if (!staffCanAccess(ctx, "tenants")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
     const id = params.id;
@@ -106,7 +101,7 @@ export const PATCH = createApiHandler(
   },
   async ({ ctx, params, body }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertStaff(ctx)) {
+    if (!staffCanAccess(ctx, "tenants")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
     const id = params.id;
@@ -144,7 +139,7 @@ export const PUT = createApiHandler(
   },
   async ({ ctx, params, body }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertStaff(ctx)) {
+    if (!staffCanAccess(ctx, "tenants")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
     const id = params.id;
@@ -214,7 +209,7 @@ export const DELETE = createApiHandler(
   },
   async ({ ctx, params, req }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertStaff(ctx)) {
+    if (!staffCanAccess(ctx, "tenants")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
     const id = params.id;
@@ -271,3 +266,5 @@ export const DELETE = createApiHandler(
     }
   }
 );
+
+

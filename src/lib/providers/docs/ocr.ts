@@ -4,6 +4,7 @@
 
 import { providersConfig } from "../config";
 import { providerFetch, sandboxResult } from "../http";
+import { assertPublicHttpUrl } from "../../security/ssrf";
 import type { ProviderCallResult } from "../types";
 
 export type OcrExtractInput = {
@@ -41,6 +42,17 @@ export async function extractDocument(
       ],
       raw_text: "SANDBOX OCR — configure DOCUMENT_AI_* for live extraction",
     });
+  }
+
+  if (input.contentUrl) {
+    const urlErr = await assertPublicHttpUrl(input.contentUrl);
+    if (urlErr) {
+      return {
+        ok: false,
+        provider: "document_ai",
+        error: `Unsafe content URL: ${urlErr}`,
+      };
+    }
   }
 
   try {

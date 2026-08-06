@@ -247,6 +247,82 @@ export default function EnterpriseCommandCenterPage() {
         </Card>
       </div>
 
+      {/* API, storage, activity, backup */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4" /> API gateway (24h)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Metric label="Requests" value={data.api.requests_24h} />
+              <Metric
+                label="Errors"
+                value={data.api.errors_24h}
+                tone={data.api.errors_24h > 0 ? "danger" : undefined}
+              />
+              <Metric
+                label="Error rate %"
+                value={data.api.error_rate_pct ?? 0}
+              />
+              <Metric
+                label="Avg latency (ms)"
+                value={data.api.avg_latency_ms ?? 0}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Integration API gateway logs · platform usage telemetry
+            </p>
+            <Button size="sm" variant="outline" className="mt-3" asChild>
+              <Link href="/platform/api">
+                API management <ArrowRight className="h-3 w-3 ml-1" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Server className="h-4 w-4" /> Storage, activity & backup
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Metric label="Storage objects" value={data.storage.objects} />
+              <Metric label="Storage used (MB)" value={data.storage.usage_mb} />
+              <Metric
+                label="Active users (7d)"
+                value={data.activity.active_users_7d}
+              />
+              <Metric
+                label="Audit events (24h)"
+                value={data.activity.audit_events_24h}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Backup posture: {data.backup.status} · Last backup:{" "}
+              {data.backup.last_backup_at
+                ? new Date(data.backup.last_backup_at).toLocaleString()
+                : "pending verification"}{" "}
+              · Retention: {data.backup.retention_days ?? 30}d
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/platform/storage">
+                  Storage <ArrowRight className="h-3 w-3 ml-1" />
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/platform/backup">Backup & DR</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Recent activity */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

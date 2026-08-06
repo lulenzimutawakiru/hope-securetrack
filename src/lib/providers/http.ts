@@ -1,5 +1,7 @@
 /**
- * Shared HTTP helper for provider clients.
+ * Shared HTTP helper for provider clients. Web-safe only: this module is
+ * reachable from client components (SIEM audit export page), so it must not
+ * import node builtins. Server-only SSRF checks live in lib/security/ssrf.
  */
 
 export async function providerFetch(

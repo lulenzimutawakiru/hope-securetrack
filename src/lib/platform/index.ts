@@ -46,3 +46,17 @@ export {
   tenantDomainFromSlug,
   type TenantEnterpriseConfig,
 } from "./tenant-crypto";
+export {
+  PLATFORM_STAFF_ROLES,
+  PLATFORM_ROLE_CAPABILITY_MATRIX,
+  isPlatformStaff,
+  resolvePlatformRole,
+  roleCanAccessCapability,
+  staffCanAccess,
+  capabilitiesForRole,
+  capabilityIdsForRole,
+  resolveCapabilityForPath,
+  type PlatformStaffRole,
+  type PlatformStaffRoleDef,
+  type ResolvedPlatformRole,
+} from "./staff";

@@ -21,6 +21,7 @@ function fakeCtx(over: Partial<AuthedContext> = {}): AuthedContext {
     companyId: "c1",
     tenantId: "t1",
     isPlatformAdmin: false,
+    platformRole: null,
     isSuperAdmin: false,
     isElevated: false,
     mfaOk: true,
@@ -83,3 +84,4 @@ describe("request isolation", () => {
     expect(ns.reporting).toContain("c1");
   });
 });
+

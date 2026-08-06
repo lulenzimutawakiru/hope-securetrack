@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createApiHandler, apiOk, apiError } from "@/lib/api/handler";
 import { createClient } from "@/lib/supabase/server";
 import { log } from "@/lib/observability/logger";
+import { staffCanAccess } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,8 +28,8 @@ export const POST = createApiHandler(
     bodySchema: elevateSchema,
   },
   async ({ ctx, body, correlationId, ip }) => {
-    if (!ctx?.isPlatformAdmin) {
-      return apiError("FORBIDDEN", "Platform admin only", 403);
+    if (!ctx || !staffCanAccess(ctx, "ops")) {
+      return apiError("FORBIDDEN", "Platform staff with ops access required", 403);
     }
     if (!ctx.mfaOk && process.env.MFA_ENFORCE_PRIVILEGED === "true") {
       return apiError("FORBIDDEN", "MFA required for elevation", 403);
@@ -71,8 +72,8 @@ export const DELETE = createApiHandler(
     rateLimit: { limit: 20, windowMs: 60_000 },
   },
   async ({ ctx, correlationId }) => {
-    if (!ctx?.isPlatformAdmin) {
-      return apiError("FORBIDDEN", "Platform admin only", 403);
+    if (!ctx || !staffCanAccess(ctx, "ops")) {
+      return apiError("FORBIDDEN", "Platform staff with ops access required", 403);
     }
     const supabase = await createClient();
     await supabase.rpc("end_platform_elevation");

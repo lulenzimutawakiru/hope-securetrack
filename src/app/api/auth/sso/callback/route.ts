@@ -83,9 +83,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const origin =
-      process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-    const redirectUri = `${origin.replace(/\/$/, "")}/api/auth/sso/callback`;
+    // Pin the OIDC redirect_uri to the configured public origin. In production
+    // the request Host header is never trusted: host-header poisoning would let
+    // an attacker steer the authorization-code exchange to their own origin.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+    const baseUrl =
+      appUrl ||
+      (process.env.NODE_ENV !== "production" ? req.nextUrl.origin : "");
+    if (!baseUrl) {
+      return NextResponse.redirect(
+        new URL("/login?error=sso_misconfigured", req.nextUrl.origin)
+      );
+    }
+    const redirectUri = `${baseUrl}/api/auth/sso/callback`;
 
     const tokens = await exchangeCode({
       tokenUrl: endpoints.token_endpoint,
@@ -147,7 +157,7 @@ export async function GET(req: NextRequest) {
     if (!link.searchParams.has("redirect_to")) {
       link.searchParams.set(
         "redirect_to",
-        `${origin.replace(/\/$/, "")}${safeReturn}`
+        `${baseUrl}${safeReturn}`
       );
     }
     return NextResponse.redirect(link.toString(), 302);

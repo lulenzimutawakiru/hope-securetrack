@@ -3,6 +3,7 @@
  */
 
 import { createApiHandler, apiOk, apiError } from "@/lib/api/handler";
+import { staffCanAccess } from "@/lib/platform";
 import { getCommandCenterSnapshot } from "@/lib/platform/control-plane";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +20,10 @@ export const GET = createApiHandler(
   },
   async ({ ctx }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!ctx.isPlatformAdmin && !ctx.isElevated) {
+    if (!staffCanAccess(ctx, "command-center")) {
       return apiError(
         "FORBIDDEN",
-        "Enterprise Control Plane is restricted to SecureTrack platform staff",
+        "Access denied by control-plane Access Matrix (capability: command-center)",
         403
       );
     }
@@ -30,3 +31,4 @@ export const GET = createApiHandler(
     return apiOk(snapshot);
   }
 );
+

@@ -13,6 +13,7 @@ import {
 } from "@/lib/tenant/offboarding";
 import { assertDualControl } from "@/lib/security/dual-control";
 import { writeServerAudit } from "@/lib/api/audit";
+import { staffCanAccess } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,10 +44,10 @@ export const POST = createApiHandler(
   },
   async ({ ctx, body, ip, req }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!ctx.isPlatformAdmin && !ctx.isElevated) {
+    if (!staffCanAccess(ctx, "ops")) {
       return apiError(
         "FORBIDDEN",
-        "Platform admin or elevated session required",
+        "Platform staff with ops access required",
         403
       );
     }
@@ -128,8 +129,8 @@ export const GET = createApiHandler(
   },
   async ({ ctx, req }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!ctx.isPlatformAdmin && !ctx.isElevated) {
-      return apiError("FORBIDDEN", "Platform admin required", 403);
+    if (!staffCanAccess(ctx, "ops")) {
+      return apiError("FORBIDDEN", "Platform staff with ops access required", 403);
     }
     const tenantId = req.nextUrl.searchParams.get("tenant_id");
     const admin = createAdminClient();

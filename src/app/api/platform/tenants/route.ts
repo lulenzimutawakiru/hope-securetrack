@@ -13,17 +13,12 @@ import {
   cpanelCreateTenant,
   cpanelSuggestSlug,
 } from "@/lib/platform/cpanel";
+import { staffCanAccess } from "@/lib/platform";
 import { validateAdminPassword } from "@/lib/platform/onboarding";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function assertPlatformStaff(ctx: {
-  isPlatformAdmin?: boolean;
-  isElevated?: boolean;
-}) {
-  return Boolean(ctx.isPlatformAdmin || ctx.isElevated);
-}
 
 export const GET = createApiHandler(
   {
@@ -36,7 +31,7 @@ export const GET = createApiHandler(
   },
   async ({ ctx, req }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertPlatformStaff(ctx)) {
+    if (!staffCanAccess(ctx, "tenants")) {
       return apiError(
         "FORBIDDEN",
         "Platform staff only — tenant cPanel is not available to tenant users",
@@ -105,7 +100,7 @@ export const POST = createApiHandler(
   },
   async ({ ctx, body }) => {
     if (!ctx) return apiError("UNAUTHORIZED", "Sign in required", 401);
-    if (!assertPlatformStaff(ctx)) {
+    if (!staffCanAccess(ctx, "provisioning")) {
       return apiError("FORBIDDEN", "Platform staff only", 403);
     }
 
@@ -147,3 +142,5 @@ export const POST = createApiHandler(
     }
   }
 );
+
+
