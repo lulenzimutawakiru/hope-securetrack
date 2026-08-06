@@ -33,7 +33,7 @@ const bodySchema = z.object({
  * Tenant auto-provisioning.
  *
  * Gating (any of):
- * 1. PLATFORM_PROVISIONING_PUBLIC=true (open SaaS signup — rate limited)
+ * 1. PLATFORM_PROVISIONING_PUBLIC != "false" (open SaaS signup, on by default — rate limited)
  * 2. Valid PLATFORM_PROVISIONING_SECRET as invite_code
  * 3. Authenticated platform admin (staff, no tenant)
  *
@@ -81,7 +81,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const publicEnabled = process.env.PLATFORM_PROVISIONING_PUBLIC === "true";
+    // Open SaaS signup is on unless explicitly disabled.
+    const publicEnabled =
+      process.env.PLATFORM_PROVISIONING_PUBLIC !== "false";
     const secret = process.env.PLATFORM_PROVISIONING_SECRET?.trim();
     const inviteOk = Boolean(
       secret &&
@@ -248,7 +250,9 @@ export async function POST(req: Request) {
 
 /** Public config for the registration form (no secrets). */
 export async function GET() {
-  const publicEnabled = process.env.PLATFORM_PROVISIONING_PUBLIC === "true";
+  // Open SaaS signup is on unless explicitly disabled.
+  const publicEnabled =
+    process.env.PLATFORM_PROVISIONING_PUBLIC !== "false";
   const inviteRequired =
     !publicEnabled && Boolean(process.env.PLATFORM_PROVISIONING_SECRET?.trim());
   const captchaConfigured = providersConfig.turnstile.configured;

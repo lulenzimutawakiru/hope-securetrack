@@ -44,14 +44,12 @@ Ensure build heap: package.json uses `--max-old-space-size=6144`.
 Dashboard routes use `force-dynamic` to avoid OOM on static generation.
 
 Environment variables are baked at build time — set them in Vercel Project
-Settings → Environment Variables (Production) **before** deploying. For
-self-service signup (`/register`) you must set one of:
+Settings → Environment Variables (Production) **before** deploying.
 
-- `PLATFORM_PROVISIONING_PUBLIC=true` — open SaaS signup (rate-limited)
-- `PLATFORM_PROVISIONING_SECRET=<invite code>` — invite-only registration
-
-Without either, `/register` returns `403 SIGNUPS_DISABLED`, no tenant/admin
-account is created, and new-user login reports "invalid credentials".
+Self-service signup on `/register` is **enabled by default** and rate-limited.
+To close open registration, set `PLATFORM_PROVISIONING_PUBLIC=false` and (for
+invite-only access) `PLATFORM_PROVISIONING_SECRET=<invite code>`. With signups
+closed and no invite secret, `/register` returns `403 SIGNUPS_DISABLED`.
 
 ### B) Docker
 

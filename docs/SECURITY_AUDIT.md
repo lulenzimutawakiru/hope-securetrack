@@ -281,7 +281,7 @@ Many UI CRUD paths set `company_id` from `auth.profile.company_id` (good). Servi
 
 | Variable | Purpose |
 |----------|---------|
-| `PLATFORM_PROVISIONING_PUBLIC=true` | Open SaaS signup (default: **off**) |
+| `PLATFORM_PROVISIONING_PUBLIC=true` | Open SaaS signup (default: **on**; set `false` to close) |
 | `PLATFORM_PROVISIONING_SECRET` | Invite code for closed registration |
 | `DEFAULT_COMPANY_ID` | Counterfeit report company scope |
 
