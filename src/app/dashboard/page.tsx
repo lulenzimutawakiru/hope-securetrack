@@ -33,6 +33,7 @@ import { ModuleTile } from "@/components/enterprise/module-tile";
 import { crudCount, crudList } from "@/lib/api/crud-client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
+import { WelcomeCta } from "./components/welcome-cta";
 import { filterAccessibleRoutes } from "@/lib/auth/rbac";
 import type { DashboardStats, ProductionBatch, FraudAlert, VerificationLog } from "@/types/database";
 import { ENTERPRISE_PIPELINE } from "@/lib/workflows";
@@ -300,6 +301,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <WelcomeCta />
 
       {/* KPIs — only modules the role can access */}
       <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 xl:grid-cols-4">
