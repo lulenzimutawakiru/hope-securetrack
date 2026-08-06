@@ -61,3 +61,27 @@ export {
   type PlatformStaffRoleDef,
   type ResolvedPlatformRole,
 } from "./staff";
+
+export {
+  createProvisioningJob,
+  runProvisioningJob,
+  retryProvisioningJob,
+  sanitizeProvisionInput,
+  resolveTemplateCode,
+  normalizeIndustryPackCode,
+  type ProvisioningRequest,
+} from "./provisioning/orchestrator";
+export {
+  runProvisioning,
+  listProvisioningJobs,
+  getProvisioningJob,
+  listTemplates,
+  getTemplate,
+  executiveSnapshot,
+  lifecycleAction,
+  retryProvisioning,
+  getLifecycleCatalog,
+} from "./provisioning/service";
+export * from "./provisioning/types";
+export * from "./provisioning/templates";
+export * from "./provisioning/ids";

@@ -7,6 +7,17 @@
 
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
+## Phase 20 (2026-08-06) - Enterprise Tenant Provisioning Platform
+
+| Deliverable | Status |
+|------------|--------|
+| Provisioning orchestration engine (`src/lib/platform/provisioning/orchestrator.ts`) - 17-step checkpointed, idempotent step graph (namespace -> crypto vault -> isolation -> company -> branch -> subscription -> modules -> flags -> API credentials -> security baseline -> defaults -> wizard -> domain event -> admin identity -> welcome -> ready) with compensation/rollback, retry policy (max 3 attempts), per-step rows in `provisioning_steps`, event timeline in `provisioning_job_events`, one-time secrets (encryption key + API key) held in memory only and never persisted | Live |
+| Control-plane metadata + RLS - migration `20260818000001` creates `tenant_provisioning_jobs`, `provisioning_steps`, `provisioning_job_events`, `provisioning_templates` (seeds 6 tenant templates + 18 industry packs), `provisioning_api_keys`, `provisioning_key_vault`; reads/writes gated behind `public.is_platform_admin()` | Live |
+| Control-plane service (`src/lib/platform/provisioning/service.ts`) - job directory, template catalog, executive snapshot (tenants, job counts, avg/p95 duration, infra health, storage, AI/API usage, security/compliance scores, capacity, regional/plan/growth, backup posture), lifecycle commands (activate/suspend/upgrade/downgrade/archive/restore/delete/clone), retry | Live |
+| Platform APIs - `GET/POST /api/platform/provisioning`, `GET /api/platform/provisioning/[id]` + POST retry, `GET /api/platform/provisioning/templates`, `GET /api/platform/provisioning/executive`, `GET/POST /api/platform/provisioning/lifecycle` - all `createApiHandler` with platform permissions (`platform.admin`/`platform.provision`/`platform.tenants`), MFA-on-privileged, `staffCanAccess("provisioning")`, rate limits | Live |
+| Provisioning console (`/platform/provisioning`) - executive stat cards, infra/backup strip, template catalog (tenant templates + 18 industry packs with install), provision dialog (plan/country/currency/language/template/industry/demo data), jobs table with drill-down, one-time secrets disclosure; job detail page with step timeline, event feed and retry | Live |
+| Typecheck (0 errors) | Green |
+
 ## Phase 19 (2026-08-06) - hardening pass (CSP, lint debt, React Query sweep)
 
 | Deliverable | Status |
