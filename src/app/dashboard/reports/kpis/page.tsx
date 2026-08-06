@@ -64,7 +64,6 @@ export default function KpiEnginePage() {
     const actual = Number(form.actual_value) || 0;
     const variance = actual - target;
     const variance_pct = target ? (variance / target) * 100 : 0;
-    const supabase = createClient();
     const crudRes2 = await crudCreate("bi_kpis", {
         company_id: auth.profile.company_id,
         kpi_code: form.kpi_code.toUpperCase(),
@@ -90,7 +89,7 @@ export default function KpiEnginePage() {
     }
     const data = crudRes2.data as Record<string, unknown>;
     if (data) {
-      const crudRes = await crudCreate("bi_kpi_snapshots", {
+      await crudCreate("bi_kpi_snapshots", {
         company_id: auth.profile.company_id,
         kpi_id: data.id,
         snapshot_date: new Date().toISOString().slice(0, 10),

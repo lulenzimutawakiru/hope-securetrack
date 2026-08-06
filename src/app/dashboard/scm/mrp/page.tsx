@@ -96,7 +96,7 @@ export default function MrpPage() {
       const safety = Number(p.safety_stock || p.reorder_level || 0);
       if (safety > 0 && onHand <= safety) {
         const qty = Number(p.reorder_qty || Math.max(safety * 2 - onHand, 1));
-        const crudRes4 = await crudCreate("mrp_recommendations", {
+        await crudCreate("mrp_recommendations", {
           mrp_run_id: run.id,
           company_id: auth.profile.company_id,
           product_id: p.id,
@@ -115,7 +115,7 @@ export default function MrpPage() {
       }
     }
 
-    const crudRes3 = await crudUpdate("mrp_runs", String(run.id), { recommendations_count: count });
+    await crudUpdate("mrp_runs", String(run.id), { recommendations_count: count });
 
     toast.success(`MRP ${code}: ${count} recommendation(s)`);
     setRunning(false);
@@ -128,7 +128,6 @@ export default function MrpPage() {
       toast.error("Only purchase actions release to PR");
       return;
     }
-    const supabase = createClient();
     const num = `PR-MRP-${String(Date.now()).slice(-6)}`;
     const crudRes2 = await crudCreate("purchase_requisitions", {
         company_id: auth.profile.company_id,
@@ -147,7 +146,7 @@ export default function MrpPage() {
     }
     const pr = crudRes2.data as Record<string, unknown>;
 
-    const crudRes = await crudUpdate("mrp_recommendations", String(rec.id), {
+    await crudUpdate("mrp_recommendations", String(rec.id), {
         status: "released",
         released_document_type: "purchase_requisition",
         released_document_id: pr?.id,

@@ -163,7 +163,6 @@ export default function DesignerPage() {
     if (!auth?.profile?.company_id) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const issues = analyzeDesign(design);
       if (templateId) {
         const current = templates.find((t) => t.id === templateId);
@@ -176,7 +175,7 @@ export default function DesignerPage() {
             updated_at: new Date().toISOString(),
           });
         if (!crudRes3.ok) throw new Error(crudRes3.error);
-        const crudRes2 = await crudCreate("wid_template_versions", {
+        await crudCreate("wid_template_versions", {
           company_id: auth.profile.company_id,
           template_id: templateId,
           version: nextVersion,

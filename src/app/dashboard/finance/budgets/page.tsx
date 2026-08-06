@@ -66,7 +66,6 @@ export default function BudgetsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes2 = await crudCreate("budgets", {
       company_id: auth.profile.company_id,
       budget_code: form.budget_code,
@@ -87,7 +86,6 @@ export default function BudgetsPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const patch: Record<string, unknown> = { status };
     if (status === "approved" && auth) {
       patch.approved_by = auth.profile.id;

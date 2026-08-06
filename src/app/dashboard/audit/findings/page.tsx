@@ -85,7 +85,7 @@ export default function AuditFindingsPage() {
   const setStatus = async (id: string, status: string) => {
     const patch: Record<string, unknown> = { status };
     if (status === "closed") patch.closed_at = new Date().toISOString();
-    const crudRes = await crudUpdate("eal_findings", id, patch);
+    await crudUpdate("eal_findings", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

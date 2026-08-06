@@ -53,7 +53,7 @@ export default function InboundTicketsPage() {
   };
 
   const ignore = async (id: string) => {
-    const crudRes = await crudUpdate("sd_inbound_items", id, { status: "ignored" });
+    await crudUpdate("sd_inbound_items", id, { status: "ignored" });
     toast.success("Ignored");
     await load();
   };

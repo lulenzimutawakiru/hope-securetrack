@@ -34,8 +34,7 @@ export default function QueuePage() {
   }, []);
 
   const requeue = async (id: string) => {
-    const supabase = createClient();
-    const crudRes2 = await crudUpdate("intg_queue_messages", id, { status: "queued", attempts: 0, error_message: null, available_at: new Date().toISOString() });
+    await crudUpdate("intg_queue_messages", id, { status: "queued", attempts: 0, error_message: null, available_at: new Date().toISOString() });
     toast.success("Re-queued");
     await load();
   };
@@ -53,7 +52,7 @@ export default function QueuePage() {
       toast.message("Queue empty");
       return;
     }
-    const crudRes = await crudUpdate("intg_queue_messages", msg.id, {
+    await crudUpdate("intg_queue_messages", msg.id, {
         status: "done",
         attempts: (msg.attempts || 0) + 1,
         locked_at: new Date().toISOString(),

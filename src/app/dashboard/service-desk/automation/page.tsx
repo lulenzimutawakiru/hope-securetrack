@@ -76,7 +76,7 @@ export default function AutomationPage() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    const crudRes = await crudUpdate("sd_automations", id, { is_active: !active });
+    await crudUpdate("sd_automations", id, { is_active: !active });
     toast.success(active ? "Disabled" : "Enabled");
     await load();
   };

@@ -50,7 +50,6 @@ export default function HardwarePage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `HW-${Date.now().toString(36).toUpperCase()}`;
       const crudRes = await crudCreate("intg_hardware_devices", {
         company_id: auth.profile.company_id,

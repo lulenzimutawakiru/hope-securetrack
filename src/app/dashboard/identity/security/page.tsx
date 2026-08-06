@@ -49,8 +49,7 @@ export default function IdentitySecurityPage() {
 
   const resolve = async (id: string) => {
     if (!auth) return;
-    const supabase = createClient();
-    const crudRes = await crudUpdate("security_alerts", id, {
+    await crudUpdate("security_alerts", id, {
         status: "resolved",
         resolved_by: auth.profile.id,
         resolved_at: new Date().toISOString(),

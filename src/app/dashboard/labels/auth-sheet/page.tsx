@@ -236,7 +236,7 @@ export default function LabelsPage() {
       }
 
       // Create print job record
-      const crudRes = await crudCreate("print_jobs", {
+      await crudCreate("print_jobs", {
         company_id: auth.profile.company_id,
         batch_id: batchId || null,
         job_type: "label_sheet",

@@ -7,6 +7,17 @@
 
 SecureTrack ERP has **enterprise breadth** (~977+ dashboard pages, 35+ APIs, 69 migrations, domain modules for finance, payroll, manufacturing, HR, fleet, etc.). Completing every SAP/Oracle-class line-item remains a multi-quarter programme. This document tracks **what is production-grade now**, **what was hardened in the latest pass**, and **what remains**.
 
+## Phase 19 (2026-08-06) - hardening pass (CSP, lint debt, React Query sweep)
+
+| Deliverable | Status |
+|------------|--------|
+| CSP enforced on responses - middleware `buildCSP()` wired through `applySecurityHeaders`: strict `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `worker-src 'self'` (service worker at `public/sw.js`), `script-src 'self' 'unsafe-inline'` + reCAPTCHA origin, `script-src-attr 'none'`, `style-src 'self' 'unsafe-inline'`; dev keeps `'unsafe-eval'`; dead `base` array removed | Live |
+| API health route hardened - dead `supabaseError` removed, explicit empty catch | Live |
+| ESLint debt reduced 818 -> 509 warnings / 0 errors - `@typescript-eslint/no-unused-vars` warn rule with `^`_ignore` patterns; ~141 dead statements/imports removed via AST codemod; dead consts removed from 6 API routes + 4 pages; 9 mangled multiline import closers repaired; 2 stale eslint-disable directives removed | Live |
+| React Query batch - `packaging/lines`, `packaging/materials`, `packaging/rules`, `printers`, `notifications/rules` migrated to `useEntityAll` + `useCrudMutation`: `createClient`/load/useEffect removed, `q.isLoading` + `q.data ?? []`, writes auto-invalidate entity cache, client-supplied `company_id` dropped (engine derives identity server-side), printers default-first ordering preserved client-side | Live |
+| Deferred: full ~120-page query-layer sweep, entity catalog -> metadata tables, RLS migration of remaining browser-side reads, CSP nonce/hash migration for inline scripts | Tracked |
+| Typecheck / vitest (341 passed) / eslint (0 errors) / production build (Next 16.2.12, standalone) | Green |
+
 ## Phase 13 (2026-08-03) - frontend roadmap (query-layer adoption sweep, module boundaries)
 
 | Deliverable | Status |

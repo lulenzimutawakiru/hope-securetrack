@@ -1,17 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Image as ImageIcon, FileIcon, Trash2, Upload } from "lucide-react";
+import { FileIcon, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  } from "@/components/ui/select";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileUpload } from "@/components/ui/file-upload";
@@ -38,8 +47,7 @@ export default function MediaLibraryPage() {
       const data = await listMediaFiles({
         companyId: auth.profile.company_id,
         category: category === "all" ? undefined : category,
-        limit: 200,
-      });
+        limit: 200});
       setRows(data as Array<Record<string, unknown>>);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Load failed — apply media migration");

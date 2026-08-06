@@ -74,7 +74,6 @@ export default function SafetyPage() {
   const issuePpe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes2 = await crudCreate("ppe_issuances", {
       company_id: auth.profile.company_id,
       employee_id: ppeForm.employee_id,
@@ -94,7 +93,6 @@ export default function SafetyPage() {
   const reportIncident = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudCreate("safety_incidents", {
       company_id: auth.profile.company_id,
       title: incForm.title,

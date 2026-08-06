@@ -3,16 +3,6 @@
  * Public vars are safe for the browser; server vars never ship client-side.
  */
 
-function required(name: string, value: string | undefined): string {
-  if (!value) {
-    if (process.env.NODE_ENV === "production") {
-      console.error(`[env] Missing required environment variable: ${name}`);
-    }
-    return "";
-  }
-  return value;
-}
-
 export const env = {
   app: {
     name: process.env.NEXT_PUBLIC_APP_NAME || "SecureTrack ERP",

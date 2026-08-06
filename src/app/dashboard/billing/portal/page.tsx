@@ -94,8 +94,7 @@ export default function PortalAdminPage() {
   };
 
   const resolveDispute = async (id: string, status: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("bill_portal_disputes", id, {
+    await crudUpdate("bill_portal_disputes", id, {
         status,
         resolved_at: status === "resolved" ? new Date().toISOString() : null,
         resolution: status === "resolved" ? "Resolved by finance" : "Rejected",

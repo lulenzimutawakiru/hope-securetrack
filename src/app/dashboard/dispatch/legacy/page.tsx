@@ -135,7 +135,7 @@ export default function DispatchPage() {
       if (!crudRes3.ok) throw new Error(crudRes3.error);
 
       if (form.sales_order_id) {
-        const crudRes2 = await crudUpdate("sales_orders", form.sales_order_id, { status: "dispatched" });
+        await crudUpdate("sales_orders", form.sales_order_id, { status: "dispatched" });
       }
 
       toast.success(`Dispatch ${num} created`);
@@ -149,7 +149,6 @@ export default function DispatchPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const updates: Record<string, unknown> = { status };
     if (status === "delivered") updates.delivered_at = new Date().toISOString();
     if (status === "in_transit") {

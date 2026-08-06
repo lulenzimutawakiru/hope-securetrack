@@ -5,16 +5,29 @@ import { Headphones, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -35,8 +48,7 @@ export default function CrmServicePage() {
     subject: "",
     category: "complaint",
     priority: "medium",
-    description: "",
-  });
+    description: ""});
 
   const load = async () => {
     const supabase = createClient();
@@ -69,8 +81,7 @@ export default function CrmServicePage() {
       category: form.category,
       priority: form.priority,
       status: "open",
-      assigned_to: auth.profile.id,
-    });
+      assigned_to: auth.profile.id});
     if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Ticket ${num} created`);

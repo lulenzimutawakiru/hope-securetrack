@@ -4,18 +4,26 @@ import { useEffect, useState } from "react";
 import { Layers, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { formatDateTime, formatNumber } from "@/lib/utils";
@@ -59,8 +67,7 @@ export default function PkgPalletsPage() {
       const pallet = await buildPallet({
         company_id: companyId,
         carton_serials: serials,
-        built_by: auth?.user?.id,
-      });
+        built_by: auth?.user?.id});
       toast.success(`Pallet ${pallet.pallet_number} built · ${serials.length} cartons`);
       setOpen(false);
       setSerialsText("");

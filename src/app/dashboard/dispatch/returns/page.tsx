@@ -74,7 +74,7 @@ export default function DispatchReturnsPage() {
   const advance = async (id: string, status: string) => {
     const patch: Record<string, unknown> = { status };
     if (status === "credited") patch.credit_note_ref = `CN-${Date.now().toString(36).toUpperCase()}`;
-    const crudRes = await crudUpdate("dsp_returns", id, patch);
+    await crudUpdate("dsp_returns", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

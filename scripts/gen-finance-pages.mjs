@@ -108,9 +108,7 @@ let n = 0;
 for (const slug of all) {
   const key = aliases[slug] || slug;
   // do not overwrite specialized existing pages that are not pure entity pages
-  const skip = new Set([
-    "page.tsx", // hub is not a slug folder
-  ]);
+
   const dir = path.join(root, slug);
   const pagePath = path.join(dir, "page.tsx");
   // keep hand-built specialist pages

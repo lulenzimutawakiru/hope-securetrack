@@ -57,7 +57,6 @@ export default function InvoiceDesignerPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const crudRes2 = await crudUpdate("bill_invoice_templates", selected.id, {
           name: selected.name,
           primary_color: selected.primary_color,
@@ -82,7 +81,6 @@ export default function InvoiceDesignerPage() {
 
   const create = async () => {
     if (!auth?.profile?.company_id) return;
-    const supabase = createClient();
     const code = `TPL-${Date.now().toString(36).toUpperCase()}`;
     const crudRes = await crudCreate("bill_invoice_templates", {
         company_id: auth.profile.company_id,

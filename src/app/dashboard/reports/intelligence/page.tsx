@@ -90,7 +90,6 @@ export default function DocumentIntelligencePage() {
     if (!auth) return;
     const code = form.document_code.toUpperCase();
     const hash = simpleHash(`${code}|${form.title}|${form.version_number}|${Date.now()}`);
-    const supabase = createClient();
     const crudRes3 = await crudCreate("bi_intelligent_documents", {
         company_id: auth.profile.company_id,
         document_code: code,
@@ -116,7 +115,7 @@ export default function DocumentIntelligencePage() {
     }
     const data = crudRes3.data as Record<string, unknown>;
     if (data) {
-      const crudRes2 = await crudCreate("bi_document_revisions", {
+      await crudCreate("bi_document_revisions", {
         company_id: auth.profile.company_id,
         document_id: data.id,
         version_number: form.version_number,
@@ -178,7 +177,6 @@ export default function DocumentIntelligencePage() {
 
   const approve = async (r: Record<string, unknown>) => {
     if (!auth) return;
-    const supabase = createClient();
     const chain = Array.isArray(r.approval_chain)
       ? (r.approval_chain as Array<Record<string, string>>).map((s) => ({
           ...s,

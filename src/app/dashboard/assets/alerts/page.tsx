@@ -34,13 +34,13 @@ export default function AssetAlertsPage() {
   }, []);
 
   const ack = async (id: string) => {
-    const crudRes2 = await crudUpdate("ast_alerts", id, { status: "acknowledged", acknowledged_at: new Date().toISOString() });
+    await crudUpdate("ast_alerts", id, { status: "acknowledged", acknowledged_at: new Date().toISOString() });
     toast.success("Acknowledged");
     await load();
   };
 
   const resolve = async (id: string) => {
-    const crudRes = await crudUpdate("ast_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
+    await crudUpdate("ast_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Resolved");
     await load();
   };

@@ -1,7 +1,7 @@
 /** Payroll processing engine */
 
 import type { EmployeePayInput, PayrollCalcResult, PayeBracket } from "./types";
-import { defaultBrackets, statutoryForCountry } from "./tax";
+import { statutoryForCountry } from "./tax";
 import { OT_TYPES } from "./types";
 
 export function calcOvertimeAmount(
@@ -126,9 +126,7 @@ export function calculateEmployeePay(
       loan,
       advance,
       insurance,
-      net_pay,
-    },
-  };
+      net_pay}};
 }
 
 export function buildBankCsv(

@@ -34,7 +34,6 @@ export default function ConnectorsMarketplacePage() {
   const install = async (c: Record<string, unknown>) => {
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `${c.connector_code}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
       const crudRes = await crudCreate("intg_connections", {
         company_id: auth.profile.company_id,

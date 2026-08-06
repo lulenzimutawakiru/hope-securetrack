@@ -9,18 +9,27 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  } from "@/components/ui/dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useUser } from "@/hooks/use-user";
 import {
   listBoardMembers, listCommittees, listMeetings, listSignatories,
-  createBoardMember, createMeeting,
-} from "@/lib/enterprise-company";
-import { formatDate } from "@/lib/utils";
+  createBoardMember,
+  createMeeting,
+  } from "@/lib/enterprise-company";
 import { toast } from "sonner";
 
 export default function GovernancePage() {
@@ -56,15 +65,13 @@ export default function GovernancePage() {
         await createBoardMember({
           company_id: auth.profile.company_id,
           full_name: form.full_name,
-          title: form.title || undefined,
-        });
+          title: form.title || undefined});
       } else if (dialog === "meeting") {
         if (!form.meeting_title) return toast.error("Title required");
         await createMeeting({
           company_id: auth.profile.company_id,
           title: form.meeting_title,
-          created_by: auth.user.id,
-        });
+          created_by: auth.user.id});
       }
       toast.success("Saved");
       setDialog(null);

@@ -98,7 +98,6 @@ export default function NumberingSettingsPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const sample = preview(
       form.prefix,
       form.include_year,

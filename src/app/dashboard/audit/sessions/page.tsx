@@ -34,7 +34,7 @@ export default function AuditSessionsPage() {
   }, []);
 
   const terminate = async (id: string) => {
-    const crudRes = await crudUpdate("eal_sessions", id, {
+    await crudUpdate("eal_sessions", id, {
         status: "terminated",
         logout_at: new Date().toISOString(),
       });

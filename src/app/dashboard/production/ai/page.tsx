@@ -141,7 +141,7 @@ export default function MesAiPage() {
                     size="sm"
                     variant="outline"
                     onClick={async () => {
-                      const crudRes = await crudUpdate("mes_ai_insights", String(i.id), {
+                      await crudUpdate("mes_ai_insights", String(i.id), {
                           status: "resolved",
                           resolved_at: new Date().toISOString(),
                         });

@@ -76,7 +76,6 @@ export default function CardInventoryPage() {
     if (!auth?.profile?.company_id) return;
     try {
       const qty = Number(form.quantity_received) || 0;
-      const supabase = createClient();
       const crudRes2 = await crudCreate("wid_card_inventory", {
         company_id: auth.profile.company_id,
         batch_number: form.batch_number || `BATCH-${Date.now()}`,
@@ -100,8 +99,7 @@ export default function CardInventoryPage() {
 
   const markDamaged = async (row: Inv) => {
     if (row.quantity_available < 1) return;
-    const supabase = createClient();
-    const crudRes = await crudUpdate("wid_card_inventory", row.id, {
+    await crudUpdate("wid_card_inventory", row.id, {
         quantity_available: row.quantity_available - 1,
         quantity_damaged: (row.quantity_damaged || 0) + 1,
         updated_at: new Date().toISOString(),

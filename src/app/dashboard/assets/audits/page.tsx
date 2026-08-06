@@ -110,7 +110,7 @@ export default function AssetAuditsPage() {
 
   const completeAudit = async () => {
     if (!activeId) return;
-    const crudRes = await crudUpdate("ast_audits", activeId, { status: "completed", completed_at: new Date().toISOString() });
+    await crudUpdate("ast_audits", activeId, { status: "completed", completed_at: new Date().toISOString() });
     toast.success("Audit completed");
     await load();
   };

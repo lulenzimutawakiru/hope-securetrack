@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Ruler, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -14,16 +14,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/crud-compat";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useCrudMutation } from "@/hooks/use-entity-query";
 
 export default function PkgRulesPage() {
-  const { auth } = useUser();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
+  const q = useEntityAll<Record<string, unknown>>("pkg_product_rules", {
+    sort: "product_name",
+    filters: { is_active: true },
+  });
+  const rows = q.data ?? [];
+  const mutation = useCrudMutation<Record<string, unknown>>("pkg_product_rules");
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const active = selected ?? rows[0] ?? null;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     product_name: "Premium A4 Copy Paper",
@@ -35,29 +38,10 @@ export default function PkgRulesPage() {
     instructions: "",
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
-
-  const load = async () => {
-    const { data } = await createClient()
-      .from("pkg_product_rules")
-      .select("*")
-      .eq("is_active", true)
-      .order("product_name");
-    setRows((data as Array<Record<string, unknown>>) || []);
-    if (data?.[0]) setSelected(data[0] as Record<string, unknown>);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, []);
-
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
     try {
-      const crudRes = await crudCreate("pkg_product_rules", {
-        company_id: companyId,
+      const crudRes = await mutation.create({
         product_name: form.product_name,
         product_code: form.product_code,
         units_per_pack: Number(form.units_per_pack) || 1,
@@ -73,13 +57,12 @@ export default function PkgRulesPage() {
       if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Pack rule created");
       setOpen(false);
-      await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
-  if (loading) return <LoadingState message="Loading pack rules…" />;
+  if (q.isLoading) return <LoadingState message="Loading pack rules…" />;
 
   return (
     <div>
@@ -144,7 +127,7 @@ export default function PkgRulesPage() {
                 type="button"
                 onClick={() => setSelected(r)}
                 className={`w-full text-left rounded-md border p-3 hover:bg-muted/50 ${
-                  selected?.id === r.id ? "border-primary bg-primary/5" : ""
+                  active?.id === r.id ? "border-primary bg-primary/5" : ""
                 }`}
               >
                 <p className="font-medium text-sm">{String(r.product_name)}</p>
@@ -154,24 +137,24 @@ export default function PkgRulesPage() {
           </div>
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">{selected ? String(selected.product_name) : "Rule"}</CardTitle>
+              <CardTitle className="text-base">{active ? String(active.product_name) : "Rule"}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {selected ? (
+              {active ? (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{String(selected.units_per_pack)} unit/pack</Badge>
-                    <Badge variant="outline">{String(selected.packs_per_carton)} packs/carton</Badge>
-                    <Badge variant="outline">{String(selected.cartons_per_pallet)} cartons/pallet</Badge>
-                    <Badge variant="secondary">{String(selected.unit_weight_kg)} kg/unit</Badge>
+                    <Badge variant="outline">{String(active.units_per_pack)} unit/pack</Badge>
+                    <Badge variant="outline">{String(active.packs_per_carton)} packs/carton</Badge>
+                    <Badge variant="outline">{String(active.cartons_per_pallet)} cartons/pallet</Badge>
+                    <Badge variant="secondary">{String(active.unit_weight_kg)} kg/unit</Badge>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {Boolean(selected.qr_required) && <Badge>QR required</Badge>}
-                    {Boolean(selected.label_required) && <Badge>Label required</Badge>}
-                    {Boolean(selected.seal_required) && <Badge>Seal required</Badge>}
+                    {Boolean(active.qr_required) && <Badge>QR required</Badge>}
+                    {Boolean(active.label_required) && <Badge>Label required</Badge>}
+                    {Boolean(active.seal_required) && <Badge>Seal required</Badge>}
                   </div>
                   <pre className="whitespace-pre-wrap text-xs bg-muted/50 p-3 rounded">
-                    {String(selected.instructions || "No instructions")}
+                    {String(active.instructions || "No instructions")}
                   </pre>
                 </>
               ) : (

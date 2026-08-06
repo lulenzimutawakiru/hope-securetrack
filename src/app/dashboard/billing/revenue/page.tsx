@@ -62,7 +62,6 @@ export default function RevenuePage() {
       const start = new Date();
       const end = new Date();
       end.setMonth(end.getMonth() + months);
-      const supabase = createClient();
       const crudRes3 = await crudCreate("bill_revenue_schedules", {
           company_id: auth.profile.company_id,
           invoice_id: inv.id,
@@ -80,7 +79,7 @@ export default function RevenuePage() {
 
       // post first period entry
       const monthly = Number(inv.total_amount) / months;
-      const crudRes2 = await crudCreate("bill_revenue_entries", {
+      await crudCreate("bill_revenue_entries", {
         company_id: auth.profile.company_id,
         schedule_id: sch.id,
         period_label: start.toISOString().slice(0, 7),
@@ -88,7 +87,7 @@ export default function RevenuePage() {
         amount: monthly,
         status: "posted",
       });
-      const crudRes = await crudUpdate("bill_revenue_schedules", String(sch.id), { recognized_amount: monthly });
+      await crudUpdate("bill_revenue_schedules", String(sch.id), { recognized_amount: monthly });
 
       toast.success("Revenue schedule created");
       setOpen(false);

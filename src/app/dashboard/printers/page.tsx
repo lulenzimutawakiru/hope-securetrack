@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Bluetooth,
   Printer,
@@ -52,10 +52,9 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/crud-compat";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useCrudMutation } from "@/hooks/use-entity-query";
 import { formatDateTime } from "@/lib/utils";
 import {
   discoverAnyBluetoothPrinter,
@@ -89,9 +88,8 @@ interface PrinterRow {
 }
 
 export default function PrintersPage() {
-  const { auth } = useUser();
-  const [printers, setPrinters] = useState<PrinterRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const q = useEntityAll<PrinterRow>("printers", { sort: "name" });
+  const mutation = useCrudMutation<PrinterRow>("printers");
   const [discovering, setDiscovering] = useState(false);
   const [discovered, setDiscovered] = useState<DiscoveredPrinter[]>([]);
   const [manualOpen, setManualOpen] = useState(false);
@@ -108,44 +106,21 @@ export default function PrintersPage() {
 
   const bleOk = webBluetoothSupported();
 
-  const load = useCallback(async () => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("printers")
-      .select("*")
-      .order("is_default", { ascending: false })
-      .order("name");
-    if (error) toast.error(error.message);
-    setPrinters((data as PrinterRow[]) ?? []);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
+  const printers = [...(q.data ?? [])].sort(
+    (a, b) =>
+      (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0) ||
+      a.name.localeCompare(b.name)
+  );
   const saveDiscovered = async (d: DiscoveredPrinter) => {
-    if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      // Upsert-like: match by device_id or name
-      const { data: existing } = await supabase
-        .from("printers")
-        .select("id")
-        .eq("company_id", auth.profile.company_id)
-        .or(
-          [
-            d.deviceId ? `device_id.eq.${d.deviceId}` : null,
-            `name.eq.${d.name}`,
-          ]
-            .filter(Boolean)
-            .join(",")
-        )
-        .maybeSingle();
+      // Upsert-like: match by device_id or name against the loaded list
+      const existing = printers.find(
+        (p) =>
+          (d.deviceId && p.device_id === d.deviceId) || p.name === d.name
+      );
 
       const row = {
-        company_id: auth.profile.company_id,
         name: d.name,
         model: d.model,
         connection_type: d.transport,
@@ -162,15 +137,14 @@ export default function PrintersPage() {
       };
 
       if (existing?.id) {
-        const crudRes5 = await crudUpdate("printers", existing.id, row);
+        const crudRes5 = await mutation.update(existing.id, row);
         if (!crudRes5.ok) throw new Error(crudRes5.error);
         toast.success(`Updated ${d.name}`);
       } else {
-        const crudRes4 = await crudCreate("printers", row);
+        const crudRes4 = await mutation.create(row);
         if (!crudRes4.ok) throw new Error(crudRes4.error);
         toast.success(`Registered ${d.name}`);
       }
-      load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save printer");
     } finally {
@@ -240,12 +214,9 @@ export default function PrintersPage() {
 
   const handleManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
-      const crudRes3 = await crudCreate("printers", {
-        company_id: auth.profile.company_id,
+      const crudRes3 = await mutation.create({
         name: form.name,
         model: form.model,
         connection_type: form.transport,
@@ -262,7 +233,6 @@ export default function PrintersPage() {
       if (!crudRes3.ok) throw new Error(crudRes3.error);
       toast.success("Printer added");
       setManualOpen(false);
-      load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -271,37 +241,28 @@ export default function PrintersPage() {
   };
 
   const setDefault = async (id: string) => {
-    if (!auth) return;
-    const supabase = createClient();
-    const { data: defaultPrinters, error: clearErr } = await supabase
-      .from("printers")
-      .select("id")
-      .eq("company_id", auth.profile.company_id)
-      .eq("is_default", true);
-    if (clearErr) {
-      toast.error(clearErr.message);
-      return;
-    }
-    for (const row of (defaultPrinters ?? []) as Array<{ id: unknown }>) {
-      if (String(row.id) === String(id)) continue;
-      const crudRes6 = await crudUpdate("printers", String(row.id), { is_default: false });
-      if (!crudRes6.ok) {
-        toast.error(crudRes6.error);
+    for (const row of printers) {
+      if (!row.is_default || String(row.id) === String(id)) continue;
+      const res = await mutation.update(row.id, { is_default: false });
+      if (!res.ok) {
+        toast.error(res.error);
         return;
       }
     }
-    const crudRes2 = await crudUpdate("printers", id, { is_default: true });
-    toast.success("Default printer set");
-    load();
+    const res = await mutation.update(id, { is_default: true });
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Default printer set");
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("printers", id, { status, last_seen_at: new Date().toISOString() });
-    load();
+    const res = await mutation.update(id, {
+      status,
+      last_seen_at: new Date().toISOString(),
+    });
+    if (!res.ok) toast.error(res.error);
   };
 
-  if (loading) return <LoadingState />;
+  if (q.isLoading) return <LoadingState />;
 
   return (
     <div>

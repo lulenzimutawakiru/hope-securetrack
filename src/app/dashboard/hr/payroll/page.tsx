@@ -104,7 +104,7 @@ export default function PayrollPage() {
       else if (gross > 235000) paye = Math.round((gross - 235000) * 0.1);
       const net = gross - nssf - paye;
 
-      const crudRes3 = await crudCreate("payroll_lines", {
+      await crudCreate("payroll_lines", {
         payroll_run_id: run.id,
         company_id: auth.profile.company_id,
         employee_id: emp.id,
@@ -122,7 +122,7 @@ export default function PayrollPage() {
       cnt++;
     }
 
-    const crudRes2 = await crudUpdate("payroll_runs", String(run.id), {
+    await crudUpdate("payroll_runs", String(run.id), {
         employee_count: cnt,
         gross_total: grossT,
         deductions_total: dedT,
@@ -138,7 +138,6 @@ export default function PayrollPage() {
 
   const approve = async (id: string) => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("payroll_runs", id, {
         status: "approved",
         approved_by: auth.profile.id,

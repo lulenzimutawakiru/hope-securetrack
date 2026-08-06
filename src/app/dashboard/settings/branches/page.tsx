@@ -79,7 +79,6 @@ export default function BranchesSettingsPage() {
       toast.error(crudRes3.error);
       return;
     }
-    const data = crudRes3.data as Record<string, unknown>;
     toast.success("Branch created");
     setOpen(false);
     setForm({

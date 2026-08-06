@@ -84,7 +84,7 @@ export default function FieldServicePage() {
   const setStatus = async (id: string, status: string) => {
     const patch: Record<string, unknown> = { status };
     if (status === "completed") patch.completed_at = new Date().toISOString();
-    const crudRes = await crudUpdate("sd_field_jobs", id, patch);
+    await crudUpdate("sd_field_jobs", id, patch);
     toast.success(`Job → ${status}`);
     await load();
   };

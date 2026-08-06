@@ -125,7 +125,6 @@ export default function NotificationsSettingsPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const payload = {
       template_key: form.template_key,
       name: form.name,

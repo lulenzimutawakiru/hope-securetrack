@@ -56,7 +56,6 @@ export default function IotPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `DEV-${Date.now().toString(36).toUpperCase()}`;
       const crudRes3 = await crudCreate("intg_iot_devices", {
         company_id: auth.profile.company_id,
@@ -88,15 +87,14 @@ export default function IotPage() {
       { metric: "counter", value_num: Math.floor(Math.random() * 1000), unit: "pcs" },
     ];
     const m = metrics[Math.floor(Math.random() * metrics.length)];
-    const supabase = createClient();
-    const crudRes2 = await crudCreate("intg_iot_telemetry", {
+    await crudCreate("intg_iot_telemetry", {
       company_id: auth.profile.company_id,
       device_id: deviceId,
       metric: m.metric,
       value_num: m.value_num,
       unit: m.unit,
     });
-    const crudRes = await crudUpdate("intg_iot_devices", deviceId, { last_seen_at: new Date().toISOString(), status: "online" });
+    await crudUpdate("intg_iot_devices", deviceId, { last_seen_at: new Date().toISOString(), status: "online" });
     toast.success(`Ingested ${m.metric}`);
     await load();
   };

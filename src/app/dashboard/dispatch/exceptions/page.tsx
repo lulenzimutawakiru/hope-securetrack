@@ -75,7 +75,7 @@ export default function DispatchExceptionsPage() {
   };
 
   const resolve = async (id: string) => {
-    const crudRes = await crudUpdate("dsp_exceptions", id, { status: "resolved", resolved_at: new Date().toISOString() });
+    await crudUpdate("dsp_exceptions", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Resolved");
     await load();
   };

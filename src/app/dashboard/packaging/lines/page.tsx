@@ -1,31 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Factory, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/crud-compat";
-import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useCrudMutation } from "@/hooks/use-entity-query";
 import { LINE_STATUSES } from "@/lib/packaging";
 
 export default function PkgLinesPage() {
-  const { auth } = useUser();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
+  const q = useEntityAll<Record<string, unknown>>("pkg_lines", {
+    sort: "line_code",
+    filters: { is_active: true },
+  });
+  const rows = q.data ?? [];
+  const mutation = useCrudMutation<Record<string, unknown>>("pkg_lines");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     line_code: "",
@@ -35,28 +39,10 @@ export default function PkgLinesPage() {
     capacity_units_hour: "200",
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
-
-  const load = async () => {
-    const { data } = await createClient()
-      .from("pkg_lines")
-      .select("*")
-      .eq("is_active", true)
-      .order("line_code");
-    setRows((data as Array<Record<string, unknown>>) || []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, []);
-
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
     try {
-      const crudRes2 = await crudCreate("pkg_lines", {
-        company_id: companyId,
+      const crudRes2 = await mutation.create({
         line_code: form.line_code.toUpperCase(),
         name: form.name,
         warehouse_name: form.warehouse_name,
@@ -68,18 +54,17 @@ export default function PkgLinesPage() {
       if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Line created");
       setOpen(false);
-      await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
   const setStatus = async (id: string, status: string) => {
-    const crudRes = await crudUpdate("pkg_lines", id, { status });
-    await load();
+    const res = await mutation.update(id, { status });
+    if (!res.ok) toast.error(res.error);
   };
 
-  if (loading) return <LoadingState message="Loading packing lines…" />;
+  if (q.isLoading) return <LoadingState message="Loading packing lines…" />;
 
   return (
     <div>

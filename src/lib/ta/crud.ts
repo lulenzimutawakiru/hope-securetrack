@@ -112,8 +112,6 @@ export async function taDuplicate(
   _actorId?: string | null
 ) {
   void _actorId;
-  const list = await taList(table, { includeDeleted: true, limit: 1 });
-  // Fetch single via list with id filter
   const res = await crudList(table, {
     pageSize: 1,
     filters: { id },

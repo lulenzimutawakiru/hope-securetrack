@@ -55,7 +55,6 @@ export default function FraudPage() {
   }, [filter]);
 
   const updateStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const updates: Record<string, unknown> = { status };
     if (status === "resolved" || status === "dismissed") {
       updates.resolved_at = new Date().toISOString();

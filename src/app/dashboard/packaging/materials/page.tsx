@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Boxes, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,17 +18,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/crud-compat";
-import { useUser } from "@/hooks/use-user";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
-import { crudCreate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useCrudMutation } from "@/hooks/use-entity-query";
 import { MATERIAL_CATEGORIES } from "@/lib/packaging";
 
 export default function PkgMaterialsPage() {
-  const { auth } = useUser();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
+  const q = useEntityAll<Record<string, unknown>>("pkg_materials", {
+    sort: "material_code",
+  });
+  const rows = q.data ?? [];
+  const mutation = useCrudMutation<Record<string, unknown>>("pkg_materials");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     material_code: "",
@@ -41,28 +42,10 @@ export default function PkgMaterialsPage() {
     storage_location: "",
   });
 
-  const companyId = auth?.profile?.company_id as string | undefined;
-
-  const load = async () => {
-    const { data } = await createClient()
-      .from("pkg_materials")
-      .select("*")
-      .is("deleted_at", null)
-      .order("material_code");
-    setRows((data as Array<Record<string, unknown>>) || []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load().catch(() => setLoading(false));
-  }, []);
-
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId) return;
     try {
-      const crudRes = await crudCreate("pkg_materials", {
-        company_id: companyId,
+      const crudRes = await mutation.create({
         material_code: form.material_code.toUpperCase(),
         name: form.name,
         category: form.category,
@@ -76,13 +59,12 @@ export default function PkgMaterialsPage() {
       if (!crudRes.ok) throw new Error(crudRes.error);
       toast.success("Material created");
       setOpen(false);
-      await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
   };
 
-  if (loading) return <LoadingState message="Loading packaging materials…" />;
+  if (q.isLoading) return <LoadingState message="Loading packaging materials…" />;
 
   return (
     <div>

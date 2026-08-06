@@ -46,13 +46,13 @@ export default function AuditAlertsPage() {
   }, [filter]);
 
   const ack = async (id: string) => {
-    const crudRes2 = await crudUpdate("eal_alerts", id, { status: "acknowledged", acknowledged_at: new Date().toISOString() });
+    await crudUpdate("eal_alerts", id, { status: "acknowledged", acknowledged_at: new Date().toISOString() });
     toast.success("Acknowledged");
     await load();
   };
 
   const resolve = async (id: string) => {
-    const crudRes = await crudUpdate("eal_alerts", id, {
+    await crudUpdate("eal_alerts", id, {
         status: "resolved",
         resolved_at: new Date().toISOString(),
         resolved_by: userId,

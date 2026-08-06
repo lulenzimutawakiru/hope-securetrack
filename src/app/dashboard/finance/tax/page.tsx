@@ -51,7 +51,6 @@ export default function TaxPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes2 = await crudCreate("tax_codes", {
       company_id: auth.profile.company_id,
       code: form.code,
@@ -69,7 +68,6 @@ export default function TaxPage() {
   };
 
   const toggle = async (id: string, is_active: boolean) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("tax_codes", id, { is_active: !is_active });
     if (!crudRes.ok) toast.error(crudRes.error);
     else load();

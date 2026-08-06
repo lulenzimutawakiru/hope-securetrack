@@ -60,7 +60,6 @@ export default function ConnectionsPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id || !form.connector_id) return;
     try {
-      const supabase = createClient();
       const code = `CONN-${Date.now().toString(36).toUpperCase()}`;
       const crudRes2 = await crudCreate("intg_connections", {
         company_id: auth.profile.company_id,
@@ -94,8 +93,7 @@ export default function ConnectionsPage() {
   };
 
   const toggle = async (row: Record<string, unknown>) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("intg_connections", String(row.id), {
+    await crudUpdate("intg_connections", String(row.id), {
         is_enabled: !row.is_enabled,
         status: row.is_enabled ? "disabled" : row.status === "disabled" ? "draft" : row.status,
         updated_at: new Date().toISOString(),

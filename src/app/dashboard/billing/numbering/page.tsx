@@ -50,7 +50,6 @@ export default function BillingNumberingPage() {
 
   const save = async (row: Seq) => {
     try {
-      const supabase = createClient();
       const crudRes = await crudUpdate("bill_sequences", row.id, {
           name: row.name,
           prefix: row.prefix,

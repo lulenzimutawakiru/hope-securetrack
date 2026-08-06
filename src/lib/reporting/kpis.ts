@@ -13,8 +13,7 @@ import type { TenantScope } from "@/lib/tenant/context";
 import {
   isKnownSource,
   resolveSource,
-  isValidColumn,
-} from "./registry";
+  } from "./registry";
 import { parseAggregateFormula } from "./engine";
 
 export type KpiRow = {
@@ -244,8 +243,7 @@ export async function recalculateKpis(opts: {
           variance_pct: variancePct,
           trend,
           last_calculated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+          updated_at: new Date().toISOString()})
         .eq("id", kpi.id)
         .eq("company_id", scope.companyId);
 
@@ -259,8 +257,7 @@ export async function recalculateKpis(opts: {
             actual_value: value,
             target_value: target || null,
             variance_value: varianceValue,
-            notes: `computed via ${metric.via} (${metric.unit})`,
-          },
+            notes: `computed via ${metric.via} (${metric.unit})`},
           { onConflict: "kpi_id,snapshot_date" }
         );
 
@@ -270,8 +267,7 @@ export async function recalculateKpis(opts: {
         value,
         variance_pct: variancePct,
         trend,
-        ok: true,
-      });
+        ok: true});
     } catch {
       results.push({
         kpi_id: kpi.id,
@@ -279,8 +275,7 @@ export async function recalculateKpis(opts: {
         value: 0,
         variance_pct: 0,
         trend: "stable",
-        ok: false,
-      });
+        ok: false});
     }
   }
 

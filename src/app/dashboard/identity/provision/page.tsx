@@ -57,7 +57,7 @@ export default function ProvisionQueuePage() {
     setLastPassword(null);
     try {
       if (step === "activate") {
-        const crudRes = await crudUpdate("idm_provision_requests", id, {
+        await crudUpdate("idm_provision_requests", id, {
             status: "admin_approved",
             admin_approved_by: auth.user.id,
             admin_approved_at: new Date().toISOString(),

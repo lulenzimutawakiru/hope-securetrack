@@ -12,9 +12,8 @@ import {
   MonitorSmartphone,
   Ban,
   KeyRound,
-  Users,
   AlertTriangle,
-} from "lucide-react";
+  } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-} from "recharts";
+  } from "recharts";
 import { formatNumber } from "@/lib/utils";
 import type { SecurityOverview } from "@/lib/platform/admin-console";
 
@@ -38,8 +37,7 @@ const SEVERITY_COLORS: Record<string, string> = {
   critical: "bg-red-100 text-red-700 border-red-200",
   high: "bg-orange-100 text-orange-700 border-orange-200",
   medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  low: "bg-slate-100 text-slate-700 border-slate-200",
-};
+  low: "bg-slate-100 text-slate-700 border-slate-200"};
 
 export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
@@ -191,8 +189,7 @@ export default function SessionsPage() {
 function MetricCard({
   icon,
   label,
-  value,
-}: {
+  value}: {
   icon: React.ReactNode;
   label: string;
   value: string;

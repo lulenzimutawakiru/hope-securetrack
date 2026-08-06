@@ -5,7 +5,7 @@ function admin() {
   return createAdminClient();
 }
 
-async function nextCode(table: string, companyId: string, prefix: string, field: string) {
+async function nextCode(table: string, companyId: string, prefix: string, _field: string) {
   const year = new Date().getFullYear();
   const { count } = await admin()
     .from(table)

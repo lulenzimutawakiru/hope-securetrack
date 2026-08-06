@@ -348,7 +348,7 @@ export async function runCompanyKycScore(input: {
     transactionId: input.transactionId,
     targetSystem: input.targetSystem,
     sb: input.sb,
-    call: (transactionId, targetSystem) =>
+    call: (transactionId, _targetSystem) =>
       caller({
         transactionId,
         customerId: input.customerId,

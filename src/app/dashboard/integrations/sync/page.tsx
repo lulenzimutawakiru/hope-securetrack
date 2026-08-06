@@ -59,7 +59,6 @@ export default function SyncPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `SYNC-${Date.now().toString(36).toUpperCase()}`;
       const crudRes = await crudCreate("intg_sync_jobs", {
         company_id: auth.profile.company_id,

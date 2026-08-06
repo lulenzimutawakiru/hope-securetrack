@@ -23,7 +23,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const VIEW = ["reports.dashboards", "reports.view", "reports.manage", "reports.kpis", "reports.ai"];
-const MANAGE = ["reports.manage", "reports.dashboards"];
 
 const dashboardSchema = z.object({
   dashboard_code: z.string().min(1).max(50),

@@ -73,7 +73,7 @@ export default function ChangesPage() {
   };
 
   const submitCab = async (id: string) => {
-    const crudRes3 = await crudUpdate("sd_changes", id, { status: "cab_review" });
+    await crudUpdate("sd_changes", id, { status: "cab_review" });
     toast.success("Submitted to CAB");
     await load();
   };
@@ -196,7 +196,7 @@ export default function ChangesPage() {
                         size="sm"
                         variant="outline"
                         onClick={async () => {
-                          const crudRes2 = await crudUpdate("sd_changes", String(r.id), { status: "implementing" });
+                          await crudUpdate("sd_changes", String(r.id), { status: "implementing" });
                           toast.success("Implementing");
                           await load();
                         }}
@@ -208,7 +208,7 @@ export default function ChangesPage() {
                       <Button
                         size="sm"
                         onClick={async () => {
-                          const crudRes = await crudUpdate("sd_changes", String(r.id), {
+                          await crudUpdate("sd_changes", String(r.id), {
                               status: "implemented",
                               implemented_at: new Date().toISOString(),
                             });

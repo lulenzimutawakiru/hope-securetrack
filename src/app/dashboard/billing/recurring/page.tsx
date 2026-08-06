@@ -75,7 +75,6 @@ export default function RecurringBillingPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id || !form.customer_id) return;
     try {
-      const supabase = createClient();
       const num = `REC-${new Date().getFullYear()}-${String(rows.length + 1).padStart(4, "0")}`;
       const crudRes = await crudCreate("bill_recurring_schedules", {
         company_id: auth.profile.company_id,

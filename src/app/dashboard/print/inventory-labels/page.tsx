@@ -122,7 +122,7 @@ export default function InventoryLabelsPage() {
           },
           submitted_by: auth?.user?.id,
         });
-        const crudRes = await crudCreate("prt_inventory_labels", {
+        await crudCreate("prt_inventory_labels", {
           company_id: companyId,
           label_number,
           label_kind: "shelf",

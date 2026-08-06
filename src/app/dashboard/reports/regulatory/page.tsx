@@ -49,7 +49,6 @@ export default function RegulatoryPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes3 = await crudCreate("bi_regulatory_packages", {
       company_id: auth.profile.company_id,
       package_code: form.package_code.toUpperCase(),
@@ -74,7 +73,6 @@ export default function RegulatoryPage() {
   };
 
   const markFiled = async (id: string) => {
-    const supabase = createClient();
     const crudRes2 = await crudUpdate("bi_regulatory_packages", id, { last_filed_at: new Date().toISOString() });
     if (!crudRes2.ok) toast.error(crudRes2.error);
     else {
@@ -89,7 +87,6 @@ export default function RegulatoryPage() {
       : [];
     if (!checklist[index]) return;
     checklist[index] = { ...checklist[index], done: !checklist[index].done };
-    const supabase = createClient();
     const crudRes = await crudUpdate("bi_regulatory_packages", String(pkg.id), { checklist });
     if (!crudRes.ok) toast.error(crudRes.error);
     else load();

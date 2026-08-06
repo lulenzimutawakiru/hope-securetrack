@@ -22,7 +22,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const VIEW = ["reports.kpis", "reports.view", "reports.dashboards", "reports.ai", "reports.manage"];
-const MANAGE = ["reports.manage", "reports.kpis"];
 
 const kpiSchema = z.object({
   kpi_code: z.string().min(1).max(50),

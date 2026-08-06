@@ -5,16 +5,29 @@ import { Plus, Target } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -39,14 +52,12 @@ export default function PipelinePage() {
     phone: "",
     email: "",
     source: "referral",
-    estimated_value: "1000000",
-  });
+    estimated_value: "1000000"});
   const [oppForm, setOppForm] = useState({
     name: "",
     expected_value: "5000000",
     probability: "40",
-    stage: "prospecting",
-  });
+    stage: "prospecting"});
 
   const load = async () => {
     const supabase = createClient();
@@ -77,8 +88,7 @@ export default function PipelinePage() {
       estimated_value: parseFloat(leadForm.estimated_value) || 0,
       currency: "UGX",
       status: "new",
-      assigned_to: auth.profile.id,
-    });
+      assigned_to: auth.profile.id});
     if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Lead ${num} created`);
@@ -98,8 +108,7 @@ export default function PipelinePage() {
       probability: parseInt(oppForm.probability, 10),
       expected_value: parseFloat(oppForm.expected_value) || 0,
       currency: "UGX",
-      owner_id: auth.profile.id,
-    });
+      owner_id: auth.profile.id});
     if (!res.ok) toast.error(res.error);
     else {
       toast.success(`Opportunity ${num} created`);
@@ -175,8 +184,7 @@ export default function PipelinePage() {
                         onChange={(e) =>
                           setLeadForm({
                             ...leadForm,
-                            estimated_value: e.target.value,
-                          })
+                            estimated_value: e.target.value})
                         }
                       />
                     </div>

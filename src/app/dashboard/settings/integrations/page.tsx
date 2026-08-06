@@ -71,7 +71,6 @@ export default function IntegrationsSettingsPage() {
       toast.error(crudRes2.error);
       return;
     }
-    const data = crudRes2.data as Record<string, unknown>;
     toast.success("Integration added");
     setOpen(false);
     load();

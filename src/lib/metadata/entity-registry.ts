@@ -3981,7 +3981,6 @@ defineEntity("sd_nps_responses", "sd_nps_responses", "sd", {
 });
 
 // ── Bulk registrations for remaining domain modules (auto) ──
-const BULK_STD = { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" } as const;
 
 defineEntity("attachments", "attachments", "crud", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });
 defineEntity("brand_approvals", "brand_approvals", "brand", { view: "settings.view", create: "settings.manage", update: "settings.manage", delete: "settings.admin" }, { softDelete: true, searchable: [] });

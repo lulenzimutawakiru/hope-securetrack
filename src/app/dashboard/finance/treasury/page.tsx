@@ -54,7 +54,6 @@ export default function TreasuryPage() {
     e.preventDefault();
     if (!auth) return;
     const principal = Number(form.principal);
-    const supabase = createClient();
     const crudRes = await crudCreate("treasury_facilities", {
       company_id: auth.profile.company_id,
       facility_code: form.facility_code,

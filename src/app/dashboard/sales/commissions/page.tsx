@@ -48,7 +48,6 @@ export default function CommissionsPage() {
   }, [rows]);
 
   const markPaid = async (id: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("sales_commissions", id, { status: "paid", paid_at: new Date().toISOString() });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {

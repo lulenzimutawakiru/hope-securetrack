@@ -74,7 +74,6 @@ export default function BankPage() {
   const createAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes4 = await crudCreate("bank_accounts", {
       company_id: auth.profile.company_id,
       account_code: form.account_code,
@@ -97,7 +96,6 @@ export default function BankPage() {
     e.preventDefault();
     if (!auth || !txnForm.bank_account_id) return;
     const amount = Number(txnForm.amount);
-    const supabase = createClient();
     const crudRes3 = await crudCreate("bank_transactions", {
       company_id: auth.profile.company_id,
       bank_account_id: txnForm.bank_account_id,
@@ -118,14 +116,13 @@ export default function BankPage() {
     const delta = ["deposit", "interest"].includes(txnForm.txn_type)
       ? amount
       : -amount;
-    const crudRes2 = await crudUpdate("bank_accounts", txnForm.bank_account_id, { current_balance: bal + delta });
+    await crudUpdate("bank_accounts", txnForm.bank_account_id, { current_balance: bal + delta });
     toast.success("Transaction posted");
     setTxnOpen(false);
     load();
   };
 
   const reconcile = async (id: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("bank_transactions", id, {
         is_reconciled: true,
         reconciled_at: new Date().toISOString(),

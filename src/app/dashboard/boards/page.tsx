@@ -110,7 +110,6 @@ export default function BoardsPage() {
     setCards((cs) =>
       cs.map((c) => (c.id === cardId ? { ...c, columnId: toColumnId } : c))
     );
-    const supabase = createClient();
     const crudRes = await crudUpdate("production_batches", cardId, { production_status: toColumnId });
     if (!crudRes.ok) {
       setCards(prev);

@@ -30,7 +30,7 @@ export default function ChannelsPage() {
   }, []);
 
   const toggle = async (id: string, active: boolean) => {
-    const crudRes = await crudUpdate("sd_channels", id, { is_active: !active });
+    await crudUpdate("sd_channels", id, { is_active: !active });
     toast.success(active ? "Channel disabled" : "Channel enabled");
     await load();
   };

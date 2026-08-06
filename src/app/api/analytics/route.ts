@@ -22,7 +22,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const VIEW = ["reports.ai", "reports.intelligence", "reports.view", "reports.dashboards", "reports.manage"];
-const MANAGE = ["reports.manage", "reports.ai"];
 
 const resolveSchema = z.object({
   id: z.string().uuid(),

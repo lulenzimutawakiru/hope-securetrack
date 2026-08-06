@@ -73,7 +73,6 @@ export default function BiometricsPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id || !form.identity_id) return;
     try {
-      const supabase = createClient();
       const crudRes2 = await crudCreate("wid_biometric_enrollments", {
         company_id: auth.profile.company_id,
         identity_id: form.identity_id,
@@ -95,8 +94,7 @@ export default function BiometricsPage() {
   };
 
   const revoke = async (id: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("wid_biometric_enrollments", id, { enrollment_status: "revoked", updated_at: new Date().toISOString() });
+    await crudUpdate("wid_biometric_enrollments", id, { enrollment_status: "revoked", updated_at: new Date().toISOString() });
     toast.success("Enrollment revoked");
     await load();
   };

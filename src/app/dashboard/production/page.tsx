@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Factory, ClipboardList, Gauge, ShieldCheck, ArrowRight, Activity,
-  Boxes, Calendar, Wand2, AlertTriangle,
-} from "lucide-react";
+  Boxes,
+  Calendar,
+  AlertTriangle,
+  } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,8 +24,7 @@ export default function ProductionMesHubPage() {
   const [q, setQ] = useState("");
   const [stats, setStats] = useState({
     orders: 0, inProgress: 0, delayed: 0, machines: 0, running: 0,
-    oee: 0, openNcr: 0, workCenters: 0, mrpOpen: 0, waste: 0, plans: 0,
-  });
+    oee: 0, openNcr: 0, workCenters: 0, mrpOpen: 0, waste: 0, plans: 0});
   const [recent, setRecent] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
@@ -71,8 +72,7 @@ export default function ProductionMesHubPage() {
         workCenters: workCenters.count ?? 0,
         mrpOpen: mrpOpen.count ?? 0,
         waste: wasteQty,
-        plans: plans.count ?? 0,
-      });
+        plans: plans.count ?? 0});
       setRecent((recentOrders as Array<Record<string, unknown>>) || []);
       setLoading(false);
     }

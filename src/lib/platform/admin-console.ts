@@ -310,7 +310,6 @@ export async function getBillingOverview(): Promise<BillingOverview> {
   const today = now.toISOString().slice(0, 10);
   const in7 = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
   const in30 = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
-  const in7ts = new Date(now.getTime() + 7 * 86400000).toISOString();
 
   const [subRows, tenantRows, planRows] = await Promise.all([
     sb

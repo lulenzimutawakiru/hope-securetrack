@@ -6,12 +6,16 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -38,8 +42,7 @@ export default function Customer360Page() {
     last_name: "",
     email: "",
     phone: "",
-    title: "",
-  });
+    title: ""});
 
   const load = async () => {
     if (!id) return;
@@ -80,8 +83,7 @@ export default function Customer360Page() {
     if (!auth || !noteBody.trim() || !id) return;
     const res = await crudCreate("crm_notes", {
       customer_id: id,
-      body: noteBody.trim(),
-    });
+      body: noteBody.trim()});
     if (!res.ok) toast.error(res.error);
     else {
       setNoteBody("");
@@ -100,8 +102,7 @@ export default function Customer360Page() {
       email: contactForm.email || null,
       phone: contactForm.phone || null,
       title: contactForm.title || null,
-      is_primary: contacts.length === 0,
-    });
+      is_primary: contacts.length === 0});
     if (!res.ok) toast.error(res.error);
     else {
       toast.success("Contact added");

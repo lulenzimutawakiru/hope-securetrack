@@ -44,7 +44,7 @@ export default function ExportCenterPage() {
       extract.cols,
       rows.map((r) => extract.cols.map((c) => (r[c] == null ? "" : String(r[c]))))
     );
-    const crudRes = await crudCreate("bi_report_runs", {
+    await crudCreate("bi_report_runs", {
       company_id: auth.profile.company_id,
       report_code: `EXPORT-${extract.key.toUpperCase()}`,
       run_by: auth.profile.id,

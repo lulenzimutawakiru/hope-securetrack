@@ -51,7 +51,6 @@ export default function ReconcilePage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const num = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(batches.length + 1).padStart(3, "0")}`;
       const crudRes3 = await crudCreate("bill_reconciliation_batches", {
           company_id: auth.profile.company_id,
@@ -69,7 +68,7 @@ export default function ReconcilePage() {
       // auto-match payments as lines
       let matched = 0;
       for (const pay of payments.slice(0, 15)) {
-        const crudRes2 = await crudCreate("bill_reconciliation_lines", {
+        await crudCreate("bill_reconciliation_lines", {
           batch_id: batch.id,
           company_id: auth.profile.company_id,
           txn_date: pay.payment_date,
@@ -81,7 +80,7 @@ export default function ReconcilePage() {
         });
         matched++;
       }
-      const crudRes = await crudUpdate("bill_reconciliation_batches", String(batch.id), { matched_count: matched, unmatched_count: 0 });
+      await crudUpdate("bill_reconciliation_batches", String(batch.id), { matched_count: matched, unmatched_count: 0 });
 
       toast.success(`Batch ${num} created with ${matched} matched lines`);
       setOpen(false);

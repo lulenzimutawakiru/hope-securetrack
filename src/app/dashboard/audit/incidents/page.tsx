@@ -38,7 +38,7 @@ export default function AuditIncidentsPage() {
     const patch: Record<string, unknown> = { status };
     if (status === "resolved") patch.resolved_at = new Date().toISOString();
     if (status === "closed") patch.closed_at = new Date().toISOString();
-    const crudRes = await crudUpdate("eal_incidents", id, patch);
+    await crudUpdate("eal_incidents", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

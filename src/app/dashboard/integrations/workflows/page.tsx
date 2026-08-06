@@ -59,7 +59,6 @@ export default function WorkflowsPage() {
       } catch {
         throw new Error("Invalid steps JSON");
       }
-      const supabase = createClient();
       const code = `WF-${Date.now().toString(36).toUpperCase()}`;
       const crudRes = await crudCreate("intg_workflows", {
         company_id: auth.profile.company_id,

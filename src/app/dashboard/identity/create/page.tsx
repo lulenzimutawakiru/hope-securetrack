@@ -150,7 +150,7 @@ export default function CreateAccountPage() {
       if (form.activate_now && auth?.user?.id) {
         // Ensure approved then activate
         if (req.status !== "admin_approved") {
-          const crudRes = await crudUpdate("idm_provision_requests", req.id, {
+          await crudUpdate("idm_provision_requests", req.id, {
               status: "admin_approved",
               admin_approved_by: auth.user.id,
               admin_approved_at: new Date().toISOString(),

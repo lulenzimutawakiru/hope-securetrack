@@ -66,7 +66,6 @@ export default function RfqPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `RFQ-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const crudRes3 = await crudCreate("rfqs", {
       company_id: auth.profile.company_id,
@@ -90,7 +89,7 @@ export default function RfqPage() {
   const award = async (quoteId: string, rfqId: string, supplierId: string) => {
     if (!auth) return;
     const supabase = createClient();
-    const crudRes2 = await crudUpdate("supplier_quotations", quoteId, { status: "awarded" });
+    await crudUpdate("supplier_quotations", quoteId, { status: "awarded" });
     const { data: rejectedCandidates, error: rejectedErr } = await supabase
       .from("supplier_quotations")
       .select("id")
@@ -101,7 +100,7 @@ export default function RfqPage() {
       const crudRes4 = await crudUpdate("supplier_quotations", String(other.id), { status: "rejected" });
       if (!crudRes4.ok) throw new Error(crudRes4.error);
     }
-    const crudRes = await crudUpdate("rfqs", rfqId, {
+    await crudUpdate("rfqs", rfqId, {
         status: "awarded",
         awarded_supplier_id: supplierId,
         awarded_at: new Date().toISOString(),

@@ -39,7 +39,6 @@ export default function TemplatesPage() {
   const clone = async (t: WidTemplate) => {
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `${t.template_code}-COPY-${Date.now().toString(36).toUpperCase().slice(-4)}`;
       const crudRes = await crudCreate("wid_card_templates", {
         company_id: auth.profile.company_id,

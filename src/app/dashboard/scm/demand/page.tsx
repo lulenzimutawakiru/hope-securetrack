@@ -67,7 +67,6 @@ export default function DemandPlanningPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const code = `FC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const crudRes = await crudCreate("demand_forecasts", {
       company_id: auth.profile.company_id,

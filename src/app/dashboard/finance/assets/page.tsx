@@ -58,7 +58,6 @@ export default function AssetsPage() {
     if (!auth) return;
     const cost = Number(form.acquisition_cost);
     const residual = Number(form.residual_value || 0);
-    const supabase = createClient();
     const crudRes4 = await crudCreate("fixed_assets", {
       company_id: auth.profile.company_id,
       asset_code: form.asset_code,
@@ -90,7 +89,6 @@ export default function AssetsPage() {
     const monthly = (cost - residual) / months;
     const accum = Number(r.accumulated_depreciation || 0) + monthly;
     const book = Math.max(cost - accum, residual);
-    const supabase = createClient();
     const crudRes3 = await crudUpdate("fixed_assets", r.id as string, {
         accumulated_depreciation: accum,
         book_value: book,
@@ -99,7 +97,7 @@ export default function AssetsPage() {
       toast.error(crudRes3.error);
       return;
     }
-    const crudRes2 = await crudCreate("depreciation_entries", {
+    await crudCreate("depreciation_entries", {
       company_id: auth?.profile.company_id,
       asset_id: r.id,
       entry_date: new Date().toISOString().slice(0, 10),
@@ -113,7 +111,6 @@ export default function AssetsPage() {
 
   const dispose = async (id: string) => {
     if (!confirm("Mark asset as disposed?")) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("fixed_assets", id, {
         status: "disposed",
         disposal_date: new Date().toISOString().slice(0, 10),

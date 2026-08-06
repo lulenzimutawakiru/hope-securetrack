@@ -4,18 +4,31 @@ import { useEffect, useState } from "react";
 import { Shield, Plus, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -61,8 +74,7 @@ export default function AccessPage() {
     identity_id: "",
     profile_id: "",
     zone_id: "",
-    grant_type: "profile",
-  });
+    grant_type: "profile"});
 
   const load = async () => {
     const supabase = createClient();
@@ -97,7 +109,6 @@ export default function AccessPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id || !form.identity_id) return;
     try {
-      const supabase = createClient();
       const crudRes3 = await crudCreate("wid_access_assignments", {
         company_id: auth.profile.company_id,
         identity_id: form.identity_id,
@@ -106,8 +117,7 @@ export default function AccessPage() {
         grant_type: form.grant_type,
         status: "active",
         reason: "Manual assignment",
-        assigned_by: auth.profile.id,
-      });
+        assigned_by: auth.profile.id});
       if (!crudRes3.ok) throw new Error(crudRes3.error);
       toast.success("Access assigned");
       setAssignOpen(false);
@@ -118,8 +128,7 @@ export default function AccessPage() {
   };
 
   const revoke = async (id: string) => {
-    const supabase = createClient();
-    const crudRes2 = await crudUpdate("wid_access_assignments", id, { status: "revoked", updated_at: new Date().toISOString() });
+    await crudUpdate("wid_access_assignments", id, { status: "revoked", updated_at: new Date().toISOString() });
     toast.success("Access revoked");
     await load();
   };
@@ -129,16 +138,14 @@ export default function AccessPage() {
       toast.error("Need identity and zone");
       return;
     }
-    const supabase = createClient();
-    const crudRes = await crudCreate("wid_access_events", {
+    await crudCreate("wid_access_events", {
       company_id: auth.profile.company_id,
       identity_id: identities[0].id,
       zone_id: zones[0].id,
       event_type: "access_granted",
       result: "granted",
       reader_name: "Main Gate Reader",
-      direction: "in",
-    });
+      direction: "in"});
     toast.success("Access event logged");
     await load();
   };

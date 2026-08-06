@@ -71,11 +71,10 @@ export default function PrintQueuePage() {
   }, []);
 
   const updateStatus = async (id: string, status: string, extra?: Record<string, unknown>) => {
-    const supabase = createClient();
     const crudRes5 = await crudUpdate("wid_print_jobs", id, { status, updated_at: new Date().toISOString(), ...extra });
     if (!crudRes5.ok) throw new Error(crudRes5.error);
     if (auth?.profile?.company_id) {
-      const crudRes4 = await crudCreate("wid_print_history", {
+      await crudCreate("wid_print_history", {
         company_id: auth.profile.company_id,
         print_job_id: id,
         event_type: status,
@@ -114,7 +113,7 @@ export default function PrintQueuePage() {
       printCardHtml(html);
       await updateStatus(job.id, "completed", { completed_at: new Date().toISOString() });
       const supabase = createClient();
-      const crudRes3 = await crudUpdate("wid_credentials", job.credential_id, {
+      await crudUpdate("wid_credentials", job.credential_id, {
           status: cred.status === "active" ? "active" : "printed",
           printed_at: new Date().toISOString(),
           print_count: (cred.print_count || 0) + 1,
@@ -130,7 +129,7 @@ export default function PrintQueuePage() {
         .limit(1)
         .maybeSingle();
       if (inv) {
-        const crudRes2 = await crudUpdate("wid_card_inventory", inv.id, {
+        await crudUpdate("wid_card_inventory", inv.id, {
             quantity_available: inv.quantity_available - 1,
             quantity_used: (inv.quantity_used || 0) + 1,
             updated_at: new Date().toISOString(),
@@ -173,8 +172,7 @@ export default function PrintQueuePage() {
   };
 
   const setBrand = async (id: string, brand: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("wid_print_jobs", id, { printer_brand: brand, printer_name: `${brand} printer`, updated_at: new Date().toISOString() });
+    await crudUpdate("wid_print_jobs", id, { printer_brand: brand, printer_name: `${brand} printer`, updated_at: new Date().toISOString() });
     await load();
   };
 

@@ -239,7 +239,6 @@ export type JobHandler = (
 
 /** Built-in handlers for common enterprise jobs */
 export function defaultJobHandlers(deps: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: SupabaseClient;
 }): Record<string, JobHandler> {
   return {

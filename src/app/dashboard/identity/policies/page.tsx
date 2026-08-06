@@ -56,7 +56,6 @@ export default function IdentityPoliciesPage() {
       return;
     }
     setSaving(true);
-    const supabase = createClient();
     const crudRes = await crudUpdate("security_policies", id, {
         min_password_length: parseInt(form.min_password_length, 10),
         password_expiry_days: parseInt(form.password_expiry_days, 10),

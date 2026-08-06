@@ -87,7 +87,7 @@ export default function PkgWorkOrdersPage() {
     const patch: Record<string, unknown> = { status };
     if (status === "completed") patch.completed_at = new Date().toISOString();
     if (status === "in_progress") patch.started_at = new Date().toISOString();
-    const crudRes = await crudUpdate("pkg_work_orders", id, patch);
+    await crudUpdate("pkg_work_orders", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

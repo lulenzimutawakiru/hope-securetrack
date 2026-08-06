@@ -40,7 +40,7 @@ export default function PrintConsumablesPage() {
   }, []);
 
   const markReplaced = async (id: string) => {
-    const crudRes3 = await crudUpdate("prt_consumables", id, {
+    await crudUpdate("prt_consumables", id, {
         level_pct: 100,
         remaining_units: 1000,
         status: "ok",
@@ -52,7 +52,7 @@ export default function PrintConsumablesPage() {
   };
 
   const resolveAlert = async (id: string) => {
-    const crudRes2 = await crudUpdate("prt_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
+    await crudUpdate("prt_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Alert resolved");
     await load();
   };
@@ -61,7 +61,7 @@ export default function PrintConsumablesPage() {
     if (!companyId) return;
     const low = rows.filter((r) => Number(r.level_pct) < 20 || Number(r.remaining_units) <= Number(r.reorder_level));
     for (const r of low) {
-      const crudRes = await crudCreate("prt_alerts", {
+      await crudCreate("prt_alerts", {
         company_id: companyId,
         alert_type: String(r.consumable_type) === "labels" ? "low_labels" : "low_toner",
         severity: "medium",

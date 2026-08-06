@@ -68,7 +68,6 @@ export default function ProjectBillingPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const num = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(4, "0")}`;
       const crudRes4 = await crudCreate("bill_projects", {
         company_id: auth.profile.company_id,
@@ -95,7 +94,6 @@ export default function ProjectBillingPage() {
     try {
       const qty = Number(entryForm.quantity) || 0;
       const rate = Number(entryForm.unit_rate) || 0;
-      const supabase = createClient();
       const crudRes3 = await crudCreate("bill_project_entries", {
         company_id: auth.profile.company_id,
         project_id: entryForm.project_id,
@@ -156,10 +154,10 @@ export default function ProjectBillingPage() {
         });
         if (!crudRes5.ok) throw new Error(crudRes5.error);
       }
-      const crudRes2 = await crudUpdate("bill_projects", projectId, {
+      await crudUpdate("bill_projects", projectId, {
           billed_amount: Number(proj.billed_amount || 0) + Number(inv.total_amount),
         });
-      const crudRes = await crudUpdate("invoices", inv.id, { project_id: projectId });
+      await crudUpdate("invoices", inv.id, { project_id: projectId });
       toast.success(`Invoice ${inv.invoice_number} from project entries`);
       await load();
     } catch (err) {

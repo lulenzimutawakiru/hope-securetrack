@@ -68,7 +68,6 @@ export default function BillingTaxPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const crudRes = await crudCreate("bill_tax_codes", {
         company_id: auth.profile.company_id,
         tax_code: form.tax_code.toUpperCase(),

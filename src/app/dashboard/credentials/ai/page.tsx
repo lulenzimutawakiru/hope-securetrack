@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { crudCreate } from "@/lib/api/crud-client";
@@ -46,7 +45,6 @@ export default function AiDesignerPage() {
     if (!auth?.profile?.company_id || !result) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const code = `TPL-AI-${Date.now().toString(36).toUpperCase()}`;
       const crudRes2 = await crudCreate("wid_card_templates", {
           company_id: auth.profile.company_id,
@@ -61,7 +59,7 @@ export default function AiDesignerPage() {
         });
       if (!crudRes2.ok) throw new Error(crudRes2.error);
       const data = crudRes2.data as Record<string, unknown>;
-      const crudRes = await crudCreate("wid_ai_design_logs", {
+      await crudCreate("wid_ai_design_logs", {
         company_id: auth.profile.company_id,
         prompt,
         result_summary: result.description,

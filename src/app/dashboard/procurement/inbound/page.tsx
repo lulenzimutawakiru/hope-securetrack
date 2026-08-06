@@ -68,7 +68,6 @@ export default function InboundPage() {
     e.preventDefault();
     if (!auth) return;
     const po = pos.find((p) => p.id === form.purchase_order_id);
-    const supabase = createClient();
     const num = `INB-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const crudRes2 = await crudCreate("inbound_shipments", {
       company_id: auth.profile.company_id,
@@ -92,7 +91,6 @@ export default function InboundPage() {
   };
 
   const markArrived = async (id: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("inbound_shipments", id, {
         status: "arrived",
         actual_arrival: new Date().toISOString().slice(0, 10),

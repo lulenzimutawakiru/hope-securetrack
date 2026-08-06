@@ -74,7 +74,7 @@ export default function MajorIncidentsPage() {
     if (status === "resolved" || status === "closed") {
       patch.resolved_at = new Date().toISOString();
     }
-    const crudRes = await crudUpdate("sd_major_incidents", id, patch);
+    await crudUpdate("sd_major_incidents", id, patch);
     toast.success(`Status → ${status}`);
     await load();
   };

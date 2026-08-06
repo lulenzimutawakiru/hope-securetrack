@@ -147,7 +147,7 @@ function CardsInner() {
       printCardHtml(html);
 
       const supabase = createClient();
-      const crudRes3 = await crudUpdate("wid_credentials", c.id, {
+      await crudUpdate("wid_credentials", c.id, {
           status: c.status === "active" ? "active" : "printed",
           printed_at: new Date().toISOString(),
           print_count: (c.print_count || 0) + 1,
@@ -159,7 +159,7 @@ function CardsInner() {
           .from("wid_print_jobs")
           .select("*", { count: "exact", head: true })
           .eq("company_id", auth.profile.company_id);
-        const crudRes2 = await crudCreate("wid_print_jobs", {
+        await crudCreate("wid_print_jobs", {
           company_id: auth.profile.company_id,
           credential_id: c.id,
           job_number: generateJobNumber((count ?? 0) + 1),
@@ -169,7 +169,7 @@ function CardsInner() {
           completed_at: new Date().toISOString(),
           requested_by: auth.profile.id,
         });
-        const crudRes = await crudCreate("wid_print_history", {
+        await crudCreate("wid_print_history", {
           company_id: auth.profile.company_id,
           credential_id: c.id,
           event_type: "printed",

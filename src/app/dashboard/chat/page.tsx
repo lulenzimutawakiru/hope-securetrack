@@ -166,7 +166,6 @@ export default function SecureChatPage() {
         return next;
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, userId, companyId]);
 
   useEffect(() => {
@@ -686,7 +685,6 @@ export default function SecureChatPage() {
 
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                 {messages.map((m) => {
-                  const fileMeta = (m.metadata || {}) as Record<string, unknown>;
                   const isFile = m.message_type === "file";
                   return (
                     <div

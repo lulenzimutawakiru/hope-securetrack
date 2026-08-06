@@ -92,7 +92,6 @@ export default function ShiftsPage() {
     if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const crudRes = await crudCreate("shift_assignments", {
         company_id: auth.profile.company_id,
         employee_id: form.employee_id,

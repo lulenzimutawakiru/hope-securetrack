@@ -81,7 +81,6 @@ export default function PerformancePage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `PRV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
     const crudRes = await crudCreate("performance_reviews", {
       company_id: auth.profile.company_id,

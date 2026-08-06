@@ -1,10 +1,6 @@
 import fs from "fs";
 import path from "path";
 
-function entity(key, cfg) {
-  return `  "${key}": cfg(${JSON.stringify(cfg, null, 4).replace(/^/gm, "    ").trimStart()}),\n`;
-}
-
 // Simpler: write full page generator with inline configs from a map
 const NEW = {
   "inventory-valuation": {

@@ -49,7 +49,6 @@ export default function CreditPage() {
   }, []);
 
   const setCreditStatus = async (id: string, credit_status: string) => {
-    const supabase = createClient();
     const crudRes3 = await crudUpdate("customers", id, { credit_status });
     if (!crudRes3.ok) toast.error(crudRes3.error);
     else {
@@ -60,10 +59,9 @@ export default function CreditPage() {
 
   const decideReview = async (id: string, decision: string, orderId?: string) => {
     if (!auth) return;
-    const supabase = createClient();
-    const crudRes2 = await crudUpdate("credit_reviews", id, { decision, reviewed_by: auth.profile.id });
+    await crudUpdate("credit_reviews", id, { decision, reviewed_by: auth.profile.id });
     if (decision === "approved" && orderId) {
-      const crudRes = await crudUpdate("sales_orders", orderId, {
+      await crudUpdate("sales_orders", orderId, {
           credit_approved: true,
           credit_approved_by: auth.profile.id,
           credit_approved_at: new Date().toISOString(),

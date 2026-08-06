@@ -3,9 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Mail, Bell, Send, AlertTriangle, FileText, Workflow, ArrowRight, Sparkles,
-  MessageSquare, Smartphone, Radio, Activity, BarChart3, ListOrdered, Megaphone,
-} from "lucide-react";
+  Mail, Bell, Send, AlertTriangle, FileText, Workflow, ArrowRight,
+  MessageSquare,
+  Smartphone,
+  Radio,
+  Activity,
+  BarChart3,
+  ListOrdered,
+  Megaphone,
+  } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,8 +37,7 @@ export default function CommunicationsHubPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [stats, setStats] = useState({
-    messages: 0, sent: 0, failed: 0, queued: 0, templates: 0, rules: 0, campaigns: 0, pendingReminders: 0,
-  });
+    messages: 0, sent: 0, failed: 0, queued: 0, templates: 0, rules: 0, campaigns: 0, pendingReminders: 0});
   const [recent, setRecent] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {

@@ -65,7 +65,7 @@ export function defaultDomainEventHandlers(): Record<string, EventHandler> {
       });
       return { ok: true };
     },
-    "ticket.created": async (event, sb) => {
+    "ticket.created": async (event, _sb) => {
       if (!event.company_id) return { ok: true };
       try {
         const { notifyCompanySlack } = await import("@/lib/slack");

@@ -107,14 +107,14 @@ export default function ManufacturingBillingPage() {
         created_by: auth.profile.id,
       });
 
-      const crudRes3 = await crudUpdate("invoices", inv.id, {
+      await crudUpdate("invoices", inv.id, {
           dispatch_id: d.id,
           batch_numbers: batch || null,
           warranty_note: warranty || null,
           production_order_ref: String(d.production_order_ref || d.dispatch_number),
         });
 
-      const crudRes2 = await crudCreate("bill_delivery_links", {
+      await crudCreate("bill_delivery_links", {
         company_id: auth.profile.company_id,
         dispatch_id: d.id,
         sales_order_id: d.sales_order_id || null,
@@ -128,7 +128,7 @@ export default function ManufacturingBillingPage() {
 
       // link reverse on dispatch if column allows
       try {
-        const crudRes = await crudUpdate("dispatches", String(d.id), { invoice_id: inv.id });
+        await crudUpdate("dispatches", String(d.id), { invoice_id: inv.id });
       } catch {
         /* optional */
       }

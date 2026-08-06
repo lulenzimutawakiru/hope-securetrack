@@ -85,8 +85,8 @@ export default function AssetMaintenancePage() {
   };
 
   const closeWo = async (id: string, assetId: string) => {
-    const crudRes2 = await crudUpdate("ast_maintenance_links", id, { status: "completed", completed_at: new Date().toISOString() });
-    const crudRes = await crudUpdate("ast_assets", assetId, { status: "active", updated_at: new Date().toISOString() });
+    await crudUpdate("ast_maintenance_links", id, { status: "completed", completed_at: new Date().toISOString() });
+    await crudUpdate("ast_assets", assetId, { status: "active", updated_at: new Date().toISOString() });
     toast.success("Completed");
     await load();
   };

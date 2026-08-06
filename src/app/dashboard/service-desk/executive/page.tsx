@@ -20,8 +20,7 @@ import { createClient } from "@/lib/supabase/crud-compat";
 import { formatNumber } from "@/lib/utils";
 import {
   buildExecutiveInsights,
-  detectSlaBreachRisks,
-  slaHealthSnapshot,
+slaHealthSnapshot,
   agentWorkload,
   responseTimeStats,
   type Insight,
@@ -86,7 +85,6 @@ export default function ExecutivePage() {
 
       const health = slaHealthSnapshot(rows);
       const timings = responseTimeStats(rows);
-      const breachRisks = detectSlaBreachRisks(rows);
       const workloads = agentWorkload(rows, agentsRows);
 
       const scores = (csatRows as Array<Record<string, unknown>>) || [];

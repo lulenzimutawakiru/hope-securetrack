@@ -1,10 +1,4 @@
-/**
- * External providers status + test actions.
- * GET  — configuration matrix
- * POST — run a sandbox/live test (sms, whatsapp, payment, map, captcha, ocr)
- */
 
-import { NextRequest } from "next/server";
 import { z } from "zod";
 import { createApiHandler } from "@/lib/api/handler";
 import { apiError, apiOk } from "@/lib/api";
@@ -35,16 +29,14 @@ const testSchema = z.object({
   query: z.string().max(200).optional(),
   captcha_token: z.string().max(2000).optional(),
   origin: z.tuple([z.number(), z.number()]).optional(),
-  destination: z.tuple([z.number(), z.number()]).optional(),
-});
+  destination: z.tuple([z.number(), z.number()]).optional()});
 
 export const GET = createApiHandler(
   {
     auth: true,
     permissions: ["intg.view", "intg.manage", "settings.integrations"],
     module: "integrations",
-    rateLimit: { limit: 60, windowMs: 60_000 },
-  },
+    rateLimit: { limit: 60, windowMs: 60_000 }},
   async ({ ctx }) => {
     const summary = getProvidersSummary();
     let recent: unknown[] = [];
@@ -72,9 +64,7 @@ export const GET = createApiHandler(
         flutterwave: "/api/public/billing/webhooks/flutterwave",
         stripe: "/api/public/billing/webhooks/stripe",
         pesapal: "/api/public/billing/webhooks/pesapal",
-        whatsapp: "/api/public/webhooks/whatsapp",
-      },
-    });
+        whatsapp: "/api/public/webhooks/whatsapp"}});
   }
 );
 
@@ -85,8 +75,7 @@ export const POST = createApiHandler(
     module: "integrations",
     bodySchema: testSchema,
     rateLimit: { limit: 20, windowMs: 60_000 },
-    idempotent: true,
-  },
+    idempotent: true},
   async ({ ctx, body }) => {
     const input = body as z.infer<typeof testSchema>;
     const companyId = ctx!.companyId;
@@ -117,8 +106,7 @@ export const POST = createApiHandler(
           external_id: result.externalId ?? null,
           error_message: result.error ?? null,
           duration_ms: Date.now() - started,
-          created_by: ctx!.profile.id,
-        });
+          created_by: ctx!.profile.id});
       } catch {
         /* non-fatal */
       }
@@ -133,8 +121,7 @@ export const POST = createApiHandler(
       const r = await sendSms({
         to: input.to || "+256700000000",
         message: input.message || "SecureTrack SMS test",
-        companyId,
-      });
+        companyId});
       await logCall("africastalking", "comms", "sms", r);
       return r.ok ? apiOk(r) : apiError("INTERNAL", r.error || "SMS failed", 502);
     }
@@ -144,8 +131,7 @@ export const POST = createApiHandler(
       const r = await sendWhatsApp({
         to: input.to || "256700000000",
         message: input.message || "SecureTrack WhatsApp test",
-        companyId,
-      });
+        companyId});
       await logCall("whatsapp", "comms", "send", r);
       return r.ok
         ? apiOk(r)
@@ -157,8 +143,7 @@ export const POST = createApiHandler(
       const r = await sendPush({
         title: "SecureTrack test",
         body: input.message || "Push integration test",
-        companyId,
-      });
+        companyId});
       await logCall(String(r.provider), "comms", "push", r);
       return r.ok ? apiOk(r) : apiError("INTERNAL", r.error || "Push failed", 502);
     }
@@ -173,8 +158,7 @@ export const POST = createApiHandler(
         currency: input.currency || "UGX",
         externalRef: `TEST-${Date.now().toString(36).toUpperCase()}`,
         phone: input.to,
-        description: "SecureTrack provider test",
-      });
+        description: "SecureTrack provider test"});
       await logCall(String(r.provider), "payments", "collect", r);
       return r.ok
         ? apiOk(r)
@@ -185,8 +169,7 @@ export const POST = createApiHandler(
       const { mapboxGeocode } = await import("@/lib/providers/maps/mapbox");
       const r = await mapboxGeocode({
         query: input.query || "Kampala",
-        country: "ug",
-      });
+        country: "ug"});
       await logCall("mapbox", "maps", "geocode", r);
       return r.ok
         ? apiOk(r)
@@ -197,8 +180,7 @@ export const POST = createApiHandler(
       const { mapboxDirections } = await import("@/lib/providers/maps/mapbox");
       const r = await mapboxDirections({
         origin: input.origin || [32.58, 0.35],
-        destination: input.destination || [32.6, 0.32],
-      });
+        destination: input.destination || [32.6, 0.32]});
       await logCall("mapbox", "maps", "directions", r);
       return r.ok
         ? apiOk(r)
@@ -210,8 +192,7 @@ export const POST = createApiHandler(
         "@/lib/providers/security/captcha"
       );
       const r = await verifyCaptcha({
-        token: input.captcha_token || "dev-bypass",
-      });
+        token: input.captcha_token || "dev-bypass"});
       await logCall("turnstile", "security", "verify", r);
       return r.ok
         ? apiOk(r)
@@ -235,8 +216,7 @@ export const POST = createApiHandler(
       await logCall("qstash", "jobs", "publish", {
         ok: r.ok || r.data?.mode === "local",
         error: r.error,
-        externalId: r.externalId,
-      });
+        externalId: r.externalId});
       return apiOk(r);
     }
 

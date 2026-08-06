@@ -9,7 +9,6 @@ export async function GET() {
   const envCheck = assertServerEnv();
   let supabaseOk = false;
   let supabaseLatencyMs: number | null = null;
-  let supabaseError: string | null = null;
 
   if (envCheck.ok) {
     try {
@@ -26,9 +25,8 @@ export async function GET() {
       );
       supabaseLatencyMs = Date.now() - t0;
       supabaseOk = res.ok || res.status === 200 || res.status === 206;
-      if (!res.ok) supabaseError = `HTTP ${res.status}`;
-    } catch (e) {
-      supabaseError = e instanceof Error ? e.message : "unreachable";
+    } catch {
+      // Connectivity errors are reflected via supabaseOk below.
     }
   }
 

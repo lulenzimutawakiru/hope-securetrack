@@ -5,11 +5,14 @@ import Link from "next/link";
 import {
   Palette, Image, Type, BookOpen, FolderOpen, LayoutTemplate,
   Package, Mail, Monitor, GitBranch, ShieldAlert, BarChart3,
-  Wand2, ArrowRight, Building2, Layers,
-} from "lucide-react";
+  Wand2,
+  ArrowRight,
+  Building2,
+  Layers,
+  } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatCard } from "@/components/ui/stat-card";
@@ -43,8 +46,7 @@ export default function BrandingHubPage() {
     pending: 0,
     issues: 0,
     colors: 0,
-    products: 0,
-  });
+    products: 0});
   const [brand, setBrand] = useState<Record<string, unknown> | null>(null);
   const [swatches, setSwatches] = useState<Array<{ name: string; hex_value: string }>>([]);
 
@@ -72,8 +74,7 @@ export default function BrandingHubPage() {
         pending: pending.count ?? 0,
         issues: issues.count ?? 0,
         colors: colors.count ?? 0,
-        products: products.count ?? 0,
-      });
+        products: products.count ?? 0});
       setBrand(primary as Record<string, unknown> | null);
       setSwatches((colorRows as typeof swatches) || []);
       setLoading(false);

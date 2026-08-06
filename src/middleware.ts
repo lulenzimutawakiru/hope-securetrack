@@ -40,12 +40,20 @@ function apiRateLimitMax(req: NextRequest): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 30;
 }
 
-// Build a stricter CSP in production (no 'unsafe-inline'); allow relaxed CSP in non-production to avoid dev breakage
+// Content-Security-Policy: pragmatic strict production policy. Inline scripts
+// are allowed (Next.js RSC payloads + theme bootstrap render inline script tags),
+// but inline event handlers are blocked via script-src-attr 'none'.
 function buildCSP() {
-  const base = [
-    "default-src 'self'",
+  const captchaScript =
+    "https://challenges.cloudflare.com https://js.hcaptcha.com";
+  const captchaFrame =
+    "https://challenges.cloudflare.com https://newassets.hcaptcha.com";
+
+  const common = [
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
+    "worker-src 'self'",
     "connect-src 'self' https: wss:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
@@ -53,45 +61,29 @@ function buildCSP() {
     "object-src 'none'",
   ];
 
-  // Turnstile CAPTCHA + Mapbox tiles need external script/frame/connect sources
-  const captchaScript =
-    "https://challenges.cloudflare.com https://js.hcaptcha.com";
-  const captchaFrame =
-    "https://challenges.cloudflare.com https://newassets.hcaptcha.com";
-
   if (process.env.NODE_ENV === "production") {
     return [
       "default-src 'self'",
-      `script-src 'self' ${captchaScript}`,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' data:",
-      "connect-src 'self' https: wss:",
+      "script-src 'self' 'unsafe-inline'",
+      "script-src-attr 'none'",
+      `script-src-elem 'self' 'unsafe-inline' ${captchaScript}`,
       `frame-src 'self' ${captchaFrame}`,
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'",
+      ...common,
     ].join("; ");
   }
 
-  // Development: allow some inline usage for developer ergonomics
+  // Development: allow eval for fast-refresh ergonomics
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${captchaScript}`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' https: wss:",
+    "script-src-attr 'none'",
     `frame-src 'self' ${captchaFrame}`,
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "object-src 'none'",
+    ...common,
   ].join("; ");
 }
 
 function applySecurityHeaders(res: NextResponse) {
+  res.headers.set("Content-Security-Policy", buildCSP());
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
     res.headers.set(k, v);
   }

@@ -66,7 +66,6 @@ export default function WorkflowsPage() {
   const startDemo = async (wf: Wf) => {
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const crudRes2 = await crudCreate("wid_workflow_runs", {
         company_id: auth.profile.company_id,
         workflow_id: wf.id,
@@ -90,8 +89,7 @@ export default function WorkflowsPage() {
     const steps = wf?.steps || [];
     const next = (run.current_step || 0) + 1;
     const done = next > steps.length;
-    const supabase = createClient();
-    const crudRes = await crudUpdate("wid_workflow_runs", run.id, {
+    await crudUpdate("wid_workflow_runs", run.id, {
         current_step: done ? run.current_step : next,
         status: done ? "completed" : "running",
         completed_at: done ? new Date().toISOString() : null,

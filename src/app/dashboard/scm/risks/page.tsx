@@ -65,7 +65,6 @@ export default function ScmRisksPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const code = `RSK-${String(Date.now()).slice(-6)}`;
     const crudRes2 = await crudCreate("supply_chain_risks", {
       company_id: auth.profile.company_id,
@@ -86,7 +85,6 @@ export default function ScmRisksPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("supply_chain_risks", id, { status });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {

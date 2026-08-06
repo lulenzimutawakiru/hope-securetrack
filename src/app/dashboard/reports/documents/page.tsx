@@ -67,7 +67,6 @@ export default function DocumentGeneratorPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudCreate("bi_document_jobs", {
       company_id: auth.profile.company_id,
       document_type: form.document_type,

@@ -59,7 +59,6 @@ export default function FieldWorkforcePage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `FJ-${Date.now().toString(36).toUpperCase()}`;
     const crudRes2 = await crudCreate("field_jobs", {
       company_id: auth.profile.company_id,
@@ -81,7 +80,6 @@ export default function FieldWorkforcePage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const updates: Record<string, unknown> = { status };
     if (status === "on_site") {
       updates.check_in_at = new Date().toISOString();

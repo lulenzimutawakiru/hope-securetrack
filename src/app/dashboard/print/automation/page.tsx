@@ -103,7 +103,7 @@ export default function PrintAutomationPage() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    const crudRes = await crudUpdate("prt_automation_rules", id, { is_active: !active });
+    await crudUpdate("prt_automation_rules", id, { is_active: !active });
     await load();
   };
 

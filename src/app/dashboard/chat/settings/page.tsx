@@ -57,9 +57,9 @@ export default function SecureChatSettingsPage() {
         .eq("user_id", userId)
         .maybeSingle();
       if (existing) {
-        const crudRes2 = await crudUpdate("hc_user_settings", existing.id, { theme, density, dnd_enabled: dnd });
+        await crudUpdate("hc_user_settings", existing.id, { theme, density, dnd_enabled: dnd });
       } else {
-        const crudRes = await crudCreate("hc_user_settings", {
+        await crudCreate("hc_user_settings", {
           company_id: companyId,
           user_id: userId,
           theme,

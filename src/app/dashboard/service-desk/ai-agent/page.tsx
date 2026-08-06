@@ -8,11 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  } from "@/components/ui/select";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/lib/supabase/crud-compat";
@@ -20,16 +29,13 @@ import { useUser } from "@/hooks/use-user";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { virtualAgentRun } from "@/lib/service-desk";
-import type { SentimentResult, IntentResult } from "@/lib/service-desk";
-
 const CHANNELS = ["web", "email", "whatsapp", "chat", "phone", "teams", "slack", "mobile"];
 
 const SENTIMENT_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning"> = {
   positive: "success",
   neutral: "secondary",
   negative: "warning",
-  frustrated: "destructive",
-};
+  frustrated: "destructive"};
 
 const INTENT_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning"> = {
   report_incident: "destructive",
@@ -38,8 +44,7 @@ const INTENT_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   escalation_request: "destructive",
   question: "secondary",
   acknowledgement: "success",
-  greeting: "outline",
-};
+  greeting: "outline"};
 
 export default function AiVirtualAgentPage() {
   const { auth } = useUser();
@@ -80,8 +85,7 @@ export default function AiVirtualAgentPage() {
         created_by: auth?.user?.id,
         requester_name: auth?.profile
           ? `${auth.profile.first_name} ${auth.profile.last_name}`.trim()
-          : null,
-      });
+          : null});
       setResult(r);
       toast.success(r.outcome === "ticket_created" ? `Ticket ${r.ticketNumber} created` : "Resolved by AI");
       await loadSessions();

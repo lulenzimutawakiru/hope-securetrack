@@ -45,7 +45,6 @@ export default function PeriodsPage() {
     id: string,
     status: "open" | "soft_close" | "closed" | "locked"
   ) => {
-    const supabase = createClient();
     const patch: Record<string, unknown> = { status };
     if (status === "closed" || status === "locked") {
       patch.closed_at = new Date().toISOString();

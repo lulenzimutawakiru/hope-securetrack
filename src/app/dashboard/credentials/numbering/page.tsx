@@ -52,7 +52,6 @@ export default function NumberingPage() {
 
   const save = async (row: Seq) => {
     try {
-      const supabase = createClient();
       const crudRes = await crudUpdate("wid_id_sequences", row.id, {
           name: row.name,
           prefix: row.prefix,

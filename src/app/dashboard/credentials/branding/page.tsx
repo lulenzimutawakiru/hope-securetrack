@@ -60,7 +60,6 @@ export default function BrandingPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const crudRes2 = await crudUpdate("wid_card_brands", selected.id, {
           name: selected.name,
           company_display_name: selected.company_display_name,
@@ -88,7 +87,6 @@ export default function BrandingPage() {
   const create = async () => {
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `BRAND-${Date.now().toString(36).toUpperCase()}`;
       const crudRes = await crudCreate("wid_card_brands", {
           company_id: auth.profile.company_id,

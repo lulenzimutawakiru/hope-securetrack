@@ -52,7 +52,6 @@ export default function SopPage() {
 
   const approve = async (id: string) => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("sop_cycles", id, {
         status: "approved",
         approved_by: auth.profile.id,

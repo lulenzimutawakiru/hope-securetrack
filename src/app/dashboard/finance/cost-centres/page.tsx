@@ -50,7 +50,6 @@ export default function CostCentresPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudCreate("cost_centers", {
       company_id: auth.profile.company_id,
       code: form.code,

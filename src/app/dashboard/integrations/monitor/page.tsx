@@ -38,8 +38,7 @@ export default function MonitorPage() {
   }, []);
 
   const resolve = async (id: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("intg_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
+    await crudUpdate("intg_alerts", id, { status: "resolved", resolved_at: new Date().toISOString() });
     toast.success("Alert resolved");
     await load();
   };

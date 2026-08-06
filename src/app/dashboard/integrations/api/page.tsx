@@ -55,7 +55,6 @@ export default function ApiGatewayPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `APP-${Date.now().toString(36).toUpperCase()}`;
       const crudRes2 = await crudCreate("intg_api_apps", {
           company_id: auth.profile.company_id,
@@ -69,7 +68,7 @@ export default function ApiGatewayPage() {
       const app = crudRes2.data as Record<string, unknown>;
 
       const gen = generateApiKey();
-      const crudRes = await crudCreate("intg_api_keys", {
+      await crudCreate("intg_api_keys", {
         company_id: auth.profile.company_id,
         app_id: app.id,
         key_prefix: gen.prefix,

@@ -72,7 +72,6 @@ export default function ExitPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const num = `EXIT-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
     const crudRes3 = await crudCreate("employee_exits", {
       company_id: auth.profile.company_id,
@@ -98,7 +97,6 @@ export default function ExitPage() {
     field: "assets_cleared" | "payroll_cleared" | "access_revoked",
     value: boolean
   ) => {
-    const supabase = createClient();
     const patch: Record<string, unknown> = { [field]: value };
     const row = rows.find((r) => r.id === id);
     const next = {
@@ -110,7 +108,7 @@ export default function ExitPage() {
       patch.status = "completed";
       // Terminate employee
       if (row?.employee_id) {
-        const crudRes2 = await crudUpdate("employees", row.employee_id as string, { status: "terminated", end_date: new Date().toISOString().slice(0, 10) });
+        await crudUpdate("employees", row.employee_id as string, { status: "terminated", end_date: new Date().toISOString().slice(0, 10) });
       }
     } else {
       patch.status = "in_progress";

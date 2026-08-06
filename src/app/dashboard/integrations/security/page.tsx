@@ -53,7 +53,6 @@ export default function IntegrationSecurityPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `SEC-${Date.now().toString(36).toUpperCase()}`;
       // Store as base64-ish placeholder "encrypted" value (server KMS in production)
       const value_encrypted = typeof btoa !== "undefined" ? btoa(form.value) : form.value;

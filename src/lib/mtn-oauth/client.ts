@@ -173,7 +173,7 @@ async function fetchAccessToken(): Promise<
  * Public, audited access-token request used by the route/UI.
  * Never returns the raw token - only metadata + sha256 hash.
  */
-export async function requestAccessToken(opts?: {
+export async function requestAccessToken(_opts?: {
   transactionId?: string;
 }): Promise<MtnOauthTokenResult> {
   const cfg = mtnOauthConfig();

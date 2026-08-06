@@ -8,21 +8,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { createClient } from "@/lib/supabase/crud-compat";
 import { apiPost } from "@/lib/api-client";
-import { crudCreate, crudDelete, crudUpdate } from "@/lib/api/crud-client";
+import { crudDelete, crudUpdate } from "@/lib/api/crud-client";
 import { useUser } from "@/hooks/use-user";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { BusinessDocument } from "@/lib/documents";
@@ -55,8 +69,7 @@ export default function JournalsPage() {
     description: "",
     debit_account_id: "",
     credit_account_id: "",
-    amount: "",
-  });
+    amount: ""});
 
   const load = async () => {
     const supabase = createClient();
@@ -106,16 +119,13 @@ export default function JournalsPage() {
           account_id: form.debit_account_id,
           description: form.description,
           debit: amount,
-          credit: 0,
-        },
+          credit: 0},
         {
           account_id: form.credit_account_id,
           description: form.description,
           debit: 0,
-          credit: amount,
-        },
-      ],
-    });
+          credit: amount},
+      ]});
     if (!res.ok) {
       toast.error(res.error);
       return;
@@ -129,8 +139,7 @@ export default function JournalsPage() {
     const res = await crudUpdate("gl_journals", id, {
       status: "posted",
       posted_at: new Date().toISOString(),
-      posted_by: auth?.profile.id ?? null,
-    });
+      posted_by: auth?.profile.id ?? null});
     if (!res.ok) toast.error(res.error);
     else {
       toast.success("Journal posted");
@@ -348,14 +357,12 @@ export default function JournalsPage() {
                                 description: `${acc?.account_code ?? ""} ${acc?.account_name ?? l.description ?? ""}`,
                                 quantity: 1,
                                 unit_price: Number(l.debit || l.credit || 0),
-                                amount: Number(l.debit || l.credit || 0),
-                              };
+                                amount: Number(l.debit || l.credit || 0)};
                             }),
                             subtotal: Number(r.total_debit),
                             total: Number(r.total_debit),
                             footerNote:
-                              "Double-entry journal · SecureTrack ERP Finance",
-                          };
+                              "Double-entry journal · SecureTrack ERP Finance"};
                         }}
                       />
                       {r.status === "draft" && (

@@ -145,7 +145,7 @@ export default function LostStolenPage() {
           inc.credential_id,
           `${inc.incident_type} — disabled via incident ${inc.incident_number}`
         );
-        const crudRes3 = await crudUpdate("wid_credentials", inc.credential_id, {
+        await crudUpdate("wid_credentials", inc.credential_id, {
             status: inc.incident_type === "stolen" ? "stolen" : inc.incident_type === "damaged" ? "damaged" : "lost",
             updated_at: new Date().toISOString(),
           });
@@ -160,7 +160,7 @@ export default function LostStolenPage() {
           created_by: auth.profile.id,
           auto_queue_print: true,
         });
-        const crudRes2 = await crudUpdate("wid_credentials", newCred.id, { replacement_of: inc.credential_id });
+        await crudUpdate("wid_credentials", newCred.id, { replacement_of: inc.credential_id });
         patch.replacement_credential_id = newCred.id;
       }
       if (next === "closed") {

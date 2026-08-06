@@ -54,7 +54,6 @@ export default function RemindersPage() {
   const queueReminders = async () => {
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const rows = overdue.slice(0, 20).map((i) => ({
         company_id: auth.profile!.company_id,
         invoice_id: i.id,
@@ -81,8 +80,7 @@ export default function RemindersPage() {
   };
 
   const markSent = async (id: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("bill_reminders", id, { status: "sent", sent_at: new Date().toISOString() });
+    await crudUpdate("bill_reminders", id, { status: "sent", sent_at: new Date().toISOString() });
     toast.success("Marked sent");
     await load();
   };

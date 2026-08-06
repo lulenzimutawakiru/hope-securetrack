@@ -269,7 +269,7 @@ export function printDocument(doc: BusinessDocument): void {
       try {
         frameWin.focus();
         frameWin.print();
-      } catch (e) {
+      } catch (_e) {
         cleanup();
         // Fallback: open blob URL in new tab
         printViaBlob(html, doc);

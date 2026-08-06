@@ -76,7 +76,6 @@ export default function WorkflowsSettingsPage() {
       toast.error(crudRes2.error);
       return;
     }
-    const data = crudRes2.data as Record<string, unknown>;
     toast.success("Workflow created");
     setOpen(false);
     load();

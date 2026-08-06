@@ -62,7 +62,6 @@ export default function ContractBillingPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id || !form.customer_id) return;
     try {
-      const supabase = createClient();
       const num = `CTR-${new Date().getFullYear()}-${String(rows.length + 1).padStart(4, "0")}`;
       const total = Number(form.total_value) || 0;
       const crudRes4 = await crudCreate("bill_contracts", {
@@ -150,8 +149,8 @@ export default function ContractBillingPage() {
         created_by: auth.profile.id,
         status: "draft",
       });
-      const crudRes3 = await crudUpdate("invoices", String(inv.id), { contract_id: ctr.id });
-      const crudRes2 = await crudUpdate("bill_contracts", String(ctr.id), {
+      await crudUpdate("invoices", String(inv.id), { contract_id: ctr.id });
+      await crudUpdate("bill_contracts", String(ctr.id), {
           billed_to_date: Number(ctr.billed_to_date || 0) + Number(inv.total_amount),
           next_bill_date: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
           updated_at: new Date().toISOString(),
@@ -187,7 +186,7 @@ export default function ContractBillingPage() {
         ],
         created_by: auth.profile.id,
       });
-      const crudRes = await crudUpdate("bill_contract_milestones", String(m.id), { status: "invoiced", invoice_id: inv.id });
+      await crudUpdate("bill_contract_milestones", String(m.id), { status: "invoiced", invoice_id: inv.id });
       toast.success(`Milestone invoiced as ${inv.invoice_number}`);
       await load();
     } catch (err) {

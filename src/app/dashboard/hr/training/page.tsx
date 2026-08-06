@@ -60,7 +60,6 @@ export default function TrainingPage() {
       toast.error("Select course and employee");
       return;
     }
-    const supabase = createClient();
     const crudRes2 = await crudCreate("training_enrollments", {
       company_id: auth.profile.company_id,
       course_id: courseId,
@@ -75,7 +74,6 @@ export default function TrainingPage() {
   };
 
   const complete = async (id: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("training_enrollments", id, {
         status: "completed",
         completed_at: new Date().toISOString(),

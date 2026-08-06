@@ -111,7 +111,6 @@ export default function BomPage() {
     const product = products.find((p) => p.id === form.product_id);
     setSaving(true);
     try {
-      const supabase = createClient();
       const code = form.bom_code || `BOM-${product?.product_code || "NEW"}-1`;
       const crudRes2 = await crudCreate("bom_headers", {
           company_id: companyId,

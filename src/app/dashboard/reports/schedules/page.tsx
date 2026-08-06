@@ -61,7 +61,6 @@ export default function SchedulesPage() {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const supabase = createClient();
     const crudRes3 = await crudCreate("bi_report_schedules", {
       company_id: auth.profile.company_id,
       schedule_code: form.schedule_code.toUpperCase(),
@@ -83,14 +82,12 @@ export default function SchedulesPage() {
   };
 
   const toggle = async (id: string, is_active: boolean) => {
-    const supabase = createClient();
     const crudRes2 = await crudUpdate("bi_report_schedules", id, { is_active: !is_active, updated_at: new Date().toISOString() });
     if (!crudRes2.ok) toast.error(crudRes2.error);
     else load();
   };
 
   const markRun = async (id: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("bi_report_schedules", id, { last_run_at: new Date().toISOString() });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {

@@ -60,7 +60,6 @@ export default function SkillsPage() {
   const assign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudCreate("employee_skills", {
       company_id: auth.profile.company_id,
       employee_id: form.employee_id,

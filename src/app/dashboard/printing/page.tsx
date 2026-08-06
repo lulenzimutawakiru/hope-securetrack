@@ -14,7 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+  } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -23,21 +23,20 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+  } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+  } from "@/components/ui/select";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+  } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -58,8 +57,7 @@ export default function PrintingPage() {
   const [form, setForm] = useState({
     batchId: "",
     labelType: "ream",
-    totalLabels: "50",
-  });
+    totalLabels: "50"});
 
   const load = async () => {
     const supabase = createClient();
@@ -89,7 +87,6 @@ export default function PrintingPage() {
     if (!auth) return;
     setSaving(true);
     try {
-      const supabase = createClient();
       const crudRes2 = await crudCreate("print_jobs", {
         company_id: auth.profile.company_id,
         batch_id: form.batchId,
@@ -97,8 +94,7 @@ export default function PrintingPage() {
         status: "pending",
         label_type: form.labelType,
         total_labels: parseInt(form.totalLabels, 10),
-        created_by: auth.profile.id,
-      });
+        created_by: auth.profile.id});
       if (!crudRes2.ok) throw new Error(crudRes2.error);
       toast.success("Print job created — open Label Studio to print");
       setOpen(false);
@@ -111,7 +107,6 @@ export default function PrintingPage() {
   };
 
   const updateStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const updates: Record<string, unknown> = { status };
     if (status === "printing") updates.started_at = new Date().toISOString();
     if (status === "completed") updates.completed_at = new Date().toISOString();

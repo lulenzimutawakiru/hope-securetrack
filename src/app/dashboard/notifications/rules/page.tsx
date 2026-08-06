@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Workflow, Plus, Zap } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,15 +16,18 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
-import { crudCreate, crudUpdate } from "@/lib/api/crud-client";
+import { useEntityAll } from "@/hooks/use-entity-all";
+import { useCrudMutation } from "@/hooks/use-entity-query";
 
 export default function NotificationRulesPage() {
   const { auth } = useUser();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
+  const q = useEntityAll<Record<string, unknown>>("notification_rules", {
+    sort: "event_key",
+  });
+  const rows = q.data ?? [];
+  const mutation = useCrudMutation<Record<string, unknown>>("notification_rules");
   const [open, setOpen] = useState(false);
   const [firing, setFiring] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -39,26 +42,9 @@ export default function NotificationRulesPage() {
     channels: "in_app,email",
   });
 
-  const load = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("notification_rules")
-      .select("*")
-      .order("event_key");
-    setRows(data ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
-    const supabase = createClient();
-    const crudRes2 = await crudCreate("notification_rules", {
-      company_id: auth.profile.company_id,
+    const crudRes2 = await mutation.create({
       rule_code: form.rule_code.toUpperCase(),
       name: form.name,
       event_key: form.event_key,
@@ -75,15 +61,12 @@ export default function NotificationRulesPage() {
     else {
       toast.success("Rule created");
       setOpen(false);
-      load();
     }
   };
 
   const toggle = async (id: string, is_active: boolean) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("notification_rules", id, { is_active: !is_active, updated_at: new Date().toISOString() });
+    const crudRes = await mutation.update(id, { is_active: !is_active });
     if (!crudRes.ok) toast.error(crudRes.error);
-    else load();
   };
 
   const fireEvent = async (eventKey: string) => {
@@ -123,7 +106,7 @@ export default function NotificationRulesPage() {
     }
   };
 
-  if (loading) return <LoadingState />;
+  if (q.isLoading) return <LoadingState />;
 
   return (
     <div>

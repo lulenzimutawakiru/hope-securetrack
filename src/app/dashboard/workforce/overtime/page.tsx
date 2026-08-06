@@ -69,7 +69,6 @@ export default function OvertimePage() {
       const hours = parseFloat(form.hours);
       const rate = Number(emp?.hourly_rate || 15000);
       const cost = hours * rate * 1.5;
-      const supabase = createClient();
       const crudRes2 = await crudCreate("overtime_requests", {
         company_id: auth.profile.company_id,
         employee_id: form.employee_id,
@@ -93,7 +92,6 @@ export default function OvertimePage() {
 
   const decide = async (id: string, status: "approved" | "rejected") => {
     if (!auth) return;
-    const supabase = createClient();
     const crudRes = await crudUpdate("overtime_requests", id, {
         status,
         approved_by: auth.profile.id,

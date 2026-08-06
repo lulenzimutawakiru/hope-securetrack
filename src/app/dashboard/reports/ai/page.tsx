@@ -74,7 +74,6 @@ export default function AiDecisionPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    const supabase = createClient();
     const crudRes2 = await crudCreate("bi_ai_insights", {
       company_id: auth.profile.company_id,
       insight_type: form.insight_type,
@@ -96,7 +95,6 @@ export default function AiDecisionPage() {
   };
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("bi_ai_insights", id, {
         status,
         resolved_at: status === "actioned" || status === "dismissed" ? new Date().toISOString() : null,

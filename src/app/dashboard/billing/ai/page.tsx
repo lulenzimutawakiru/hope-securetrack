@@ -88,7 +88,7 @@ export default function BillingAiPage() {
         created_by: auth.profile.id,
         status: "draft",
       });
-      const crudRes = await crudCreate("bill_ai_logs", {
+      await crudCreate("bill_ai_logs", {
         company_id: auth.profile.company_id,
         action: "generate_invoice",
         prompt,

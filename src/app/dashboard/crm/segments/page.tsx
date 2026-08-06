@@ -10,12 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  } from "@/components/ui/dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUser } from "@/hooks/use-user";
-import { createClient } from "@/lib/supabase/crud-compat";
 import { crudCreate } from "@/lib/api/crud-client";
 import { listSegments, campaignTargetHint } from "@/lib/crm";
 import { toast } from "sonner";
@@ -51,8 +55,7 @@ export default function CrmSegmentsPage() {
         name: form.name,
         description: form.description || null,
         is_dynamic: true,
-        is_active: true,
-      });
+        is_active: true});
       if (!res.ok) throw new Error(res.error);
       toast.success("Segment created");
       setOpen(false);

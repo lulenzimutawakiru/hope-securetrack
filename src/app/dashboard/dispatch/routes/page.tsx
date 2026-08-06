@@ -5,10 +5,14 @@ import { Route, Wand2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -73,8 +77,7 @@ export default function DispatchRoutesPage() {
         name,
         request_ids: selected,
         strategy: "balanced",
-        created_by: userId,
-      });
+        created_by: userId});
       toast.success(
         `Route ${res.route.route_number} · ${res.optimization.totalDistanceKm} km · score ${res.optimization.score}`
       );

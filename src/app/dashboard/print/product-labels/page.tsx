@@ -84,7 +84,7 @@ export default function ProductLabelsPage() {
         created_by: auth?.user?.id,
       });
 
-      const crudRes = await crudCreate("prt_product_label_jobs", {
+      await crudCreate("prt_product_label_jobs", {
         company_id: companyId,
         job_number,
         product_name: form.product_name,

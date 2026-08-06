@@ -87,7 +87,6 @@ export default function BillingCustomersPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = form.code || `CUS-${String(rows.length + 1).padStart(4, "0")}`;
       const crudRes = await crudCreate("customers", {
         company_id: auth.profile.company_id,

@@ -37,7 +37,6 @@ export default function DrpPage() {
   }, []);
 
   const setStatus = async (id: string, status: string) => {
-    const supabase = createClient();
     const crudRes = await crudUpdate("drp_plans", id, { status });
     if (!crudRes.ok) toast.error(crudRes.error);
     else {

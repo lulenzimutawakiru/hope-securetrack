@@ -48,7 +48,6 @@ export default function AiAssistantPage() {
         setLoading(false);
         return;
       }
-      const supabase = createClient();
       const crudRes = await crudCreate("bi_assistant_sessions", {
           company_id: auth.profile.company_id,
           user_id: auth.profile.id,

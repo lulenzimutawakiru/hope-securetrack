@@ -79,7 +79,6 @@ export default function MobileBadgePage() {
       const days = Number(form.offline_days) || 7;
       const offline = new Date();
       offline.setDate(offline.getDate() + days);
-      const supabase = createClient();
       const crudRes2 = await crudCreate("wid_mobile_badges", {
         company_id: auth.profile.company_id,
         identity_id: form.identity_id,
@@ -101,8 +100,7 @@ export default function MobileBadgePage() {
   };
 
   const revoke = async (id: string) => {
-    const supabase = createClient();
-    const crudRes = await crudUpdate("wid_mobile_badges", id, { status: "revoked", revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    await crudUpdate("wid_mobile_badges", id, { status: "revoked", revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() });
     toast.success("Mobile badge revoked");
     await load();
   };

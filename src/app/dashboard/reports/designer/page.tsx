@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { crudCreate } from "@/lib/api/crud-client";
@@ -67,7 +66,6 @@ export default function ReportDesignerPage() {
       return;
     }
     setSaving(true);
-    const supabase = createClient();
     const crudRes = await crudCreate("bi_report_definitions", {
       company_id: auth.profile.company_id,
       report_code: form.report_code.toUpperCase(),

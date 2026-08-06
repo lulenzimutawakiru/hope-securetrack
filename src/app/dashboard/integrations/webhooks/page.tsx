@@ -52,7 +52,6 @@ export default function WebhooksPage() {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
     try {
-      const supabase = createClient();
       const code = `WH-${Date.now().toString(36).toUpperCase()}`;
       const events = form.events.split(",").map((x) => x.trim()).filter(Boolean);
       const crudRes = await crudCreate("intg_webhook_subscriptions", {

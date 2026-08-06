@@ -55,7 +55,6 @@ export default function IdentityApprovalsPage() {
     e.preventDefault();
     if (!auth) return;
     const unlimited = form.is_unlimited === "true";
-    const supabase = createClient();
     const crudRes = await crudCreate("approval_authority", {
       company_id: auth.profile.company_id,
       document_type: form.document_type,
