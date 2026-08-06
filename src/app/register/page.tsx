@@ -39,6 +39,7 @@ import { COUNTRY_DEFAULTS, validateAdminPassword } from "@/lib/platform/onboardi
 type RegisterConfig = {
   public_enabled: boolean;
   invite_required: boolean;
+  signups_enabled: boolean;
   captcha_required: boolean;
   captcha_site_key: string | null;
 };
@@ -115,8 +116,19 @@ export default function RegisterTenantPage() {
     (!config?.invite_required || form.invite_code.trim().length > 0) &&
     (!config?.captcha_required || Boolean(captchaToken));
 
+  // Server reports signups closed (public off AND no invite secret configured)
+  const signupsClosed = Boolean(
+    config &&
+      (config.signups_enabled === false ||
+        (!config.public_enabled && !config.invite_required))
+  );
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (signupsClosed) {
+      toast.error("New signups are currently disabled on this platform");
+      return;
+    }
     if (!canSubmit) {
       if (!pwd.ok) toast.error(pwd.errors[0]);
       else if (form.admin_password !== form.admin_password_confirm) {
@@ -214,6 +226,27 @@ export default function RegisterTenantPage() {
               </div>
               <Button className="w-full" onClick={() => router.push("/login")}>
                 Continue to sign in
+              </Button>
+            </div>
+          ) : signupsClosed ? (
+            <div className="space-y-4 text-center">
+              <div className="flex justify-center">
+                <Shield className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-semibold">
+                  New signups are currently disabled
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Registration on this platform is temporarily closed. If you
+                  already have an account, sign in below.
+                </p>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => router.push("/login")}
+              >
+                Sign in
               </Button>
             </div>
           ) : (

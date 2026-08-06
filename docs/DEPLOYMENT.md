@@ -25,7 +25,7 @@ RESEND_API_KEY                    # email
 ```
 NODE_ENV=production
 PAYMENT_SANDBOX=false
-PLATFORM_PROVISIONING_PUBLIC=false
+PLATFORM_PROVISIONING_PUBLIC=true       # open SaaS signup on /register; false + secret = invite-only
 MFA_ENFORCE_PRIVILEGED=true       # after MFA enrollment
 DUAL_CONTROL_REQUIRED=true        # after process training
 ALLOW_PRODUCTION_SANDBOX=false
@@ -42,6 +42,16 @@ npx vercel --prod --yes
 
 Ensure build heap: package.json uses `--max-old-space-size=6144`.  
 Dashboard routes use `force-dynamic` to avoid OOM on static generation.
+
+Environment variables are baked at build time — set them in Vercel Project
+Settings → Environment Variables (Production) **before** deploying. For
+self-service signup (`/register`) you must set one of:
+
+- `PLATFORM_PROVISIONING_PUBLIC=true` — open SaaS signup (rate-limited)
+- `PLATFORM_PROVISIONING_SECRET=<invite code>` — invite-only registration
+
+Without either, `/register` returns `403 SIGNUPS_DISABLED`, no tenant/admin
+account is created, and new-user login reports "invalid credentials".
 
 ### B) Docker
 

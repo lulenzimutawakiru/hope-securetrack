@@ -109,13 +109,15 @@ export async function POST(req: Request) {
     }
 
     if (!publicEnabled && !inviteOk && !isPlatformAdmin) {
+      const canInvite = Boolean(secret);
       return NextResponse.json(
         {
           ok: false,
           error: {
-            code: "FORBIDDEN",
-            message:
-              "Public provisioning is disabled. Use an invite code or sign in as platform admin.",
+            code: canInvite ? "FORBIDDEN" : "SIGNUPS_DISABLED",
+            message: canInvite
+              ? "Public provisioning is disabled. Use an invite code or sign in as platform admin."
+              : "New signups are currently disabled on this platform. Please contact the platform administrator.",
           },
         },
         { status: 403 }
@@ -260,6 +262,7 @@ export async function GET() {
     data: {
       public_enabled: publicEnabled,
       invite_required: inviteRequired,
+      signups_enabled: publicEnabled || inviteRequired,
       captcha_required: captchaConfigured && (publicEnabled || inviteRequired),
       captcha_site_key: captchaConfigured ? siteKey : null,
       password_policy: {
