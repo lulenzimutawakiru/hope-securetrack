@@ -41,6 +41,7 @@ export {
   type PlanEntitlements,
   type SubscriptionPlanCode,
 } from "./control-plane-registry";
+export * from "./admin-console";
 export {
   generateTenantEncryptionKey,
   tenantDomainFromSlug,

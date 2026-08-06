@@ -23,6 +23,14 @@ import {
   Brain,
   Layers,
   LineChart,
+  Wallet,
+  Gauge,
+  ScrollText,
+  Fingerprint,
+  PieChart,
+  Bot,
+  ShieldCheck,
+  KeyRound,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -401,6 +409,14 @@ export default function EnterpriseCommandCenterPage() {
             { href: "/platform/users", icon: Users, title: "Users", desc: "Cross-tenant identity" },
             { href: "/platform/subscriptions", icon: CreditCard, title: "Subscriptions", desc: "Plans · licenses · trials" },
             { href: "/platform/integrations", icon: Server, title: "Integrations", desc: "Providers · webhooks · keys" },
+            { href: "/platform/analytics", icon: PieChart, title: "Analytics", desc: "Growth · revenue · trends" },
+            { href: "/platform/billing", icon: Wallet, title: "Billing", desc: "MRR · renewals · plan mix" },
+            { href: "/platform/usage", icon: Gauge, title: "Usage", desc: "Seats · API · capacity" },
+            { href: "/platform/audit", icon: ScrollText, title: "Audit logs", desc: "Immutable admin trail" },
+            { href: "/platform/sessions", icon: Fingerprint, title: "Login monitoring", desc: "Failed logins · sessions" },
+            { href: "/platform/roles", icon: KeyRound, title: "Roles", desc: "RBAC · permissions" },
+            { href: "/platform/access-reviews", icon: ShieldCheck, title: "Access reviews", desc: "Privileged attestation" },
+            { href: "/platform/assistant", icon: Bot, title: "AI assistant", desc: "Ask the control plane" },
           ].map((item) => (
             <Link
               key={item.href}

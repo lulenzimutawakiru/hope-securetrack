@@ -15,9 +15,13 @@ export type ControlPlaneCapability = {
 export const CONTROL_PLANE_CAPABILITIES: ControlPlaneCapability[] = [
   // Platform layer
   { id: "command-center", layer: "platform", title: "Command Center", href: "/platform", description: "Health, estate, security, business KPIs", roles: ["Platform Owner", "CTO", "Security", "DevOps", "Compliance"] },
+  { id: "analytics", layer: "platform", title: "Reports & Analytics", href: "/platform/analytics", description: "Platform-wide reporting, growth, revenue, usage trends", roles: ["Platform Owner", "CTO", "Compliance"] },
+  { id: "assistant", layer: "platform", title: "AI Assistant", href: "/platform/assistant", description: "Natural-language queries over the control plane", roles: ["Platform Owner", "CTO", "Security", "DevOps", "Compliance"] },
   { id: "health", layer: "platform", title: "Health & Infrastructure", href: "/platform/health", description: "Database, Redis, workers, uptime", roles: ["CTO", "DevOps"] },
   { id: "monitoring", layer: "platform", title: "Monitoring", href: "/platform/monitoring", description: "Queues, latency, errors, events", roles: ["DevOps", "CTO"] },
   { id: "security", layer: "platform", title: "Security Center", href: "/platform/security", description: "MFA, alerts, privileged access, SSO", roles: ["Security", "Platform Owner", "CTO"] },
+  { id: "audit", layer: "platform", title: "Audit Log Explorer", href: "/platform/audit", description: "Immutable admin, tenant, and security audit trail", roles: ["Security", "Compliance", "Platform Owner"] },
+  { id: "sessions", layer: "platform", title: "Login Monitoring", href: "/platform/sessions", description: "Failed logins, sessions, and access anomalies", roles: ["Security", "Platform Owner"] },
   { id: "compliance", layer: "platform", title: "Audit & Compliance", href: "/platform/compliance", description: "Dual control, legal hold, evidence", roles: ["Compliance", "Security"] },
   { id: "governance", layer: "platform", title: "Data Governance", href: "/platform/governance", description: "Isolation, retention, residency", roles: ["Compliance", "Security"] },
   { id: "ai", layer: "platform", title: "AI Administration", href: "/platform/ai", description: "Providers, limits, tenant AI isolation", roles: ["CTO", "Security"] },
@@ -39,9 +43,13 @@ export const CONTROL_PLANE_CAPABILITIES: ControlPlaneCapability[] = [
   { id: "tenants", layer: "tenant", title: "Tenant Management", href: "/platform/tenants", description: "Full CRUD + isolation controls", roles: ["Platform Owner"] },
   { id: "provisioning", layer: "tenant", title: "Provisioning Engine", href: "/platform/provisioning", description: "Automated tenant ready workflow", roles: ["Platform Owner"] },
   { id: "subscriptions", layer: "tenant", title: "Subscriptions", href: "/platform/subscriptions", description: "Plans, seats, upgrade/downgrade", roles: ["Platform Owner"] },
+  { id: "billing", layer: "tenant", title: "Billing & Invoices", href: "/platform/billing", description: "MRR, renewals, payment status, dunning", roles: ["Platform Owner"] },
+  { id: "usage", layer: "tenant", title: "Usage Metering", href: "/platform/usage", description: "Seats, storage, API, and module consumption", roles: ["Platform Owner", "DevOps", "CTO"] },
   { id: "modules", layer: "tenant", title: "Module Management", href: "/platform/modules", description: "Enable/disable ERP modules", roles: ["Platform Owner"] },
   { id: "flags", layer: "tenant", title: "Feature Flags", href: "/platform/flags", description: "Per-tenant capability toggles", roles: ["Platform Owner", "DevOps"] },
   { id: "users", layer: "tenant", title: "User Administration", href: "/platform/users", description: "Estate-wide identity", roles: ["Security", "Platform Owner"] },
+  { id: "roles", layer: "tenant", title: "Roles & Permissions", href: "/platform/roles", description: "RBAC roles, permissions, platform access matrix", roles: ["Platform Owner", "Security", "CTO"] },
+  { id: "access-reviews", layer: "tenant", title: "Access Reviews", href: "/platform/access-reviews", description: "Privileged access attestation and reviews", roles: ["Platform Owner", "Security", "Compliance"] },
   // Company layer
   { id: "companies", layer: "company", title: "Company Administration", href: "/platform/companies", description: "Legal entities under tenants", roles: ["Platform Owner"] },
 ];

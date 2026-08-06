@@ -46,6 +46,13 @@ import {
   LifeBuoy,
   Settings2,
   Palette,
+  Wallet,
+  Gauge,
+  ScrollText,
+  Fingerprint,
+  PieChart,
+  Bot,
+  ShieldCheck,
   Search,
   Sun,
   Moon,
@@ -80,44 +87,91 @@ type NavItem = {
   exact?: boolean;
 };
 
-const PLATFORM_NAV: NavItem[] = [
-  { title: "Command Center", href: "/platform", icon: LayoutDashboard, cap: "command-center", exact: true },
-  { title: "Health & Infra", href: "/platform/health", icon: HeartPulse, cap: "health" },
-  { title: "Monitoring", href: "/platform/monitoring", icon: LineChart, cap: "monitoring" },
-  { title: "Security Center", href: "/platform/security", icon: Shield, cap: "security" },
-  { title: "Audit & Compliance", href: "/platform/compliance", icon: Scale, cap: "compliance" },
-  { title: "Data Governance", href: "/platform/governance", icon: Database, cap: "governance" },
-  { title: "AI Administration", href: "/platform/ai", icon: Brain, cap: "ai" },
-  { title: "Integration Center", href: "/platform/integrations", icon: Plug, cap: "integrations" },
-  { title: "API Management", href: "/platform/api", icon: KeyRound, cap: "api" },
-  { title: "Storage", href: "/platform/storage", icon: HardDrive, cap: "storage" },
-  { title: "Database Admin", href: "/platform/database", icon: Database, cap: "database" },
-  { title: "Backup & DR", href: "/platform/backup", icon: Archive, cap: "backup" },
-  { title: "Deployment", href: "/platform/deploy", icon: Rocket, cap: "deploy" },
-  { title: "Notifications", href: "/platform/notifications", icon: Bell, cap: "notifications" },
-  { title: "Support Center", href: "/platform/support", icon: LifeBuoy, cap: "support" },
-  { title: "System Config", href: "/platform/config", icon: Settings2, cap: "config" },
-  { title: "Customization Studio", href: "/platform/studio", icon: Palette, cap: "studio" },
-  { title: "Workflows", href: "/platform/workflows", icon: GitBranch, cap: "workflows" },
-  { title: "Background Jobs", href: "/platform/jobs", icon: Server, cap: "jobs" },
-  { title: "Events", href: "/platform/events", icon: Activity, cap: "events" },
-  { title: "Ops / Elevation", href: "/platform/ops", icon: Sparkles, cap: "ops" },
+const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
+  {
+    label: "Dashboard",
+    items: [
+      { title: "Command Center", href: "/platform", icon: LayoutDashboard, cap: "command-center", exact: true },
+    ],
+  },
+  {
+    label: "Tenant Management",
+    items: [
+      { title: "Tenant Management", href: "/platform/tenants", icon: Building2, cap: "tenants" },
+      { title: "Provisioning Engine", href: "/platform/provisioning", icon: Workflow, cap: "provisioning" },
+      { title: "Subscriptions", href: "/platform/subscriptions", icon: CreditCard, cap: "subscriptions" },
+      { title: "Module Management", href: "/platform/modules", icon: Layers, cap: "modules" },
+      { title: "Feature Flags", href: "/platform/flags", icon: Flag, cap: "flags" },
+      { title: "User Administration", href: "/platform/users", icon: Users, cap: "users" },
+      { title: "Company Administration", href: "/platform/companies", icon: Briefcase, cap: "companies" },
+    ],
+  },
+  {
+    label: "Subscription & Billing",
+    items: [
+      { title: "Billing Overview", href: "/platform/billing", icon: Wallet, cap: "billing" },
+      { title: "Usage Metering", href: "/platform/usage", icon: Gauge, cap: "usage" },
+    ],
+  },
+  {
+    label: "Security Center",
+    items: [
+      { title: "Security Center", href: "/platform/security", icon: Shield, cap: "security" },
+      { title: "Audit Log Explorer", href: "/platform/audit", icon: ScrollText, cap: "audit" },
+      { title: "Login Monitoring", href: "/platform/sessions", icon: Fingerprint, cap: "sessions" },
+      { title: "Audit & Compliance", href: "/platform/compliance", icon: Scale, cap: "compliance" },
+      { title: "Data Governance", href: "/platform/governance", icon: Database, cap: "governance" },
+      { title: "Ops / Elevation", href: "/platform/ops", icon: Sparkles, cap: "ops" },
+    ],
+  },
+  {
+    label: "Identity & Access",
+    items: [
+      { title: "Roles & Permissions", href: "/platform/roles", icon: KeyRound, cap: "roles" },
+      { title: "Access Reviews", href: "/platform/access-reviews", icon: ShieldCheck, cap: "access-reviews" },
+    ],
+  },
+  {
+    label: "Platform Operations",
+    items: [
+      { title: "Health & Infra", href: "/platform/health", icon: HeartPulse, cap: "health" },
+      { title: "Monitoring", href: "/platform/monitoring", icon: LineChart, cap: "monitoring" },
+      { title: "Background Jobs", href: "/platform/jobs", icon: Server, cap: "jobs" },
+      { title: "Events", href: "/platform/events", icon: Activity, cap: "events" },
+      { title: "Notifications", href: "/platform/notifications", icon: Bell, cap: "notifications" },
+      { title: "Integration Center", href: "/platform/integrations", icon: Plug, cap: "integrations" },
+      { title: "API Management", href: "/platform/api", icon: KeyRound, cap: "api" },
+      { title: "Support Center", href: "/platform/support", icon: LifeBuoy, cap: "support" },
+      { title: "Workflows", href: "/platform/workflows", icon: GitBranch, cap: "workflows" },
+      { title: "AI Administration", href: "/platform/ai", icon: Brain, cap: "ai" },
+    ],
+  },
+  {
+    label: "Infrastructure",
+    items: [
+      { title: "Storage", href: "/platform/storage", icon: HardDrive, cap: "storage" },
+      { title: "Database Admin", href: "/platform/database", icon: Database, cap: "database" },
+      { title: "Backup & DR", href: "/platform/backup", icon: Archive, cap: "backup" },
+      { title: "Deployment", href: "/platform/deploy", icon: Rocket, cap: "deploy" },
+    ],
+  },
+  {
+    label: "Reports & Analytics",
+    items: [
+      { title: "Reports & Analytics", href: "/platform/analytics", icon: PieChart, cap: "analytics" },
+      { title: "AI Assistant", href: "/platform/assistant", icon: Bot, cap: "assistant" },
+    ],
+  },
+  {
+    label: "System Settings",
+    items: [
+      { title: "System Config", href: "/platform/config", icon: Settings2, cap: "config" },
+      { title: "Customization Studio", href: "/platform/studio", icon: Palette, cap: "studio" },
+    ],
+  },
 ];
 
-const TENANT_NAV: NavItem[] = [
-  { title: "Tenant Management", href: "/platform/tenants", icon: Building2, cap: "tenants" },
-  { title: "Provisioning Engine", href: "/platform/provisioning", icon: Workflow, cap: "provisioning" },
-  { title: "Subscriptions", href: "/platform/subscriptions", icon: CreditCard, cap: "subscriptions" },
-  { title: "Module Management", href: "/platform/modules", icon: Layers, cap: "modules" },
-  { title: "Feature Flags", href: "/platform/flags", icon: Flag, cap: "flags" },
-  { title: "User Administration", href: "/platform/users", icon: Users, cap: "users" },
-];
-
-const COMPANY_NAV: NavItem[] = [
-  { title: "Company Administration", href: "/platform/companies", icon: Briefcase, cap: "companies" },
-];
-
-const ALL_NAV = [...PLATFORM_NAV, ...TENANT_NAV, ...COMPANY_NAV];
+const ALL_NAV = NAV_SECTIONS.flatMap((s) => s.items);
 
 function NavSection({
   label,
@@ -196,6 +250,14 @@ function ControlPalette({
       "monitoring",
       "ai",
       "users",
+      "billing",
+      "usage",
+      "analytics",
+      "assistant",
+      "audit",
+      "sessions",
+      "roles",
+      "access-reviews",
     ]);
     return allowed.filter((c) => ids.has(c.id));
   }, [allowed]);
@@ -308,21 +370,18 @@ export function PlatformShell({
   const pathDenied =
     capability != null && !roleCanAccessCapability(staffRole, capability.id);
 
-  const visible = useMemo(() => {
-    const filter = (items: NavItem[]) =>
-      items.filter((i) => roleCanAccessCapability(staffRole, i.cap));
-    return {
-      platform: filter(PLATFORM_NAV),
-      tenant: filter(TENANT_NAV),
-      company: filter(COMPANY_NAV),
-    };
-  }, [staffRole]);
+  const visibleSections = useMemo(
+    () =>
+      NAV_SECTIONS.map((section) => ({
+        label: section.label,
+        items: section.items.filter((i) =>
+          roleCanAccessCapability(staffRole, i.cap)
+        ),
+      })).filter((s) => s.items.length > 0),
+    [staffRole]
+  );
 
-  const allMobile = [
-    ...visible.platform.slice(0, 8),
-    ...visible.tenant,
-    ...visible.company,
-  ];
+  const allMobile = visibleSections.flatMap((s) => s.items).slice(0, 12);
 
   const capabilityTitle = capability
     ? CONTROL_PLANE_CAPABILITIES.find((c) => c.id === capability.id)?.title
@@ -390,21 +449,14 @@ export function PlatformShell({
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 min-h-0">
         <aside className="hidden md:flex w-64 shrink-0 flex-col border-r bg-muted/15 p-2 overflow-y-auto">
-          <NavSection
-            label="1 - Platform Administration"
-            items={visible.platform}
-            pathname={pathname}
-          />
-          <NavSection
-            label="2 - Tenant Administration"
-            items={visible.tenant}
-            pathname={pathname}
-          />
-          <NavSection
-            label="3 - Company Administration"
-            items={visible.company}
-            pathname={pathname}
-          />
+          {visibleSections.map((section) => (
+            <NavSection
+              key={section.label}
+              label={section.label}
+              items={section.items}
+              pathname={pathname}
+            />
+          ))}
           <div className="mt-auto p-2 text-[10px] text-muted-foreground leading-snug">
             {capabilityTitle ? (
               <>
