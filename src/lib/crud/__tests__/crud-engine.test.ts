@@ -349,6 +349,23 @@ describe("crud engine ? mutations", () => {
     expect(auditPayload.action).toBe("sales_leads.create");
   });
 
+  it("publishes a {entity}.created domain event scoped to the session", async () => {
+    const { sb, calls } = makeFake({});
+    await createEntity(scope, "sales_leads", { company_name: "Acme" }, { sb });
+    const event = calls.find(
+      (c) => c.method === "insert" && c.table === "domain_events"
+    );
+    expect(event).toBeDefined();
+    const payload = event!.args[0] as Record<string, unknown>;
+    expect(payload.event_type).toBe("sales_leads.created");
+    expect(payload.aggregate_type).toBe("sales_leads");
+    expect(payload.tenant_id).toBe(TENANT);
+    expect(payload.company_id).toBe(COMPANY);
+    expect(payload.actor_id).toBe(USER);
+    expect(payload.status).toBe("pending");
+    expect(payload.severity).toBe("info");
+  });
+
   it("maps insert errors to VALIDATION / 400", async () => {
     const { sb } = makeFake({ error: { message: "duplicate key" } });
     await expect(

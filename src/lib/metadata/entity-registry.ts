@@ -65,6 +65,106 @@ export type EntityPermissions =
   | string
   | { view?: string; create?: string; update?: string; delete?: string };
 
+/**
+ * Universal Business Object capabilities. Every registered entity exposes the
+ * full capability surface by default so modules never re-implement common
+ * object services (timeline, attachments, comments, QR, tags, AI, approvals,
+ * audit, …). Individual entities may opt out via `defineEntity(..., { capabilities })`.
+ */
+export type EntityCapabilities = {
+  /** Attachments / file storage (object storage). */
+  attachments: boolean;
+  /** Photo collection. */
+  photos: boolean;
+  /** Threaded comments. */
+  comments: boolean;
+  /** Free-form notes. */
+  notes: boolean;
+  /** Activity stream. */
+  activities: boolean;
+  /** Tasks / to-dos. */
+  tasks: boolean;
+  /** Related records / links. */
+  relatedRecords: boolean;
+  /** Timeline of state changes. */
+  timeline: boolean;
+  /** QR code identity. */
+  qrCode: boolean;
+  /** Barcode identity. */
+  barcode: boolean;
+  /** RFID identity. */
+  rfid: boolean;
+  /** Digital signature capture. */
+  digitalSignature: boolean;
+  /** Tags / labels. */
+  tags: boolean;
+  /** Custom fields (metadata-driven). */
+  customFields: boolean;
+  /** AI insights panel. */
+  aiInsights: boolean;
+  /** Risk scoring. */
+  riskScore: boolean;
+  /** Notifications. */
+  notifications: boolean;
+  /** Immutable audit trail. */
+  auditTrail: boolean;
+  /** Version history. */
+  versionHistory: boolean;
+  /** Search index. */
+  searchIndex: boolean;
+  /** Auto-generated API endpoint. */
+  apiEndpoint: boolean;
+  /** Lifecycle approvals / dual control. */
+  approvals: boolean;
+  /** Configurable workflow triggers. */
+  workflow: boolean;
+  /** Import. */
+  import: boolean;
+  /** Export. */
+  export: boolean;
+  /** Bulk operations. */
+  bulk: boolean;
+  /** RBAC + ABAC permissions. */
+  permissions: boolean;
+  /** Encryption at rest. */
+  encryption: boolean;
+  /** Data retention policy. */
+  dataRetention: boolean;
+};
+
+/** Default capability surface — everything on unless an entity opts out. */
+export const DEFAULT_CAPABILITIES: EntityCapabilities = {
+  attachments: true,
+  photos: true,
+  comments: true,
+  notes: true,
+  activities: true,
+  tasks: true,
+  relatedRecords: true,
+  timeline: true,
+  qrCode: true,
+  barcode: true,
+  rfid: true,
+  digitalSignature: true,
+  tags: true,
+  customFields: true,
+  aiInsights: true,
+  riskScore: true,
+  notifications: true,
+  auditTrail: true,
+  versionHistory: true,
+  searchIndex: true,
+  apiEndpoint: true,
+  approvals: true,
+  workflow: true,
+  import: true,
+  export: true,
+  bulk: true,
+  permissions: true,
+  encryption: true,
+  dataRetention: true,
+};
+
 export interface EntityDefinition {
   /** Logical name used in API routes, e.g. "employees" (snake_case). */
   entity: string;
@@ -111,6 +211,8 @@ export interface EntityDefinition {
     onDelete?: string;
     onApprove?: string;
   };
+  /** Universal Business Object capability surface (defaults to all-on). */
+  capabilities: EntityCapabilities;
 }
 
 /**
@@ -147,7 +249,15 @@ export type DefineEntityOptions = {
   hasCreatedAt?: boolean;
   hasUpdatedAt?: boolean;
   workflows?: EntityDefinition["workflows"];
+  capabilities?: Partial<EntityCapabilities>;
 };
+
+/** Sorted catalog of every registered Business Object definition. */
+export function getEntityCatalog(): EntityDefinition[] {
+  return Object.values(ENTITY_REGISTRY).sort((a, b) =>
+    a.entity.localeCompare(b.entity)
+  );
+}
 
 function defaultSortable(opts: DefineEntityOptions): string[] | undefined {
   if (opts.sortable) return opts.sortable;
@@ -198,6 +308,7 @@ export function defineEntity(
     hasCreatedAt: opts.hasCreatedAt,
     hasUpdatedAt: opts.hasUpdatedAt,
     workflows: opts.workflows,
+    capabilities: { ...DEFAULT_CAPABILITIES, ...opts.capabilities },
   };
 
   ENTITY_REGISTRY[entity] = def;

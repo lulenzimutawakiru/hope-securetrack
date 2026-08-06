@@ -29,6 +29,7 @@ import "@/lib/metadata/register-entity-page-tables";
 import { createClient } from "@/lib/supabase/server";
 import { assertTenantAndCompany } from "@/lib/tenant/context";
 import { enqueueJob } from "@/lib/jobs/queue";
+import { publishEntityEventSafe } from "@/lib/events/bus";
 import { log } from "@/lib/observability/logger";
 import { sanitizePostgrestFilter } from "@/lib/security/shared";
 import { validatePayload } from "@/lib/crud/entity-schemas";
@@ -278,6 +279,39 @@ async function enqueueWorkflow(
   }
 }
 
+/**
+ * Publish a `{entity}.{action}` domain event (non-blocking, best-effort).
+ * Tenant/company/actor are derived from the session scope, so downstream
+ * consumers can never cross tenant boundaries.
+ */
+async function publishCrudEvent(
+  sb: SupabaseClient,
+  scope: CrudScope,
+  def: EntityDefinition,
+  action:
+    | "created"
+    | "updated"
+    | "deleted"
+    | "restored"
+    | "archived"
+    | "imported",
+  record: Record<string, unknown>,
+  extraPayload?: Record<string, unknown>
+): Promise<void> {
+  await publishEntityEventSafe({
+    sb,
+    scope: {
+      userId: scope.userId,
+      companyId: scope.companyId,
+      tenantId: scope.tenantId,
+    },
+    def,
+    action,
+    record,
+    extraPayload,
+  });
+}
+
 function parseFilters(raw: ListOptions["filters"]): Record<string, unknown> {
   if (!raw) return {};
   if (typeof raw !== "string") return raw;
@@ -452,6 +486,7 @@ export async function createEntity<T = Record<string, unknown>>(
     afterState: row,
     metadata: { entityId: row[def.primaryKey] ?? null },
   });
+  await publishCrudEvent(sb, scope, def, "created", row);
   await enqueueWorkflow(sb, scope, def, "onCreate", row);
   return row as T;
 }
@@ -495,6 +530,7 @@ export async function updateEntity<T = Record<string, unknown>>(
     afterState: row,
     metadata: { entityId: id },
   });
+  await publishCrudEvent(sb, scope, def, "updated", row);
   await enqueueWorkflow(sb, scope, def, "onUpdate", row);
   return row as T;
 }
@@ -543,6 +579,10 @@ export async function deleteEntity(
     entityId: id,
     beforeState: existing,
     metadata: { id, soft: Boolean(def.softDelete) },
+  });
+  await publishCrudEvent(sb, scope, def, "deleted", {
+    id,
+    ...existing,
   });
   await enqueueWorkflow(sb, scope, def, "onDelete", { id, ...existing });
   return { id, deleted: true, soft: Boolean(def.softDelete) };
@@ -596,6 +636,7 @@ export async function restoreEntity<T = Record<string, unknown>>(
     afterState: row,
     metadata: { entityId: id },
   });
+  await publishCrudEvent(sb, scope, def, "restored", row);
   return row as T;
 }
 
@@ -643,6 +684,7 @@ export async function archiveEntity<T = Record<string, unknown>>(
     afterState: row,
     metadata: { entityId: id },
   });
+  await publishCrudEvent(sb, scope, def, "archived", row);
   return row as T;
 }
 
@@ -730,6 +772,13 @@ export async function importEntities(
     module: def.module,
     entityType: def.entity,
     metadata: { count: inserted.length, jobId },
+  });
+  await publishCrudEvent(sb, scope, def, "imported", {
+    id: null,
+  }, {
+    count: inserted.length,
+    jobId,
+    importedById: scope.userId,
   });
   return { inserted: inserted.length, jobId };
 }

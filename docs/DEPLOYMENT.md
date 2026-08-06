@@ -74,6 +74,43 @@ npx supabase db push
 
 Apply all migrations through `20260101000067_security_controls_complete.sql`.
 
+## First users
+
+Seed the first tenant administrator before onboarding end users:
+
+```bash
+node scripts/bootstrap-users.mjs admin@example.com First Last \
+  --password '<temp-password>' \
+  --tenant hope-design --company HDG --branch HQ
+```
+
+The script:
+- Creates the Supabase Auth user via the service-role admin API (email confirmed,
+  operator-supplied temporary password — never auto-generated).
+- Upserts `user_profiles` scoped to `tenant_id` / `company_id` / `branch_id` /
+  `role_id` (default role `super_administrator`), records the primary role in
+  `idm_user_roles`, and writes an `idm_audit` entry.
+- Forces a password change on first login and enforces MFA for admins (HDG
+  `security_policies`: `force_reset_on_first_login=true`,
+  `password_expiry_days=90`, `min_password_length=10`).
+- `--dry-run` resolves the tenant/company/branch/role and reports what would be
+  written without touching the database.
+- SecureTrack staff platform admins use `--staff --platform-role
+  <owner|cto|security|devops|compliance>` (Control Plane at `/platform`).
+
+Tenant administrators then create further users directly in the app:
+- **Identity → Create Account** (`/dashboard/identity/create`) with **Create &
+  activate** — the request is created `admin_approved` and provisioned
+  immediately (dual-control is bypassed for admins acting inside their own
+  tenant; RBAC, MFA enforcement, and tenant isolation still apply).
+- **Identity → User directory** (`/dashboard/identity/users`) → **Create
+  account** uses the same direct flow.
+- Non-administrator user types default to the standard approval flow.
+
+The database already contains seeded demo accounts (JORLEN TECHNOLOGIES, HOPE
+DESIGN staff, and legacy HDG profiles); `admin@hopedesign.co.ke` is the
+canonical first tenant admin referenced by deployment scripts.
+
 ## Post-deploy checklist
 
 1. `/api/health` returns healthy  
