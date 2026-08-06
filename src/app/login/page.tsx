@@ -200,6 +200,9 @@ export default function LoginPage() {
 
       await callLoginGuard("success");
 
+      // SecureTrack staff (is_platform_admin, no tenant) land on the Control
+      // Plane after sign-in instead of the tenant ERP dashboard.
+      let staffDefault: string | null = null;
       if (data.user) {
         try {
           await supabase.rpc("record_login_event", {
@@ -213,7 +216,7 @@ export default function LoginPage() {
           });
           const { data: profile } = await supabase
             .from("user_profiles")
-            .select("company_id")
+            .select("company_id,is_platform_admin,tenant_id")
             .eq("id", data.user.id)
             .maybeSingle();
           await supabase.from("user_sessions").insert({
@@ -228,6 +231,9 @@ export default function LoginPage() {
             is_active: true,
             last_seen_at: new Date().toISOString(),
           });
+          if (profile?.is_platform_admin && !profile.tenant_id) {
+            staffDefault = "/platform";
+          }
         } catch {
           /* non-fatal if IAM tables not ready */
         }
@@ -250,7 +256,7 @@ export default function LoginPage() {
             !next.includes("\\") &&
             /^\/[a-zA-Z0-9/_\-?=&%.]*$/.test(next)
               ? next
-              : "/dashboard";
+              : (staffDefault ?? "/dashboard");
           toast.message("Enter your authenticator code to continue");
           router.push(`/mfa?next=${encodeURIComponent(safe)}`);
           router.refresh();
@@ -270,7 +276,7 @@ export default function LoginPage() {
         !next.includes("\\") &&
         /^\/[a-zA-Z0-9/_\-?=&%.]*$/.test(next)
           ? next
-          : "/dashboard";
+          : (staffDefault ?? "/dashboard");
       router.push(safe);
       router.refresh();
     } catch {
