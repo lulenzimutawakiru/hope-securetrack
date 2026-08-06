@@ -3,7 +3,11 @@
  * Pure logic always runs; live API path requires INTEGRATION_TESTS + credentials.
  */
 import { describe, it, expect, beforeAll } from "vitest";
-import type { DualControlAction } from "@/lib/security/dual-control";
+import {
+  assertDualControl,
+  identityDualControlRequired,
+  type DualControlAction,
+} from "@/lib/security/dual-control";
 import {
   applyTransition,
   createInstance,
@@ -171,4 +175,56 @@ describe("live dual-control API (optional)", () => {
       }
     }
   );
+});
+
+describe("identity dual-control policy", () => {
+  it("tenant admins activate directly without a dual-control id", () => {
+    expect(
+      identityDualControlRequired({ isPlatformAdmin: false, dualControlId: null })
+    ).toBe(false);
+    expect(identityDualControlRequired({ isPlatformAdmin: false })).toBe(false);
+  });
+
+  it("tenant admins can still opt into voluntary dual control", () => {
+    expect(
+      identityDualControlRequired({
+        isPlatformAdmin: false,
+        dualControlId: "00000000-0000-4000-8000-000000000099",
+      })
+    ).toBe(true);
+  });
+
+  it("platform staff keep the production default", () => {
+    expect(
+      identityDualControlRequired({ isPlatformAdmin: true, dualControlId: null })
+    ).toBeUndefined();
+    expect(
+      identityDualControlRequired({
+        isPlatformAdmin: true,
+        dualControlId: "00000000-0000-4000-8000-000000000099",
+      })
+    ).toBeUndefined();
+  });
+});
+
+describe("assertDualControl tenant-admin contract", () => {
+  it("allows direct activation when required:false", async () => {
+    const r = await assertDualControl({
+      company_id: "c1",
+      action: "identity.provision",
+      actor_id: "u1",
+      required: false,
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("fail-closes when required and no approved request is supplied", async () => {
+    const r = await assertDualControl({
+      company_id: "c1",
+      action: "identity.provision",
+      actor_id: "u1",
+      required: true,
+    });
+    expect(r.ok).toBe(false);
+  });
 });

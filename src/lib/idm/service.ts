@@ -257,7 +257,11 @@ export async function activateProvisionRequest(
   const res = await fetch("/api/identity/provision", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ request_id: requestId, actor_id: actorId }),
+    body: JSON.stringify({
+      request_id: requestId,
+      actor_id: actorId,
+      return_password: true,
+    }),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Provisioning failed");
@@ -390,6 +394,7 @@ export async function forcePasswordReset(input: {
       user_id: input.user_id,
       actor_id: input.actor_id,
       company_id: input.company_id,
+      return_password: true,
     }),
   });
   const json = await res.json();

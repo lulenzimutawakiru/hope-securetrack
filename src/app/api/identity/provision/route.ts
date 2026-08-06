@@ -7,7 +7,10 @@ import {
   passwordExpiresAt,
   simpleHashHint,
 } from "@/lib/idm/password";
-import { assertDualControl } from "@/lib/security/dual-control";
+import {
+  assertDualControl,
+  identityDualControlRequired,
+} from "@/lib/security/dual-control";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,6 +63,13 @@ export const POST = createApiHandler(
       action: "identity.provision",
       actor_id: ctx.user.id,
       request_id: data.dual_control_id,
+      // Tenant admins creating users inside their own tenant activate directly
+      // (RBAC + MFA + tenant isolation still enforced). Platform staff acting
+      // cross-tenant keep dual-control in production.
+      required: identityDualControlRequired({
+        isPlatformAdmin: ctx.isPlatformAdmin,
+        dualControlId: data.dual_control_id,
+      }),
     });
     if (!dc.ok) {
       return NextResponse.json(

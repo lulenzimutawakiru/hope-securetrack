@@ -43,6 +43,19 @@ export function dualControlEnforcementEnabled(): boolean {
 }
 
 /**
+ * Dual-control policy for identity actions (user provisioning / password reset).
+ * Tenant admins acting inside their own tenant execute directly unless they
+ * voluntarily supply an approved dual-control request. Platform staff acting
+ * cross-tenant keep the production default (dual control required).
+ */
+export function identityDualControlRequired(input: {
+  isPlatformAdmin: boolean;
+  dualControlId?: string | null;
+}): boolean | undefined {
+  return input.isPlatformAdmin ? undefined : Boolean(input.dualControlId);
+}
+
+/**
  * Ensure dual-control table exists usage via try/catch if migration lagging.
  * Request approval: maker creates; checker approves; execute only when approved.
  */
