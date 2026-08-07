@@ -9,6 +9,8 @@ import { Reveal } from "@/components/marketing/reveal";
 import { Card, CardContent } from "@/components/ui/card";
 import { CtaSection } from "@/components/marketing/home-sections";
 import { LEARNING_ITEMS, DEVELOPER_FEATURES } from "@/lib/marketing/data";
+import { ImageBand } from "@/components/marketing/image-band";
+import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "Resources",
@@ -25,6 +27,12 @@ export default function ResourcesPage() {
           title="Learn, build, and certify on SecureTrack"
           subtitle="From guided tours to developer documentation, everything you need to master the platform and accelerate adoption."
           primaryCta={{ label: "Start Free Trial", href: "/register" }}
+        />
+        <ImageBand
+          src={IMAGES.education}
+          alt="SecureTrack Academy, documentation, certifications, and developer resources"
+          kicker="Learn, build, certify"
+          caption="Guided tours, certification, and developer docs to accelerate adoption and mastery."
         />
         <Section>
           <SectionHeader eyebrow="Learning center" title="Become an expert" />

@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CtaSection } from "@/components/marketing/home-sections";
 import { PRICING_PLANS } from "@/lib/marketing/data";
+import { ImageBand } from "@/components/marketing/image-band";
+import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -28,6 +30,12 @@ export default function PricingPage() {
           subtitle="Every plan includes multi-tenant security, automated backups, the mobile app, and guided onboarding. Upgrade, downgrade, or add modules anytime."
           primaryCta={{ label: "Start Free Trial", href: "/register" }}
           secondaryCta={{ label: "Talk to sales", href: "/contact" }}
+        />
+        <ImageBand
+          src={IMAGES.banking}
+          alt="Simple, transparent pricing for organizations at every stage of growth"
+          kicker="Plans for every stage"
+          caption="Start free, scale to enterprise — upgrade, downgrade, or add modules and seats anytime."
         />
         <Section>
           <div className="grid gap-4 lg:grid-cols-4">

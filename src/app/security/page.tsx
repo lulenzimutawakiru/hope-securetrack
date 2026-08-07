@@ -8,6 +8,8 @@ import { Reveal } from "@/components/marketing/reveal";
 import { Card, CardContent } from "@/components/ui/card";
 import { CtaSection } from "@/components/marketing/home-sections";
 import { SECURITY_FEATURES, TRUST_BADGES } from "@/lib/marketing/data";
+import { ImageBand } from "@/components/marketing/image-band";
+import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "Security",
@@ -32,6 +34,12 @@ export default function SecurityPage() {
           subtitle="Zero-trust architecture and military-grade tenant isolation protect every record, file, query, and AI response. Security is built into the platform — not bolted on."
           primaryCta={{ label: "Start Free Trial", href: "/register" }}
           secondaryCta={{ label: "Talk to security team", href: "/contact" }}
+        />
+        <ImageBand
+          src={IMAGES.serverRoom}
+          alt="Enterprise data center powering SecureTrack cloud infrastructure"
+          kicker="Zero trust by default"
+          caption="Military-grade tenant isolation, encryption, and immutable audit across every layer of the stack."
         />
         <Section>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

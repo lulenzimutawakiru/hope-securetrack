@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { ImageBand } from "@/components/marketing/image-band";
+import { IMAGES } from "@/lib/marketing/images";
 import { Hero } from "@/components/marketing/hero";
 import {
   StatsSection, ExperienceSection, AiDemoSection, IndustriesSection, ModulesSection,
@@ -38,6 +40,8 @@ const jsonLd = {
   ],
 };
 
+export const revalidate = 300;
+
 export default function HomePage() {
   return (
     <>
@@ -48,6 +52,12 @@ export default function HomePage() {
       <SiteHeader />
       <main>
         <Hero />
+        <ImageBand
+          src={IMAGES.collaboration}
+          alt="Finance, HR, manufacturing, supply chain, and AI teams working from one intelligent platform"
+          kicker="One platform, every department"
+          caption="From the boardroom to the shop floor, every team runs on the same secure, AI-powered source of truth."
+        />
         <StatsSection />
         <ExperienceSection />
         <AiDemoSection />

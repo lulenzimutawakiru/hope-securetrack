@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CtaSection } from "@/components/marketing/home-sections";
 import { MODULES } from "@/lib/marketing/data";
+import { ImageBand } from "@/components/marketing/image-band";
+import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "Modules",
@@ -26,6 +28,12 @@ export default function ModulesPage() {
           subtitle="31 integrated modules share one database, one security model, one workflow engine, and one AI brain. Explore each module below."
           primaryCta={{ label: "Start Free Trial", href: "/register" }}
           secondaryCta={{ label: "See the live demo", href: "/#experience" }}
+        />
+        <ImageBand
+          src={IMAGES.warehouse}
+          alt="Connected ERP modules spanning finance, manufacturing, inventory, and the warehouse"
+          kicker="31 integrated modules"
+          caption="One database, one security model, one workflow engine, one AI brain — every module stays connected."
         />
         <Section>
           <div className="space-y-6">

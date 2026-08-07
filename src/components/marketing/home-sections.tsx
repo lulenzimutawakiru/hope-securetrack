@@ -11,19 +11,22 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Section, SectionHeader } from "./section";
 import { Reveal } from "./reveal";
 import { Counters } from "./counters";
+import { getMarketingStats } from "@/lib/marketing/stats";
 import { ErpExperience } from "./erp-experience";
 import { AiDemo } from "./ai-demo";
 import { AnalyticsShowcase } from "./analytics-showcase";
 import {
-  STATS, TRUST_BADGES, INDUSTRIES, MODULES, AI_CAPABILITIES, PLATFORM_CAPABILITIES,
+  TRUST_BADGES, INDUSTRIES, MODULES, AI_CAPABILITIES, PLATFORM_CAPABILITIES,
   SECURITY_FEATURES, MARKETPLACE_ITEMS, INTEGRATION_GROUPS, MOBILE_FEATURES,
   TESTIMONIALS, CASE_STUDIES, PRICING_PLANS, FAQS, JOURNEY_STEPS,
 } from "@/lib/marketing/data";
 
-export function StatsSection() {
+export async function StatsSection() {
+  const stats = await getMarketingStats();
   return (
     <Section className="border-y bg-muted/40">
-      <Counters stats={STATS} />
+      <p className="mb-8 text-center text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Live platform metrics</p>
+      <Counters stats={stats} />
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3" aria-label="Trust badges">
         {TRUST_BADGES.map((b) => (
           <Badge key={b} variant="secondary" className="gap-1.5 px-3 py-1.5 text-xs">

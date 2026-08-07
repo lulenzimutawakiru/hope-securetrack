@@ -7,6 +7,8 @@ import { Reveal } from "@/components/marketing/reveal";
 import { Card, CardContent } from "@/components/ui/card";
 import { AiDemoSection, CtaSection } from "@/components/marketing/home-sections";
 import { AI_CAPABILITIES, PLATFORM_CAPABILITIES } from "@/lib/marketing/data";
+import { ImageBand } from "@/components/marketing/image-band";
+import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "AI Platform",
@@ -31,6 +33,12 @@ export default function AiPlatformPage() {
           subtitle="Not one chatbot — an enterprise AI workforce. Executive, Finance, Procurement, Inventory, Manufacturing, HR, CRM, Service Desk, Compliance, and Risk agents work alongside your people, permission-aware and fully auditable."
           primaryCta={{ label: "Start Free Trial", href: "/register" }}
           secondaryCta={{ label: "Try the AI demo", href: "/#ai" }}
+        />
+        <ImageBand
+          src={IMAGES.analytics}
+          alt="AI-powered analytics dashboards and executive insights"
+          kicker="SecureTrack AI"
+          caption="Tenant-aware AI agents that forecast, explain, and act only with workflow approval."
         />
         <Section>
           <SectionHeader eyebrow="How it works" title="Enterprise AI with enterprise guardrails" />
