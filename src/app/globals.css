@@ -386,3 +386,107 @@
     size: A4;
   }
 }
+
+/* ============================================================
+   SecureTrack Marketing Site — utilities & animations
+   ============================================================ */
+@layer utilities {
+  .glass {
+    background: color-mix(in srgb, hsl(var(--card)) 72%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid hsl(var(--border) / 0.65);
+  }
+  .glass-strong {
+    background: color-mix(in srgb, hsl(var(--card)) 88%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.8);
+  }
+  .text-gradient {
+    background-image: linear-gradient(100deg, hsl(183 80% 40%), hsl(45 70% 47%) 55%, hsl(210 90% 60%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-gradient-soft {
+    background-image: linear-gradient(180deg, hsl(var(--foreground)), hsl(var(--muted-foreground)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .dotted-bg {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+  }
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(180deg, black 55%, transparent);
+    mask-image: linear-gradient(180deg, black 55%, transparent);
+  }
+  .perspective-1200 {
+    perspective: 1200px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .card-glow:hover {
+    box-shadow: 0 0 0 1px hsl(var(--ring) / 0.35), 0 18px 50px -12px hsl(var(--ring) / 0.35);
+  }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes float-y-sm {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes spin-slower {
+  to { transform: rotate(360deg); }
+}
+@keyframes aurora {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
+  33% { transform: translate(4%, -6%) scale(1.08); opacity: 0.75; }
+  66% { transform: translate(-4%, 4%) scale(0.96); opacity: 0.6; }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  70% { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to { background-position: 400px 0; }
+}
+
+.animate-marquee { animation: marquee 36s linear infinite; }
+.animate-float { animation: float-y 6s ease-in-out infinite; }
+.animate-float-sm { animation: float-y-sm 4.5s ease-in-out infinite; }
+.animate-spin-slower { animation: spin-slower 32s linear infinite; }
+.animate-aurora { animation: aurora 16s ease-in-out infinite; }
+.animate-pulse-ring { animation: pulse-ring 2.4s ease-out infinite; }
+.typing-dot { animation: typing-dot 1.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .animate-float, .animate-float-sm, .animate-spin-slower,
+  .animate-aurora, .animate-pulse-ring, .typing-dot { animation: none !important; }
+}

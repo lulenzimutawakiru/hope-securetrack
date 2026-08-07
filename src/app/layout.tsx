@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s | SecureTrack ERP",
   },
   description:
-    "SecureTrack ERP — Secure · Intelligent · Connected. Multi-tenant enterprise OS for manufacturing, finance, payroll, sales, fleet, attendance, identity & BI.",
+    "SecureTrack ERP — AI-powered, cloud-native Enterprise Business Operating System. Unify finance, HR, manufacturing, supply chain, CRM, payroll, assets, service desk, analytics, and AI on one secure, multi-tenant platform.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
