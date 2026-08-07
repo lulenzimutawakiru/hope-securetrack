@@ -3,7 +3,7 @@
  * Used for designer preview, print, and PDF-via-browser.
  */
 
-import type { CardDesign, CardElement, FieldContext } from "./types";
+import type { CardDesign, CardElement, FieldContext, WidCardBrand } from "./types";
 import { buildQrContent } from "./qr-token";
 
 function esc(s: string): string {
@@ -13,6 +13,149 @@ function esc(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+function initialsFromName(name: string): string {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0].charAt(0) || "";
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
+  return (first + last).toUpperCase();
+}
+
+/** Apply tenant-selected brand styling to a card design (non-destructive). */
+const SEED_PALETTE = {
+  primary: "#0f766e",
+  secondary: "#0f172a",
+  accent: "#f59e0b",
+};
+
+/** Apply tenant-selected brand styling to a card design (non-destructive). */
+
+export function applyBrandToDesign(
+  design: CardDesign,
+  brand?: WidCardBrand | null
+): CardDesign {
+  const cloned: CardDesign = {
+    front: (design.front || []).map((el) => ({ ...el })),
+    back: (design.back || []).map((el) => ({ ...el })),
+  };
+  if (!brand) return cloned;
+
+  const primary = brand.primary_color || SEED_PALETTE.primary;
+  const secondary = brand.secondary_color || SEED_PALETTE.secondary;
+  const accent = brand.accent_color || SEED_PALETTE.accent;
+  const text = brand.text_color || brand.secondary_color || SEED_PALETTE.secondary;
+  const bg = brand.background_color || "#ffffff";
+
+  // Substitute the template seed palette with the tenant-selected brand palette
+  // so the card adopts the tenant style wherever the design uses seed colors.
+  const remap = (color?: string | null): string | undefined => {
+    if (!color) return undefined;
+    const c = color.toLowerCase();
+    if (c === SEED_PALETTE.primary) return primary;
+    if (c === SEED_PALETTE.secondary) return secondary;
+    if (c === SEED_PALETTE.accent) return accent;
+    return color;
+  };
+
+  const patch = (el: CardElement): CardElement => {
+    switch (el.type) {
+      case "rect":
+      case "ellipse":
+        el.fill = remap(el.fill);
+        if (!el.fill) el.fill = primary;
+        break;
+      case "line":
+        el.color = remap(el.color || el.fill || undefined);
+        if (!el.color) el.color = accent;
+        break;
+      case "text":
+      case "field":
+        el.color = remap(el.color);
+        if (!el.color) el.color = text;
+        break;
+      case "logo":
+      case "image":
+        if (!el.src && brand.logo_url) el.src = brand.logo_url;
+        break;
+      case "signature":
+        if (!el.text && brand.signature_name) el.text = brand.signature_name;
+        break;
+      default:
+        break;
+    }
+    return el;
+  };
+
+  cloned.front = cloned.front.map(patch);
+  cloned.back = cloned.back.map(patch);
+
+  // Watermark from brand when the template does not define one
+  const hasWatermark = (els: CardElement[]) =>
+    els.some((el) => el.type === "watermark");
+  if (
+    brand.watermark_text &&
+    !hasWatermark(cloned.front) &&
+    !hasWatermark(cloned.back)
+  ) {
+    cloned.front.push({
+      id: "brand-watermark",
+      type: "watermark",
+      x: 0,
+      y: 30,
+      w: 100,
+      h: 40,
+      z: 50,
+      text: brand.watermark_text,
+      color: secondary,
+      fontSize: 18,
+      opacity: 0.18,
+    });
+  }
+
+  // Signature line on the back when the brand defines one and template lacks it
+  const hasSignature = (els: CardElement[]) =>
+    els.some((el) => el.type === "signature");
+  if (
+    brand.signature_name &&
+    !hasSignature(cloned.front) &&
+    !hasSignature(cloned.back)
+  ) {
+    cloned.back.push({
+      id: "brand-signature",
+      type: "signature",
+      x: 4,
+      y: 78,
+      w: 92,
+      h: 12,
+      z: 30,
+      text: brand.signature_name,
+    });
+  }
+
+  // Background frame in brand colours when the front has no full-bleed rect
+  const hasBg = (els: CardElement[]) =>
+    els.some(
+      (el) => el.type === "rect" && el.x <= 0 && el.y <= 0 && el.w >= 100 && el.h >= 100
+    );
+  if (!hasBg(cloned.front) && bg !== "#ffffff") {
+    cloned.front.unshift({
+      id: "brand-bg",
+      type: "rect",
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      fill: bg,
+      z: -10,
+    });
+  }
+
+  return cloned;
+}
+
 
 function resolveField(
   el: CardElement,
@@ -63,7 +206,8 @@ function renderElement(
       if (src) {
         return `<div style="${style};border:1px solid #cbd5e1;background:#f1f5f9;"><img src="${esc(src)}" alt="Photo" style="width:100%;height:100%;object-fit:cover;"/></div>`;
       }
-      return `<div style="${style};border:1px dashed #94a3b8;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:8px;color:#64748b;">PHOTO</div>`;
+      const initials = initialsFromName(ctx.full_name || "");
+      return `<div style="${style};border:1px dashed #94a3b8;background:linear-gradient(135deg,#0f766e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;">${esc(initials)}</div>`;
     }
     case "logo":
     case "image":
@@ -100,7 +244,7 @@ function renderElement(
       const content = resolveField(el, ctx);
       const fs = el.fontSize ?? 10;
       const fw = el.bold ? 700 : 500;
-      const ff = el.fontFamily || "system-ui,sans-serif";
+      const ff = el.fontFamily || "var(--wid-font, system-ui, sans-serif)";
       const ta = el.align || "left";
       const col = el.color || "#0f172a";
       return `<div style="${style};font-size:${fs}px;font-weight:${fw};font-family:${ff};color:${col};text-align:${ta};display:flex;align-items:center;line-height:1.15;${el.italic ? "font-style:italic;" : ""}">${esc(content)}</div>`;
@@ -131,6 +275,7 @@ export type CardRenderOptions = {
   showBack?: boolean;
   title?: string;
   companyName?: string;
+  brand?: WidCardBrand | null;
 };
 
 /** Full HTML document for print / iframe */
@@ -140,11 +285,17 @@ export function buildCardPrintHtml(opts: CardRenderOptions): string {
   // Scale for screen: ~3.8 px per mm → ~325 x 205
   const pxW = Math.round(w * 3.78);
   const pxH = Math.round(h * 3.78);
+  const fontFamily = opts.brand?.font_family || "system-ui, sans-serif";
 
-  const front = renderSide(opts.design.front || [], opts.ctx, opts.qrPublicId);
+  const design = applyBrandToDesign(opts.design, opts.brand);
+  const companyName =
+    opts.companyName ||
+    opts.brand?.company_display_name ||
+    "SecureTrack ERP";
+  const front = renderSide(design.front || [], opts.ctx, opts.qrPublicId);
   const back =
     opts.showBack !== false
-      ? renderSide(opts.design.back || [], opts.ctx, opts.qrPublicId, "#f8fafc")
+      ? renderSide(design.back || [], opts.ctx, opts.qrPublicId, "#f8fafc")
       : "";
 
   return `<!DOCTYPE html>
@@ -154,12 +305,13 @@ export function buildCardPrintHtml(opts: CardRenderOptions): string {
   <title>${esc(opts.title || "ID Card")} — SecureTrack ERP</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 24px; font-family: system-ui, sans-serif; background: #e2e8f0; color: #0f172a; }
+    body { margin: 0; padding: 24px; font-family: ${fontFamily}; background: #e2e8f0; color: #0f172a; }
     h1 { font-size: 14px; margin: 0 0 12px; }
     .wrap { display: flex; flex-wrap: wrap; gap: 20px; }
     .panel { }
     .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 6px; }
     .card-frame {
+      --wid-font: ${fontFamily};
       width: ${pxW}px; height: ${pxH}px;
       box-shadow: 0 8px 24px rgba(15,23,42,0.18);
       border: 1px solid #cbd5e1;
@@ -173,7 +325,7 @@ export function buildCardPrintHtml(opts: CardRenderOptions): string {
   </style>
 </head>
 <body>
-  <h1 class="no-print">${esc(opts.companyName || "SecureTrack ERP")} — ID Card Print</h1>
+  <h1 class="no-print">${esc(companyName)} — ID Card Print</h1>
   <div class="wrap">
     <div class="panel">
       <div class="label no-print">Front</div>

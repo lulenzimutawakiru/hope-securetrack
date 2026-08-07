@@ -84,6 +84,7 @@ export type CreateIdentityInput = {
   security_clearance?: string;
   manager_name?: string;
   notes?: string;
+  photo_url?: string;
   created_by?: string | null;
 };
 
@@ -124,6 +125,7 @@ export async function createIdentityWithNumber(
     security_clearance: input.security_clearance || "standard",
     manager_name: input.manager_name || null,
     notes: input.notes || null,
+    photo_url: input.photo_url || null,
     status: "verified",
     username: input.email?.split("@")[0] || null,
     erp_account: identity_number,

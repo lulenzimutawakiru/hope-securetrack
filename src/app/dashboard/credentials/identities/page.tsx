@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Users, CreditCard, Ban, RefreshCw } from "lucide-react";
+import { Plus, Users, CreditCard, Ban, RefreshCw, Camera } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/crud-compat";
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
+import { uploadFile } from "@/lib/storage/upload";
+import { crudUpdate } from "@/lib/api/crud-client";
 import {
   IDENTITY_TYPES,
   createIdentityWithNumber,
@@ -42,6 +44,11 @@ export default function IdentitiesPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [rowPhotoTarget, setRowPhotoTarget] = useState<string | null>(null);
+  const [rowPhotoBusy, setRowPhotoBusy] = useState(false);
+  const rowPhotoRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     employee_id: "",
     identity_type: "employee",
@@ -105,6 +112,46 @@ export default function IdentitiesPage() {
     }));
   };
 
+  const onPickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    setPhotoFile(file);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const onRowPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    e.target.value = "";
+    if (!file || !rowPhotoTarget || !auth?.profile?.company_id) return;
+    setRowPhotoBusy(true);
+    try {
+      const up = await uploadFile({
+        file,
+        companyId: auth.profile.company_id,
+        bucket: "avatars",
+        category: "photo",
+        folder: "identity-photos",
+        entityTable: "wid_identities",
+        entityId: rowPhotoTarget,
+        entityField: "photo_url",
+        uploadedBy: auth.profile.id,
+      });
+      const res = await crudUpdate("wid_identities", rowPhotoTarget, {
+        photo_url: up.publicUrl,
+        updated_at: new Date().toISOString(),
+      });
+      if (!res.ok) throw new Error(res.error || "Photo update failed");
+      toast.success("Passport photo attached");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Photo upload failed");
+    } finally {
+      setRowPhotoBusy(false);
+      setRowPhotoTarget(null);
+    }
+  };
+
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth?.profile?.company_id) return;
@@ -115,6 +162,20 @@ export default function IdentitiesPage() {
     setSaving(true);
     try {
       const supabase = createClient();
+      let photoUrl: string | undefined;
+      if (photoFile) {
+        const up = await uploadFile({
+          file: photoFile,
+          companyId: auth.profile.company_id,
+          bucket: "avatars",
+          category: "photo",
+          folder: "identity-photos",
+          entityTable: "wid_identities",
+          entityField: "photo_url",
+          uploadedBy: auth.profile.id,
+        });
+        photoUrl = up.publicUrl;
+      }
       const identity = await createIdentityWithNumber(supabase, {
         company_id: auth.profile.company_id,
         employee_id: form.employee_id || null,
@@ -128,6 +189,7 @@ export default function IdentitiesPage() {
         security_clearance: form.security_clearance,
         hire_date: form.hire_date || undefined,
         expiry_date: form.expiry_date || undefined,
+        photo_url: photoUrl,
         created_by: auth.profile.id,
       });
 
@@ -158,6 +220,9 @@ export default function IdentitiesPage() {
 
       toast.success(`Identity ${identity.identity_number} created`);
       setOpen(false);
+      setPhotoFile(null);
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhotoPreview("");
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Create failed");
@@ -244,6 +309,13 @@ export default function IdentitiesPage() {
                   <div>
                     <Label>Full name *</Label>
                     <Input value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} required />
+                  </div>
+                  <div>
+                    <Label>Passport / ID photo</Label>
+                    <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPickPhoto} />
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Passport photo preview" className="mt-2 h-20 w-16 rounded-md border object-cover" />
+                    ) : null}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -336,6 +408,7 @@ export default function IdentitiesPage() {
               <TableRow>
                 <TableHead>Identity #</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Photo</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Status</TableHead>
@@ -350,6 +423,23 @@ export default function IdentitiesPage() {
                   <TableCell>
                     <div className="font-medium">{r.full_name}</div>
                     <div className="text-xs text-muted-foreground">{r.job_title || "—"}</div>
+                  </TableCell>
+                  <TableCell>
+                    {r.photo_url ? (
+                      <img src={r.photo_url} alt="" className="h-10 w-8 rounded border object-cover" />
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={rowPhotoBusy}
+                        onClick={() => {
+                          setRowPhotoTarget(r.id);
+                          rowPhotoRef.current?.click();
+                        }}
+                      >
+                        <Camera className="h-3.5 w-3.5 mr-1" /> Upload
+                      </Button>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs">{r.identity_type}</TableCell>
                   <TableCell>{r.department || "—"}</TableCell>
@@ -371,6 +461,13 @@ export default function IdentitiesPage() {
           </Table>
         </div>
       )}
+      <input
+        ref={rowPhotoRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={onRowPhoto}
+      />
     </div>
   );
 }

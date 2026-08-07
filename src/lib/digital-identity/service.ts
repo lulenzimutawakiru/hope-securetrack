@@ -8,6 +8,13 @@ import {
   getPerson,
 } from "@/lib/unified-identity";
 import { createProvisionRequest } from "@/lib/idm";
+import {
+  buildCardPrintHtml,
+  printCardHtml,
+  type CardDesign,
+  type FieldContext,
+  type WidCardBrand,
+} from "@/lib/workforce-id";
 import type { HireOrchestrationInput, LifecycleStage, MasterProfilePatch } from "./types";
 import { DEFAULT_PROVISION_STEPS } from "./types";
 
@@ -1053,8 +1060,76 @@ export async function issueIdCard(input: {
 }
 
 export async function printIdCard(cardId: string) {
-  const { data: card } = await sb().from("di_id_cards").select("*").eq("id", cardId).maybeSingle();
+  const { data: card } = await sb()
+    .from("di_id_cards")
+    .select("*, uw_persons(display_name, upid, department, job_title, photo_url)")
+    .eq("id", cardId)
+    .maybeSingle();
   if (!card) throw new Error("Card not found");
+
+  const person = (card.uw_persons || null) as {
+    display_name?: string | null;
+    upid?: string | null;
+    department?: string | null;
+    job_title?: string | null;
+    photo_url?: string | null;
+  } | null;
+
+  // Tenant-selected brand styling (colors, logo, watermark, signature)
+  const { data: brand } = await sb()
+    .from("wid_card_brands")
+    .select("*")
+    .eq("company_id", card.company_id)
+    .eq("is_active", true)
+    .order("is_default", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Tenant card template - executive by default, otherwise first active
+  let template: { design_json?: unknown } | null = null;
+  {
+    const { data: tpl } = await sb()
+      .from("wid_card_templates")
+      .select("*")
+      .eq("company_id", card.company_id)
+      .eq("is_active", true)
+      .eq("template_code", "TPL-EXEC")
+      .maybeSingle();
+    template = tpl || null;
+  }
+  if (!template) {
+    const { data: tpl } = await sb()
+      .from("wid_card_templates")
+      .select("*")
+      .eq("company_id", card.company_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    template = tpl || null;
+  }
+
+  // Render the tenant-styled printable card (photo, logo, brand palette)
+  const design = (template?.design_json || { front: [], back: [] }) as CardDesign;
+  const ctx: FieldContext = {
+    full_name: person?.display_name || "",
+    identity_number: person?.upid || card.card_number,
+    credential_number: card.card_number,
+    job_title: person?.job_title || "",
+    department: person?.department || "",
+    photo_url: person?.photo_url || "",
+    expiry_date: card.expiry_date ? String(card.expiry_date) : undefined,
+  };
+  const html = buildCardPrintHtml({
+    design,
+    ctx,
+    qrPublicId: card.card_number,
+    title: card.card_number,
+    companyName: brand?.company_display_name || undefined,
+    brand: (brand as WidCardBrand | null) || null,
+  });
+  printCardHtml(html);
+
   const { data, error } = await sb()
     .from("di_id_cards")
     .update({

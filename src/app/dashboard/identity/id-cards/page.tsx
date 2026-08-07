@@ -83,7 +83,7 @@ export default function IdCardsPage() {
   const doPrint = async (id: string) => {
     try {
       await printIdCard(id);
-      toast.success("Print count updated");
+      toast.success("Print dialog opened");
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Print failed");

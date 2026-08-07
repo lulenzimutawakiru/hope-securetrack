@@ -59,7 +59,7 @@ function CardsInner() {
     const supabase = createClient();
     let query = supabase
       .from("wid_credentials")
-      .select("*, wid_identities(*), wid_card_templates(name,template_code,design_json)")
+      .select("*, wid_identities(*), wid_card_templates(name,template_code,design_json), wid_card_brands(*)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -143,6 +143,7 @@ function CardsInner() {
         ctx,
         qrPublicId: c.qr_public_id,
         title: c.credential_number,
+        brand: c.wid_card_brands,
       });
       printCardHtml(html);
 

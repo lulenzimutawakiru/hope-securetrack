@@ -197,6 +197,7 @@ export interface WidCredential {
   created_at?: string;
   wid_identities?: WidIdentity | null;
   wid_card_templates?: { name: string; template_code: string; design_json: CardDesign } | null;
+  wid_card_brands?: WidCardBrand | null;
 }
 
 export interface WidTemplate {
@@ -218,6 +219,29 @@ export interface WidTemplate {
   language: string;
   version: number;
   is_system: boolean;
+  is_active: boolean;
+  deleted_at?: string | null;
+}
+
+export interface WidCardBrand {
+  id: string;
+  company_id: string;
+  brand_code: string;
+  name: string;
+  company_display_name: string | null;
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  accent_color: string | null;
+  text_color: string | null;
+  background_color: string | null;
+  font_family: string | null;
+  watermark_text: string | null;
+  signature_name: string | null;
+  signature_title: string | null;
+  footer_text: string | null;
+  branch_name: string | null;
+  is_default: boolean;
   is_active: boolean;
   deleted_at?: string | null;
 }
