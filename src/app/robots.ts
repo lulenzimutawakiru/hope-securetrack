@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/dashboard/", "/platform/", "/admin/"],
+        disallow: ["/dashboard", "/api", "/verify", "/register", "/login", "/mfa", "/portal", "/welcome", "/forgot-password", "/reset-password"],
       },
     ],
     sitemap: "https://hope-securetrack.vercel.app/sitemap.xml",

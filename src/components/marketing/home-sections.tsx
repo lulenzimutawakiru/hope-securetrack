@@ -4,6 +4,7 @@ import {
   Globe2, Palette, Workflow, Fingerprint, Lock, Database, CloudCog, Cpu,
   Smartphone, QrCode, Bell, Wallet, Zap, Quote, Star, ChartColumn, Bot,
   BarChart3, LineChart, FileText, Plug, MonitorSmartphone, CircleCheck,
+  Unplug, FileSpreadsheet, EyeOff, ShieldAlert, Hourglass, Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,13 +40,88 @@ export async function StatsSection() {
   );
 }
 
+export function ProblemsSection() {
+  const problems = [
+    {
+      icon: Unplug,
+      title: "Disconnected systems",
+      problem: "CRM, finance, inventory, and HR live in separate tools that never talk to each other. Nothing reconciles.",
+      fix: "One platform. One database. One source of truth.",
+    },
+    {
+      icon: FileSpreadsheet,
+      title: "Manual processes",
+      problem: "Spreadsheets, emails, and paper forms slow approvals, invoicing, and reporting to a crawl.",
+      fix: "Automated approvals, workflows, and document generation.",
+    },
+    {
+      icon: EyeOff,
+      title: "Poor visibility",
+      problem: "No real-time view of cash, stock, orders, or performance across branches and departments.",
+      fix: "Live executive dashboards with drill-down analytics.",
+    },
+    {
+      icon: ShieldAlert,
+      title: "Security risks",
+      problem: "Data scattered across apps with weak access controls, no audit trail, and no tenant isolation.",
+      fix: "Tenant-isolated, RBAC/ABAC, MFA, and immutable audit trails.",
+    },
+    {
+      icon: Hourglass,
+      title: "Slow decision making",
+      problem: "Reports take days to assemble, so decisions are made on stale or incomplete data.",
+      fix: "AI insights and real-time reporting in seconds.",
+    },
+    {
+      icon: Gauge,
+      title: "Operational inefficiency",
+      problem: "Duplicated data entry and rework across departments inflate costs and delay growth.",
+      fix: "One entry point, integrated processes, AI automation.",
+    },
+  ];
+
+  return (
+    <Section id="problems" className="relative overflow-hidden bg-muted/40">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_85%_10%,rgba(244,197,66,0.06),transparent_65%)]"
+        aria-hidden="true"
+      />
+      <SectionHeader
+        eyebrow="The cost of chaos"
+        title="Running a business on disconnected tools"
+        subtitle="Spreadsheets, siloed apps, and manual handoffs quietly drain revenue every day. Here is what they cost your organization - and how SecureTrack eliminates each one."
+      />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {problems.map((p, i) => (
+          <Reveal key={p.title} delay={(i % 3) * 0.07}>
+            <div className="group relative h-full overflow-hidden rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5">
+              <div
+                className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-rose-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                aria-hidden="true"
+              />
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/15 to-rose-500/5 text-rose-500 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                <p.icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <h3 className="mt-4 font-semibold">{p.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.problem}</p>
+              <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 opacity-0 transition-all duration-300 group-hover:opacity-100">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
+                <p className="text-xs font-medium leading-relaxed text-emerald-700 dark:text-emerald-400">{p.fix}</p>
+              </div>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </Section>
+  );
+}
 export function ExperienceSection() {
   return (
     <Section id="experience" className="bg-gradient-to-b from-transparent via-muted/30 to-transparent">
       <SectionHeader
         eyebrow="Interactive product experience"
         title="Explore the platform, live"
-        subtitle="Click through Executive, Finance, Manufacturing, CRM, Inventory, HR, Payroll, Procurement, Projects, Assets, Fleet, AI, Analytics, and Service Desk. The dashboard reacts instantly — exactly like the real product."
+        subtitle="Click through Executive, Finance, Manufacturing, CRM, Inventory, HR, Payroll, Procurement, Projects, Assets, Fleet, AI, Analytics, and Service Desk. Every preview is a real screenshot from the live SecureTrack ERP platform."
       />
       <ErpExperience />
     </Section>

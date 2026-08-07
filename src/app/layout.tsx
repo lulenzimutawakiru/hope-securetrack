@@ -17,8 +17,25 @@ export const metadata: Metadata = {
   description:
     "SecureTrack ERP — AI-powered, cloud-native Enterprise Business Operating System. Unify finance, HR, manufacturing, supply chain, CRM, payroll, assets, service desk, analytics, and AI on one secure, multi-tenant platform.",
   manifest: "/manifest.json",
-  icons: {
-    icon: "/favicon.ico",
+  icons: { icon: "/icon.svg" },
+  metadataBase: new URL("https://hope-securetrack.vercel.app"),
+  openGraph: {
+    title: "SecureTrack ERP - Enterprise Business Operating System",
+    description:
+      "AI-powered, cloud-native Enterprise Business Operating System. Unify finance, HR, manufacturing, supply chain, CRM, payroll, assets, service desk, analytics, and AI on one secure, multi-tenant platform.",
+    url: "https://hope-securetrack.vercel.app",
+    siteName: "SecureTrack ERP",
+    type: "website",
+    images: [
+      { url: "/screenshots/executive.jpg", width: 1600, height: 1000, alt: "SecureTrack ERP Executive Dashboard" },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SecureTrack ERP - Enterprise Business Operating System",
+    description:
+      "Run your entire enterprise on one intelligent, AI-powered, cloud-native platform.",
+    images: ["/screenshots/executive.jpg"],
   },
 };
 

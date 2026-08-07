@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { Menu, Moon, Shield, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/marketing/logo";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +16,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { COMPANY, NAV_LINKS } from "@/lib/marketing/data";
+import { NAV_LINKS } from "@/lib/marketing/data";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -27,12 +28,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/75 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5" aria-label="SecureTrack ERP home">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Shield className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span className="text-[15px] font-bold tracking-tight">
-            SecureTrack<span className="text-primary"> ERP</span>
-          </span>
+          <Logo />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
@@ -83,8 +79,7 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-80">
               <SheetHeader className="text-left">
                 <SheetTitle className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
-                  {COMPANY.name}
+                  <Logo markClassName="h-6 w-6" />
                 </SheetTitle>
                 <SheetDescription>Explore the platform.</SheetDescription>
               </SheetHeader>

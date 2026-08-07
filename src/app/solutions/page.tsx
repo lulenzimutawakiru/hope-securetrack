@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CtaSection } from "@/components/marketing/home-sections";
 import { PLATFORM_CAPABILITIES } from "@/lib/marketing/data";
 import { ImageBand } from "@/components/marketing/image-band";
-import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "Solutions",
@@ -37,8 +36,8 @@ export default function SolutionsPage() {
           secondaryCta={{ label: "Book a demo", href: "/contact" }}
         />
         <ImageBand
-          src={IMAGES.office}
-          alt="A modern office where finance, operations, people, commerce, and intelligence work together on one platform"
+          src={"/screenshots/executive.jpg"}
+          alt="SecureTrack ERP executive dashboard uniting finance, operations, people, commerce, and intelligence"
           kicker="One platform, every department"
           caption="Finance, supply chain, manufacturing, HR, CRM, and AI working from a single source of truth."
         />

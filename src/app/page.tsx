@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { ImageBand } from "@/components/marketing/image-band";
-import { IMAGES } from "@/lib/marketing/images";
 import { Hero } from "@/components/marketing/hero";
 import {
-  StatsSection, ExperienceSection, AiDemoSection, IndustriesSection, ModulesSection,
+  StatsSection, ProblemsSection, ExperienceSection, AiDemoSection, IndustriesSection, ModulesSection,
   PlatformSection, MarketplaceSection, IntegrationsSection, AnalyticsSection,
   MobileSection, TestimonialsSection, SecuritySection, PricingSection, FaqSection,
   JourneySection, CtaSection,
@@ -53,12 +52,13 @@ export default function HomePage() {
       <main>
         <Hero />
         <ImageBand
-          src={IMAGES.collaboration}
-          alt="Finance, HR, manufacturing, supply chain, and AI teams working from one intelligent platform"
+          src={"/screenshots/executive-bi.jpg"}
+          alt="SecureTrack ERP executive analytics dashboard with live KPIs and AI insights"
           kicker="One platform, every department"
           caption="From the boardroom to the shop floor, every team runs on the same secure, AI-powered source of truth."
         />
         <StatsSection />
+        <ProblemsSection />
         <ExperienceSection />
         <AiDemoSection />
         <IndustriesSection />

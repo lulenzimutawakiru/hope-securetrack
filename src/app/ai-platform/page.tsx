@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AiDemoSection, CtaSection } from "@/components/marketing/home-sections";
 import { AI_CAPABILITIES, PLATFORM_CAPABILITIES } from "@/lib/marketing/data";
 import { ImageBand } from "@/components/marketing/image-band";
-import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "AI Platform",
@@ -35,8 +34,8 @@ export default function AiPlatformPage() {
           secondaryCta={{ label: "Try the AI demo", href: "/#ai" }}
         />
         <ImageBand
-          src={IMAGES.analytics}
-          alt="AI-powered analytics dashboards and executive insights"
+          src={"/screenshots/analytics.jpg"}
+          alt="SecureTrack AI analytics dashboard with live KPIs, trends, and AI insights"
           kicker="SecureTrack AI"
           caption="Tenant-aware AI agents that forecast, explain, and act only with workflow approval."
         />

@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CtaSection } from "@/components/marketing/home-sections";
 import { MODULES } from "@/lib/marketing/data";
 import { ImageBand } from "@/components/marketing/image-band";
-import { IMAGES } from "@/lib/marketing/images";
 
 export const metadata: Metadata = {
   title: "Modules",
@@ -30,8 +29,8 @@ export default function ModulesPage() {
           secondaryCta={{ label: "See the live demo", href: "/#experience" }}
         />
         <ImageBand
-          src={IMAGES.warehouse}
-          alt="Connected ERP modules spanning finance, manufacturing, inventory, and the warehouse"
+          src={"/screenshots/production.jpg"}
+          alt="Manufacturing, inventory, and finance modules running live on one connected dashboard"
           kicker="31 integrated modules"
           caption="One database, one security model, one workflow engine, one AI brain — every module stays connected."
         />
