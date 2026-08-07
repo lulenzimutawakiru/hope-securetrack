@@ -7,6 +7,7 @@ Enterprise QR Authentication, Manufacturing Traceability & Batch Printing Platfo
 | | |
 |--|--|
 | **App** | https://hope-securetrack.vercel.app |
+| **Status** | ![Deployed on Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) |
 | **Health** | https://hope-securetrack.vercel.app/api/health |
 | **Verify** | https://hope-securetrack.vercel.app/verify |
 | **Ops guide** | [docs/PRODUCTION.md](docs/PRODUCTION.md) |

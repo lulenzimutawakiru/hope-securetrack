@@ -5,11 +5,8 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { PageHero } from "@/components/marketing/page-hero";
 import { Section } from "@/components/marketing/section";
 import { Reveal } from "@/components/marketing/reveal";
+import { ContactForm } from "@/components/marketing/contact-form";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { COMPANY } from "@/lib/marketing/data";
 
 export const metadata: Metadata = {
@@ -58,39 +55,10 @@ export default function ContactPage() {
               <Card className="border-border/60 shadow-xl shadow-primary/5">
                 <CardContent className="p-6 sm:p-8">
                   <h2 className="text-xl font-bold">Send us a message</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Fields marked * are required.</p>
-                  <form className="mt-6 space-y-5" action="mailto:sales@securetrackerp.com" method="get" encType="text/plain">
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Full name *</Label>
-                        <Input id="name" name="name" required placeholder="Jane Doe" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Work email *</Label>
-                        <Input id="email" name="email" type="email" required placeholder="jane@company.com" />
-                      </div>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="company">Company</Label>
-                        <Input id="company" name="company" placeholder="Acme Corp" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="industry">Industry</Label>
-                        <Input id="industry" name="industry" placeholder="Manufacturing" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="message">How can we help? *</Label>
-                      <Textarea id="message" name="message" required rows={5} placeholder="Tell us about your business and goals..." />
-                    </div>
-                    <Button type="submit" size="lg" className="w-full">Send message</Button>
-                    <p className="text-center text-xs text-muted-foreground">
-                      By submitting, you agree to our{" "}
-                      <a href="/legal/privacy" className="underline">Privacy Policy</a> and{" "}
-                      <a href="/legal/terms" className="underline">Terms</a>.
-                    </p>
-                  </form>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Fields marked * are required.
+                  </p>
+                  <ContactForm />
                 </CardContent>
               </Card>
             </Reveal>
