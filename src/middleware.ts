@@ -173,7 +173,22 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/api/auth/resolve-identifier") ||
       pathname.startsWith("/api/attendance/devices") ||
       // Slack Events API (signature verified in route)
-      pathname === "/api/v2/integrations/slack/events";
+      pathname === "/api/v2/integrations/slack/events" ||
+      // Public marketing site (enterprise landing experience)
+      pathname === "/solutions" || pathname.startsWith("/solutions/") ||
+      pathname === "/industries" || pathname.startsWith("/industries/") ||
+      pathname === "/modules" || pathname.startsWith("/modules/") ||
+      pathname === "/ai-platform" || pathname.startsWith("/ai-platform/") ||
+      pathname === "/security" || pathname.startsWith("/security/") ||
+      pathname === "/pricing" || pathname.startsWith("/pricing/") ||
+      pathname === "/customers" || pathname.startsWith("/customers/") ||
+      pathname === "/resources" || pathname.startsWith("/resources/") ||
+      pathname === "/contact" || pathname.startsWith("/contact/") ||
+      pathname === "/partners" || pathname.startsWith("/partners/") ||
+      pathname === "/developers" || pathname.startsWith("/developers/") ||
+      pathname === "/company" || pathname.startsWith("/company/") ||
+      pathname === "/legal" || pathname.startsWith("/legal/") ||
+      pathname === "/sitemap.xml" || pathname === "/robots.txt";
 
     if (!user && !isAuthRoute && !isPublicRoute && !isMfaRoute) {
       if (pathname.startsWith("/api/")) {
@@ -250,7 +265,21 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/login") ||
       pathname.startsWith("/register") ||
       pathname.startsWith("/forgot-password") ||
-      pathname.startsWith("/reset-password")
+      pathname.startsWith("/reset-password") ||
+      pathname.startsWith("/solutions") ||
+      pathname.startsWith("/industries") ||
+      pathname.startsWith("/modules") ||
+      pathname.startsWith("/ai-platform") ||
+      pathname.startsWith("/security") ||
+      pathname.startsWith("/pricing") ||
+      pathname.startsWith("/customers") ||
+      pathname.startsWith("/resources") ||
+      pathname.startsWith("/contact") ||
+      pathname.startsWith("/partners") ||
+      pathname.startsWith("/developers") ||
+      pathname.startsWith("/company") ||
+      pathname.startsWith("/legal") ||
+      pathname === "/sitemap.xml" || pathname === "/robots.txt"
     ) {
       return applySecurityHeaders(NextResponse.next({ request }));
     }
