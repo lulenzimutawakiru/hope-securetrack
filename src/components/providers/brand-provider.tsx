@@ -15,6 +15,27 @@ import {
   type ResolvedBrand,
 } from "@/lib/branding/resolve";
 
+/**
+ * Single-flight + short-TTL memo: concurrent and repeated brand loads for the
+ * same company share one request. React Strict Mode double-mounts effects and
+ * shell remounts would otherwise refetch branding on every app boot.
+ * Keyed by company id only (UUID, globally unique per tenant) so no cross-tenant
+ * data can ever be served - the fetch still runs through the caller's session.
+ */
+const brandCache = new Map<
+  string,
+  { promise: Promise<ResolvedBrand>; at: number }
+>();
+const BRAND_TTL_MS = 60_000;
+
+function resolveBrandCached(companyId: string): Promise<ResolvedBrand> {
+  const hit = brandCache.get(companyId);
+  if (hit && Date.now() - hit.at < BRAND_TTL_MS) return hit.promise;
+  const promise = resolveCompanyBranding(createClient(), companyId);
+  brandCache.set(companyId, { promise, at: Date.now() });
+  return promise;
+}
+
 interface BrandContextValue {
   brand: ResolvedBrand;
   loading: boolean;
@@ -98,7 +119,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setLoading(true);
-      const resolved = await resolveCompanyBranding(createClient(), companyId);
+      const resolved = await resolveBrandCached(companyId);
       if (!cancelled) {
         setBrand(resolved);
         setLoading(false);

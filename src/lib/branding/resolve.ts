@@ -80,15 +80,46 @@ export async function resolveCompanyBranding(
   if (!companyId) return brand;
   brand.source = "db";
 
-  try {
-    const { data: company } = await sb
-      .from("companies")
-      .select(
-        "name, legal_name, tax_id, address, city, country, phone, email, logo_url, website"
-      )
-      .eq("id", companyId)
-      .maybeSingle();
+  // Performance: companies + brand_profiles + brand_logos + brand_colors are
+  // independent lookups, so fire them in parallel (4 queries -> 1 RTT wall
+  // time). allSettled keeps the original per-section fallback semantics - a
+  // failure in one lookup never breaks the others.
+  const [companyRes, profileRes, defaultLogoRes, colorsRes] =
+    await Promise.allSettled([
+      sb
+        .from("companies")
+        .select(
+          "name, legal_name, tax_id, address, city, country, phone, email, logo_url, website"
+        )
+        .eq("id", companyId)
+        .maybeSingle(),
+      sb
+        .from("brand_profiles")
+        .select(
+          "trading_name, registration_number, tax_number, address, phone, email, website"
+        )
+        .eq("company_id", companyId)
+        .eq("is_primary", true)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle(),
+      sb
+        .from("brand_logos")
+        .select("file_url")
+        .eq("company_id", companyId)
+        .eq("logo_type", "primary")
+        .eq("is_default", true)
+        .limit(1),
+      sb
+        .from("brand_colors")
+        .select("color_role, hex_value")
+        .eq("company_id", companyId)
+        .in("color_role", ["primary", "secondary", "accent"])
+        .eq("status", "approved"),
+    ]);
 
+  if (companyRes.status === "fulfilled") {
+    const company = companyRes.value.data;
     if (company) {
       brand.name = str(company.name) || brand.name;
       brand.legalName = str(company.legal_name);
@@ -101,22 +132,10 @@ export async function resolveCompanyBranding(
       brand.website = str(company.website);
       brand.logoUrl = str(company.logo_url);
     }
-  } catch {
-    /* fall back to defaults */
   }
 
-  try {
-    const { data: profile } = await sb
-      .from("brand_profiles")
-      .select(
-        "trading_name, registration_number, tax_number, address, phone, email, website"
-      )
-      .eq("company_id", companyId)
-      .eq("is_primary", true)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-
+  if (profileRes.status === "fulfilled") {
+    const profile = profileRes.value.data;
     if (profile) {
       brand.tradingName = str(profile.trading_name);
       if (profile.trading_name) brand.name = str(profile.trading_name);
@@ -127,41 +146,30 @@ export async function resolveCompanyBranding(
       if (profile.email) brand.email = str(profile.email);
       if (profile.website) brand.website = str(profile.website);
     }
-  } catch {
-    /* fall back */
   }
 
-  try {
-    let logo: { file_url?: string | null } | null = null;
-    const { data: defaultLogos } = await sb
-      .from("brand_logos")
-      .select("file_url")
-      .eq("company_id", companyId)
-      .eq("logo_type", "primary")
-      .eq("is_default", true)
-      .limit(1);
-    logo = defaultLogos?.[0] ?? null;
+  if (defaultLogoRes.status === "fulfilled") {
+    const logo = defaultLogoRes.value.data?.[0] ?? null;
     if (!logo?.file_url) {
-      const { data: anyLogos } = await sb
-        .from("brand_logos")
-        .select("file_url")
-        .eq("company_id", companyId)
-        .eq("logo_type", "primary")
-        .limit(1);
-      logo = anyLogos?.[0] ?? null;
+      try {
+        const { data: anyLogos } = await sb
+          .from("brand_logos")
+          .select("file_url")
+          .eq("company_id", companyId)
+          .eq("logo_type", "primary")
+          .limit(1);
+        const fallbackLogo = anyLogos?.[0] ?? null;
+        if (fallbackLogo?.file_url) brand.logoUrl = str(fallbackLogo.file_url);
+      } catch {
+        /* fall back */
+      }
+    } else {
+      brand.logoUrl = str(logo.file_url);
     }
-    if (logo?.file_url) brand.logoUrl = str(logo.file_url);
-  } catch {
-    /* fall back */
   }
 
-  try {
-    const { data: colors } = await sb
-      .from("brand_colors")
-      .select("color_role, hex_value")
-      .eq("company_id", companyId)
-      .in("color_role", ["primary", "secondary", "accent"])
-      .eq("status", "approved");
+  if (colorsRes.status === "fulfilled") {
+    const colors = colorsRes.value.data;
     for (const c of colors ?? []) {
       const hex = normalizeHex(str(c.hex_value));
       if (!hex) continue;
@@ -169,8 +177,6 @@ export async function resolveCompanyBranding(
       else if (c.color_role === "secondary") brand.secondaryColor = hex;
       else if (c.color_role === "accent") brand.accentColor = hex;
     }
-  } catch {
-    /* fall back */
   }
 
   return brand;

@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   experimental: {
     webpackMemoryOptimizations: true,
     cpus: 1,
+    // Client router cache: reuse RSC payloads for 30s on dynamic routes so
+    // in-app navigation (sidebar clicks) feels instant without refetching.
+    staleTimes: { dynamic: 30, static: 300 },
   },
   images: {
     remotePatterns: [
