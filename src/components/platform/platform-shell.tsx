@@ -19,6 +19,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   LayoutDashboard,
+  MessageSquare,
   Building2,
   Workflow,
   Activity,
@@ -100,6 +101,7 @@ const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
       { title: "Tenant Management", href: "/platform/tenants", icon: Building2, cap: "tenants" },
       { title: "Provisioning Engine", href: "/platform/provisioning", icon: Workflow, cap: "provisioning" },
       { title: "Subscriptions", href: "/platform/subscriptions", icon: CreditCard, cap: "subscriptions" },
+      { title: "Leads & CRM", href: "/platform/leads", icon: MessageSquare, cap: "leads" },
       { title: "Module Management", href: "/platform/modules", icon: Layers, cap: "modules" },
       { title: "Feature Flags", href: "/platform/flags", icon: Flag, cap: "flags" },
       { title: "User Administration", href: "/platform/users", icon: Users, cap: "users" },

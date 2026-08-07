@@ -11,13 +11,13 @@ import { COMPANY } from "@/lib/marketing/data";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Contact the SecureTrack ERP team — sales, support, partnerships, and press.",
+  description: "Contact the SecureTrack ERP team â€” sales, support, partnerships, and press.",
 };
 
 const CHANNELS = [
   { icon: Mail, title: "Email", value: COMPANY.email, desc: "We reply within one business day." },
   { icon: Phone, title: "Phone", value: COMPANY.phone, desc: "Sales and support hotline." },
-  { icon: MapPin, title: "Offices", value: "Kampala, Uganda · Nairobi, Kenya · Global", desc: "Serving customers in 40+ countries." },
+  { icon: MapPin, title: "Offices", value: "Kampala, Uganda Â· Nairobi, Kenya Â· Global", desc: "Serving customers in 40+ countries." },
   { icon: Clock, title: "Support hours", value: "24 / 7 / 365", desc: "Enterprise plans include around-the-clock support." },
 ];
 
@@ -54,7 +54,10 @@ export default function ContactPage() {
             <Reveal delay={0.1}>
               <Card className="border-border/60 shadow-xl shadow-primary/5">
                 <CardContent className="p-6 sm:p-8">
-                  <h2 className="text-xl font-bold">Send us a message</h2>
+                  <h2 className="text-xl font-bold">SEND US A MESSAGE</h2>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    Let's discuss how we can help transform your business operations.
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Fields marked * are required.
                   </p>

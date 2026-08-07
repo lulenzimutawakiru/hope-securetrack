@@ -1,0 +1,163 @@
+/**
+ * Marketing lead capture option sets shared by the contact form, public API,
+ * and the platform Leads CRM. Single source of truth so the UI, validation,
+ * and analytics stay in sync.
+ */
+
+export const INDUSTRY_OPTIONS = [
+  "Manufacturing",
+  "Banking & Finance",
+  "Education",
+  "Healthcare",
+  "Retail",
+  "Logistics",
+  "Government",
+  "Other",
+] as const;
+
+export type IndustryOption = (typeof INDUSTRY_OPTIONS)[number];
+
+export const COMPANY_SIZE_OPTIONS = [
+  { value: "1-50", label: "1-50 employees" },
+  { value: "51-200", label: "51-200 employees" },
+  { value: "201-1000", label: "201-1000 employees" },
+  { value: "1000+", label: "1000+ employees" },
+] as const;
+
+export const CONTACT_METHOD_OPTIONS = [
+  { value: "email", label: "Email" },
+  { value: "phone_call", label: "Phone Call" },
+  { value: "online_meeting", label: "Online Meeting" },
+] as const;
+
+export type ContactMethod = (typeof CONTACT_METHOD_OPTIONS)[number]["value"];
+
+/** ISO-3166 alpha-2 code -> { name, dial } used by the country selector. */
+export const COUNTRY_OPTIONS: Array<{ code: string; name: string; dial: string }> = [
+  { code: "UG", name: "Uganda", dial: "+256" },
+  { code: "KE", name: "Kenya", dial: "+254" },
+  { code: "TZ", name: "Tanzania", dial: "+255" },
+  { code: "RW", name: "Rwanda", dial: "+250" },
+  { code: "BI", name: "Burundi", dial: "+257" },
+  { code: "SS", name: "South Sudan", dial: "+211" },
+  { code: "ET", name: "Ethiopia", dial: "+251" },
+  { code: "SO", name: "Somalia", dial: "+252" },
+  { code: "DJ", name: "Djibouti", dial: "+253" },
+  { code: "SD", name: "Sudan", dial: "+249" },
+  { code: "EG", name: "Egypt", dial: "+20" },
+  { code: "NG", name: "Nigeria", dial: "+234" },
+  { code: "GH", name: "Ghana", dial: "+233" },
+  { code: "ZA", name: "South Africa", dial: "+27" },
+  { code: "ZM", name: "Zambia", dial: "+260" },
+  { code: "ZW", name: "Zimbabwe", dial: "+263" },
+  { code: "MW", name: "Malawi", dial: "+265" },
+  { code: "MZ", name: "Mozambique", dial: "+258" },
+  { code: "AO", name: "Angola", dial: "+244" },
+  { code: "NA", name: "Namibia", dial: "+264" },
+  { code: "BW", name: "Botswana", dial: "+267" },
+  { code: "SZ", name: "Eswatini", dial: "+268" },
+  { code: "LS", name: "Lesotho", dial: "+266" },
+  { code: "CM", name: "Cameroon", dial: "+237" },
+  { code: "CI", name: "Cote d'Ivoire", dial: "+225" },
+  { code: "SN", name: "Senegal", dial: "+221" },
+  { code: "ML", name: "Mali", dial: "+223" },
+  { code: "BF", name: "Burkina Faso", dial: "+226" },
+  { code: "NE", name: "Niger", dial: "+227" },
+  { code: "TG", name: "Togo", dial: "+228" },
+  { code: "BJ", name: "Benin", dial: "+229" },
+  { code: "CD", name: "DR Congo", dial: "+243" },
+  { code: "CG", name: "Congo", dial: "+242" },
+  { code: "GA", name: "Gabon", dial: "+241" },
+  { code: "TD", name: "Chad", dial: "+235" },
+  { code: "LY", name: "Libya", dial: "+218" },
+  { code: "TN", name: "Tunisia", dial: "+216" },
+  { code: "DZ", name: "Algeria", dial: "+213" },
+  { code: "MA", name: "Morocco", dial: "+212" },
+  { code: "MR", name: "Mauritania", dial: "+222" },
+  { code: "US", name: "United States", dial: "+1" },
+  { code: "CA", name: "Canada", dial: "+1" },
+  { code: "GB", name: "United Kingdom", dial: "+44" },
+  { code: "IE", name: "Ireland", dial: "+353" },
+  { code: "DE", name: "Germany", dial: "+49" },
+  { code: "FR", name: "France", dial: "+33" },
+  { code: "NL", name: "Netherlands", dial: "+31" },
+  { code: "BE", name: "Belgium", dial: "+32" },
+  { code: "CH", name: "Switzerland", dial: "+41" },
+  { code: "AT", name: "Austria", dial: "+43" },
+  { code: "IT", name: "Italy", dial: "+39" },
+  { code: "ES", name: "Spain", dial: "+34" },
+  { code: "PT", name: "Portugal", dial: "+351" },
+  { code: "SE", name: "Sweden", dial: "+46" },
+  { code: "NO", name: "Norway", dial: "+47" },
+  { code: "DK", name: "Denmark", dial: "+45" },
+  { code: "FI", name: "Finland", dial: "+358" },
+  { code: "PL", name: "Poland", dial: "+48" },
+  { code: "CZ", name: "Czech Republic", dial: "+420" },
+  { code: "RO", name: "Romania", dial: "+40" },
+  { code: "GR", name: "Greece", dial: "+30" },
+  { code: "TR", name: "Turkey", dial: "+90" },
+  { code: "RU", name: "Russia", dial: "+7" },
+  { code: "UA", name: "Ukraine", dial: "+380" },
+  { code: "IL", name: "Israel", dial: "+972" },
+  { code: "AE", name: "United Arab Emirates", dial: "+971" },
+  { code: "SA", name: "Saudi Arabia", dial: "+966" },
+  { code: "QA", name: "Qatar", dial: "+974" },
+  { code: "KW", name: "Kuwait", dial: "+965" },
+  { code: "BH", name: "Bahrain", dial: "+973" },
+  { code: "OM", name: "Oman", dial: "+968" },
+  { code: "JO", name: "Jordan", dial: "+962" },
+  { code: "LB", name: "Lebanon", dial: "+961" },
+  { code: "IQ", name: "Iraq", dial: "+964" },
+  { code: "IR", name: "Iran", dial: "+98" },
+  { code: "PK", name: "Pakistan", dial: "+92" },
+  { code: "IN", name: "India", dial: "+91" },
+  { code: "BD", name: "Bangladesh", dial: "+880" },
+  { code: "LK", name: "Sri Lanka", dial: "+94" },
+  { code: "NP", name: "Nepal", dial: "+977" },
+  { code: "CN", name: "China", dial: "+86" },
+  { code: "HK", name: "Hong Kong", dial: "+852" },
+  { code: "TW", name: "Taiwan", dial: "+886" },
+  { code: "JP", name: "Japan", dial: "+81" },
+  { code: "KR", name: "South Korea", dial: "+82" },
+  { code: "SG", name: "Singapore", dial: "+65" },
+  { code: "MY", name: "Malaysia", dial: "+60" },
+  { code: "ID", name: "Indonesia", dial: "+62" },
+  { code: "TH", name: "Thailand", dial: "+66" },
+  { code: "VN", name: "Vietnam", dial: "+84" },
+  { code: "PH", name: "Philippines", dial: "+63" },
+  { code: "AU", name: "Australia", dial: "+61" },
+  { code: "NZ", name: "New Zealand", dial: "+64" },
+  { code: "BR", name: "Brazil", dial: "+55" },
+  { code: "MX", name: "Mexico", dial: "+52" },
+  { code: "AR", name: "Argentina", dial: "+54" },
+  { code: "CL", name: "Chile", dial: "+56" },
+  { code: "CO", name: "Colombia", dial: "+57" },
+  { code: "PE", name: "Peru", dial: "+51" },
+  { code: "VE", name: "Venezuela", dial: "+58" },
+  { code: "UY", name: "Uruguay", dial: "+598" },
+  { code: "PY", name: "Paraguay", dial: "+595" },
+  { code: "BO", name: "Bolivia", dial: "+591" },
+  { code: "EC", name: "Ecuador", dial: "+593" },
+  { code: "GT", name: "Guatemala", dial: "+502" },
+  { code: "HN", name: "Honduras", dial: "+504" },
+  { code: "SV", name: "El Salvador", dial: "+503" },
+  { code: "NI", name: "Nicaragua", dial: "+505" },
+  { code: "CR", name: "Costa Rica", dial: "+506" },
+  { code: "PA", name: "Panama", dial: "+507" },
+  { code: "CU", name: "Cuba", dial: "+53" },
+  { code: "DO", name: "Dominican Republic", dial: "+1" },
+  { code: "JM", name: "Jamaica", dial: "+1" },
+  { code: "HT", name: "Haiti", dial: "+509" },
+  { code: "TT", name: "Trinidad & Tobago", dial: "+1" },
+] as const;
+
+export function countryByCode(code: string | null | undefined) {
+  if (!code) return undefined;
+  const c = code.toUpperCase();
+  return COUNTRY_OPTIONS.find((o) => o.code === c);
+}
+
+export function countryLabel(code: string | null | undefined): string {
+  const c = countryByCode(code);
+  return c ? `${c.name} (${c.dial})` : (code || "Unknown");
+}
