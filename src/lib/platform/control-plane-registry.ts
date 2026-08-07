@@ -16,6 +16,7 @@ export const CONTROL_PLANE_CAPABILITIES: ControlPlaneCapability[] = [
   // Platform layer
   { id: "command-center", layer: "platform", title: "Command Center", href: "/platform", description: "Health, estate, security, business KPIs", roles: ["Platform Owner", "CTO", "Security", "DevOps", "Compliance"] },
   { id: "leads", layer: "platform", title: "Leads & CRM", href: "/platform/leads", description: "Marketing leads, pipeline, follow-ups, source analytics", roles: ["Platform Owner", "CTO", "Compliance"] },
+  { id: "crm", layer: "platform", title: "Sales CRM", href: "/platform/crm", description: "Pipeline kanban, accounts, contacts, deals, activities, email templates", roles: ["Platform Owner", "CTO", "Compliance"] },
   { id: "analytics", layer: "platform", title: "Reports & Analytics", href: "/platform/analytics", description: "Platform-wide reporting, growth, revenue, usage trends", roles: ["Platform Owner", "CTO", "Compliance"] },
   { id: "assistant", layer: "platform", title: "AI Assistant", href: "/platform/assistant", description: "Natural-language queries over the control plane", roles: ["Platform Owner", "CTO", "Security", "DevOps", "Compliance"] },
   { id: "health", layer: "platform", title: "Health & Infrastructure", href: "/platform/health", description: "Database, Redis, workers, uptime", roles: ["CTO", "DevOps"] },
@@ -112,7 +113,7 @@ export const SUBSCRIPTION_PLANS: PlanEntitlements[] = [
   {
     plan_code: "starter",
     name: "Starter",
-    description: "SME launch plan â€” core ERP with trial",
+    description: "SME launch plan Ã¢â‚¬â€ core ERP with trial",
     max_users: 25,
     max_companies: 1,
     max_storage_gb: 10,
@@ -168,7 +169,7 @@ export const SUBSCRIPTION_PLANS: PlanEntitlements[] = [
   {
     plan_code: "government",
     name: "Government",
-    description: "Public sector â€” residency, audit, high capacity",
+    description: "Public sector Ã¢â‚¬â€ residency, audit, high capacity",
     max_users: 10_000,
     max_companies: 200,
     max_storage_gb: 5_000,
