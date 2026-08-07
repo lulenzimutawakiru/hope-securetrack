@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { KpiMetric } from "@/components/enterprise/kpi-metric";
 import { ModuleTile } from "@/components/enterprise/module-tile";
-import { crudCount, crudList } from "@/lib/api/crud-client";
+import { apiGet } from "@/lib/api-client";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { WelcomeCta } from "./components/welcome-cta";
@@ -89,111 +89,36 @@ export default function DashboardPage() {
     if (authLoading) return;
 
     async function load() {
-      const today = new Date().toISOString().slice(0, 10);
-      const todayStart = `${today}T00:00:00`;
-      const zero = 0;
-
       try {
-        const [
-          batchesToday,
-          batchesInProgress,
-          qrGenerated,
-          qrPrinted,
-          verificationsToday,
-          openFraudAlerts,
-          inventoryReams,
-          inventoryCartons,
-          pendingPrintJobs,
-          batchesRes,
-          alertsRes,
-          verificationsRes,
-        ] = await Promise.all([
-          canProduction
-            ? crudCount("production_batches", { created_at: { gte: todayStart } })
-            : Promise.resolve(zero),
-          canProduction
-            ? crudCount("production_batches", {
-                production_status: ["in_progress", "qc_pending"],
-              })
-            : Promise.resolve(zero),
-          canQr ? crudCount("qr_codes") : Promise.resolve(zero),
-          canQr
-            ? crudCount("qr_codes", {
-                status: ["printed", "verified", "packed", "dispatched", "sold"],
-              })
-            : Promise.resolve(zero),
-          canVerify
-            ? crudCount("verification_logs", { verified_at: { gte: todayStart } })
-            : Promise.resolve(zero),
-          canFraud
-            ? crudCount("fraud_alerts", { status: ["open", "investigating"] })
-            : Promise.resolve(zero),
-          canInventory
-            ? crudCount("reams", { inventory_status: "in_warehouse" })
-            : Promise.resolve(zero),
-          canInventory
-            ? crudCount("cartons", { inventory_status: "in_warehouse" })
-            : Promise.resolve(zero),
-          canPrint
-            ? crudCount("print_jobs", {
-                status: ["pending", "queued", "printing"],
-              })
-            : Promise.resolve(zero),
-          canProduction
-            ? crudList<ProductionBatch>("production_batches", {
-                page: 1,
-                pageSize: 5,
-                sort: "created_at",
-                order: "desc",
-              })
-            : Promise.resolve({ ok: false as const, data: { data: [] as ProductionBatch[] } }),
-          canFraud
-            ? crudList<FraudAlert>("fraud_alerts", {
-                page: 1,
-                pageSize: 5,
-                sort: "created_at",
-                order: "desc",
-              })
-            : Promise.resolve({ ok: false as const, data: { data: [] as FraudAlert[] } }),
-          canVerify
-            ? crudList<VerificationLog>("verification_logs", {
-                page: 1,
-                pageSize: 5,
-                sort: "verified_at",
-                order: "desc",
-              })
-            : Promise.resolve({
-                ok: false as const,
-                data: { data: [] as VerificationLog[] },
-              }),
-        ]);
-
+        const res = await apiGet<{
+          batchesToday: number;
+          batchesInProgress: number;
+          qrGenerated: number;
+          qrPrinted: number;
+          verificationsToday: number;
+          openFraudAlerts: number;
+          inventoryReams: number;
+          inventoryCartons: number;
+          pendingPrintJobs: number;
+          recentBatches: ProductionBatch[];
+          recentAlerts: FraudAlert[];
+          recentVerifications: VerificationLog[];
+        }>("/api/v2/dashboard/summary");
+        if (!res.ok) throw new Error(res.error);
         setStats({
-          batchesToday,
-          batchesInProgress,
-          qrGenerated,
-          qrPrinted,
-          verificationsToday,
-          openFraudAlerts,
-          inventoryReams,
-          inventoryCartons,
-          pendingPrintJobs,
+          batchesToday: res.data.batchesToday,
+          batchesInProgress: res.data.batchesInProgress,
+          qrGenerated: res.data.qrGenerated,
+          qrPrinted: res.data.qrPrinted,
+          verificationsToday: res.data.verificationsToday,
+          openFraudAlerts: res.data.openFraudAlerts,
+          inventoryReams: res.data.inventoryReams,
+          inventoryCartons: res.data.inventoryCartons,
+          pendingPrintJobs: res.data.pendingPrintJobs,
         });
-        setRecentBatches(
-          batchesRes && "ok" in batchesRes && batchesRes.ok
-            ? batchesRes.data.data
-            : []
-        );
-        setRecentAlerts(
-          alertsRes && "ok" in alertsRes && alertsRes.ok
-            ? alertsRes.data.data
-            : []
-        );
-        setRecentVerifications(
-          verificationsRes && "ok" in verificationsRes && verificationsRes.ok
-            ? verificationsRes.data.data
-            : []
-        );
+        setRecentBatches(res.data.recentBatches ?? []);
+        setRecentAlerts(res.data.recentAlerts ?? []);
+        setRecentVerifications(res.data.recentVerifications ?? []);
       } catch {
         setStats({
           batchesToday: 0,
