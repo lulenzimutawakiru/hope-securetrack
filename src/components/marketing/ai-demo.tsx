@@ -80,7 +80,7 @@ export function AiDemo() {
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-hope-blue/10 text-hope-blue">
-            <Bot className="h-4.5 w-4.5 h-4 w-4" aria-hidden="true" />
+            <Bot className="h-4 w-4" aria-hidden="true" />
           </span>
           <div>
             <div className="text-sm font-semibold">SecureTrack AI</div>

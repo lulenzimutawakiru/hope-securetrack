@@ -98,7 +98,7 @@ export function ServicesSection() {
             <div
               key={s.kicker}
               className={cn(
-                "flex min-h-[520px] flex-col justify-between p-10 lg:min-h-[635px] lg:p-[60px]",
+                "flex min-h-[440px] flex-col justify-between p-6 sm:min-h-[520px] sm:p-10 lg:min-h-[635px] lg:p-[60px]",
                 s.theme === "mist" && "bg-hope-mist text-[#131313]",
                 s.theme === "blue" && "bg-hope-blue text-white",
                 s.theme === "indigo" && "bg-hope-indigo text-white",

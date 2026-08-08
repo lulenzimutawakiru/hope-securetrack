@@ -26,7 +26,7 @@ const jsonLd = {
       url: "https://hope-securetrack.vercel.app",
       description:
         "AI-powered, cloud-native Enterprise Business Operating System unifying Finance, HR, Manufacturing, CRM, Payroll, Assets, Service Desk, Analytics, and AI.",
-      sameAs: ["https://github.com/hope-securetrack"],
+      sameAs: ["https://github.com/lulenzimutawakiru/hope-securetrack"],
     },
     {
       "@type": "SoftwareApplication",

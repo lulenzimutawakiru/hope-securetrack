@@ -61,7 +61,7 @@ export function SiteHeader() {
           <Logo light={isHome} />
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="Primary">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -119,7 +119,7 @@ export function SiteHeader() {
                 variant="outline"
                 size="icon"
                 className={cn(
-                  "lg:hidden",
+                  "xl:hidden",
                   isHome && "border-white/25 bg-transparent text-white hover:bg-white/10",
                 )}
                 aria-label="Open menu"
@@ -127,7 +127,7 @@ export function SiteHeader() {
                 <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80">
+            <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto">
               <SheetHeader className="text-left">
                 <SheetTitle className="flex items-center gap-2">
                   <Logo markClassName="h-6 w-6" />
@@ -144,6 +144,14 @@ export function SiteHeader() {
                     {link.label}
                   </Link>
                 ))}
+                <div className="mt-4 flex flex-col gap-1 border-t border-border pt-3">
+                  <Link href="/careers" className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+                    Careers
+                  </Link>
+                  <Link href="/contact" className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+                    Contact
+                  </Link>
+                </div>
                 <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
                   <Link href="/login">
                     <Button variant="outline" className="w-full">

@@ -24,6 +24,7 @@ export function Hero() {
           className="object-cover object-center"
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,#00325B_0%,rgba(0,50,91,0.88)_38%,rgba(0,83,140,0.62)_72%,rgba(0,100,216,0.42)_100%)]" />
+        <div className="absolute inset-0 hidden bg-[linear-gradient(90deg,#001C33_0%,rgba(0,28,51,0.92)_45%,rgba(0,50,91,0.78)_100%)] dark:block" />
         <div className="absolute inset-0 bg-gradient-to-t from-hope-navy/90 via-transparent to-transparent" />
         <div className="absolute -top-24 right-[8%] h-72 w-72 rounded-full bg-hope-sky/25 blur-[120px]" />
       </div>

@@ -1,6 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <path d="M24 3 40.5 9.5 38.6 22.6C37.9 32.5 32 40.2 24 44.4 16 40.2 10.1 32.5 9.4 22.6L7.5 9.5 24 3Z" fill="#0D8F8C"/>
-  <path d="M15.6 24.6 21.2 30.2 32.6 18.2" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <circle cx="15.6" cy="24.6" r="2.1" fill="#F4C542"/>
-  <circle cx="32.6" cy="18.2" r="2.1" fill="#F4C542"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="stg" x1="7" y1="3" x2="41" y2="45" gradientUnits="userSpaceOnUse">
+      <stop stopColor="#00538C"/>
+      <stop offset="0.55" stopColor="#0064D8"/>
+      <stop offset="1" stopColor="#1B90FF"/>
+    </linearGradient>
+  </defs>
+  <path d="M24 3 40.5 9.5 38.6 22.6C37.9 32.5 32 40.2 24 44.4 16 40.2 10.1 32.5 9.4 22.6L7.5 9.5 24 3Z" fill="url(#stg)"/>
+  <path d="M15.6 24.6 21.2 30.2 32.6 18.2" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="15.6" cy="24.6" r="2.1" fill="#F0AB00"/>
+  <circle cx="32.6" cy="18.2" r="2.1" fill="#F0AB00"/>
 </svg>

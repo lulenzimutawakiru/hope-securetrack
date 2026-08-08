@@ -49,7 +49,7 @@ export function ScreenshotFrame({
           <span className="w-14" aria-hidden="true" />
         )}
       </div>
-      <div className={cn("relative aspect-[8/5] w-full bg-slate-200", imageClassName)}>
+      <div className={cn("relative aspect-[8/5] w-full bg-white dark:bg-slate-800/60", imageClassName)}>
         <Image
           src={src}
           alt={alt}
