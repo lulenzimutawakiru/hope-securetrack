@@ -42,7 +42,7 @@ export default function ModulesPage() {
                   <CardContent className="p-6 sm:p-8">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 text-primary">
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-hope-blue/15 to-hope-indigo/15 text-hope-blue">
                           <mod.icon className="h-6 w-6" aria-hidden="true" />
                         </span>
                         <div>
@@ -66,11 +66,11 @@ export default function ModulesPage() {
                       </div>
                       <div>
                         <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> AI features
+                          <Sparkles className="h-3.5 w-3.5 text-hope-blue" aria-hidden="true" /> AI features
                         </h3>
                         <ul className="space-y-2">
                           {mod.ai.map((a) => (
-                            <li key={a} className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm">{a}</li>
+                            <li key={a} className="rounded-lg border border-border/60 bg-hope-mist px-3 py-2 text-sm">{a}</li>
                           ))}
                         </ul>
                       </div>

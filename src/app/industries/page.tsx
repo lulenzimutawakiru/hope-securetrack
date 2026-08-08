@@ -82,7 +82,7 @@ export default function IndustriesPage() {
                         <ul className="space-y-2">
                           {ind.challenges.map((ch) => (
                             <li key={ch} className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" aria-hidden="true" />
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-hope-blue/60" aria-hidden="true" />
                               {ch}
                             </li>
                           ))}
@@ -103,7 +103,7 @@ export default function IndustriesPage() {
                         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Proven KPIs</h3>
                         <ul className="space-y-2">
                           {ind.kpis.map((k) => (
-                            <li key={k} className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm font-medium">{k}</li>
+                            <li key={k} className="rounded-lg border border-border/60 bg-hope-mist px-3 py-2 text-sm font-medium">{k}</li>
                           ))}
                         </ul>
                       </div>

@@ -46,7 +46,7 @@ export default function CompanyPage() {
               <Reveal key={v.title} delay={i * 0.05}>
                 <Card className="h-full border-border/60">
                   <CardContent className="p-5">
-                    <v.icon className="mb-3 h-5 w-5 text-primary" aria-hidden="true" />
+                    <v.icon className="mb-3 h-5 w-5 text-hope-blue" aria-hidden="true" />
                     <h2 className="text-sm font-bold">{v.title}</h2>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{v.desc}</p>
                   </CardContent>
@@ -55,13 +55,13 @@ export default function CompanyPage() {
             ))}
           </div>
         </Section>
-        <Section className="bg-muted/40">
+        <Section className="bg-hope-mist">
           <SectionHeader eyebrow="Milestones" title="The journey so far" />
           <ol className="mx-auto max-w-3xl space-y-4">
             {TIMELINE.map((t, i) => (
               <Reveal key={t.year} delay={i * 0.05}>
                 <li className="relative flex gap-5 rounded-2xl border border-border/60 bg-background/70 p-6">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-extrabold text-primary">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-hope-blue/10 text-sm font-extrabold text-hope-blue">
                     {t.year.slice(2)}
                   </span>
                   <div>

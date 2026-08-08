@@ -55,10 +55,14 @@ const config: Config = {
           ring: "hsl(var(--sidebar-ring))",
         },
         hope: {
-          navy: "#0B1F3A",
-          gold: "#C9A227",
-          teal: "#0D7377",
-          slate: "#64748B",
+          navy: "#00325B",
+          gold: "#F0AB00",
+          teal: "#1B90FF",
+          slate: "#5B6673",
+          blue: "#0064D8",
+          indigo: "#00538C",
+          mist: "#EDF0F3",
+          sky: "#A6DAFB",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
@@ -91,6 +95,7 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
+        jakarta: ["var(--font-jakarta)", "Archivo", "Poppins", "sans-serif"],
       },
       fontSize: {
         "display-xxl": ["var(--text-display-xxl)", { lineHeight: "1.1", letterSpacing: "-0.03em" }],

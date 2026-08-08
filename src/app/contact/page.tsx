@@ -38,12 +38,12 @@ export default function ContactPage() {
                 <Reveal key={c.title} delay={i * 0.05}>
                   <Card className="border-border/60">
                     <CardContent className="flex items-start gap-4 p-5">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hope-blue/10 text-hope-blue">
                         <c.icon className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div>
                         <h2 className="text-sm font-bold">{c.title}</h2>
-                        <p className="mt-0.5 text-sm font-medium text-primary">{c.value}</p>
+                        <p className="mt-0.5 text-sm font-medium text-hope-blue">{c.value}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{c.desc}</p>
                       </div>
                     </CardContent>
@@ -52,7 +52,7 @@ export default function ContactPage() {
               ))}
             </div>
             <Reveal delay={0.1}>
-              <Card className="border-border/60 shadow-xl shadow-primary/5">
+              <Card className="border-border/60 shadow-xl shadow-hope-blue/5">
                 <CardContent className="p-6 sm:p-8">
                   <h2 className="text-xl font-bold">SEND US A MESSAGE</h2>
                   <p className="mt-1 text-sm font-medium text-foreground">

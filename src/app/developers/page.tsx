@@ -60,7 +60,7 @@ export default function DevelopersPage() {
               <Reveal key={d.title} delay={(i % 4) * 0.05}>
                 <Card className="h-full border-border/60">
                   <CardContent className="p-5">
-                    <d.icon className="mb-3 h-5 w-5 text-primary" aria-hidden="true" />
+                    <d.icon className="mb-3 h-5 w-5 text-hope-blue" aria-hidden="true" />
                     <h3 className="text-sm font-semibold">{d.title}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{d.desc}</p>
                   </CardContent>

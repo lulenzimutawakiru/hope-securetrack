@@ -79,7 +79,7 @@ export function AiDemo() {
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-hope-blue/10 text-hope-blue">
             <Bot className="h-4.5 w-4.5 h-4 w-4" aria-hidden="true" />
           </span>
           <div>
@@ -98,7 +98,7 @@ export function AiDemo() {
         {messages.map((m, i) => (
           <div key={i} className={cn("flex gap-2.5", m.role === "user" ? "justify-end" : "justify-start")}>
             {m.role === "ai" ? (
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-hope-blue/10 text-hope-blue">
                 <Bot className="h-4 w-4" aria-hidden="true" />
               </span>
             ) : null}
@@ -106,7 +106,7 @@ export function AiDemo() {
               className={cn(
                 "max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                 m.role === "user"
-                  ? "rounded-br-md bg-primary text-primary-foreground"
+                  ? "rounded-br-md bg-hope-blue text-white"
                   : "rounded-bl-md border border-border bg-muted/60",
               )}
             >
@@ -121,12 +121,12 @@ export function AiDemo() {
         ))}
         {typing ? (
           <div className="flex gap-2.5">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-hope-blue/10 text-hope-blue">
               <Bot className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="max-w-[82%] rounded-2xl rounded-bl-md border border-border bg-muted/60 px-4 py-2.5 text-sm leading-relaxed">
               {current}
-              <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-primary align-middle" aria-hidden="true" />
+              <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-hope-blue align-middle" aria-hidden="true" />
             </div>
           </div>
         ) : null}
@@ -142,8 +142,8 @@ export function AiDemo() {
               disabled={typing}
               onClick={() => ask(s)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3.5 py-1.5 text-xs font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/10 disabled:opacity-50",
-                activeId === s.id && "border-primary/50 bg-primary/10",
+                "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3.5 py-1.5 text-xs font-medium text-foreground transition hover:border-hope-blue/40 hover:bg-hope-blue/10 disabled:opacity-50",
+                activeId === s.id && "border-hope-blue/50 bg-hope-blue/10",
               )}
             >
               {s.label}

@@ -13,9 +13,9 @@ export function LogoMark({ className }: { className?: string }) {
     <svg viewBox="0 0 48 48" fill="none" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={grad} x1="7" y1="3" x2="41" y2="45" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#0EA5A4" />
-          <stop offset="0.55" stopColor="#1E7BD8" />
-          <stop offset="1" stopColor="#4F46E5" />
+          <stop stopColor="#00538C" />
+          <stop offset="0.55" stopColor="#0064D8" />
+          <stop offset="1" stopColor="#1B90FF" />
         </linearGradient>
       </defs>
       <path
@@ -32,8 +32,8 @@ export function LogoMark({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="15.6" cy="24.6" r="2.1" fill="#F4C542" />
-      <circle cx="32.6" cy="18.2" r="2.1" fill="#F4C542" />
+      <circle cx="15.6" cy="24.6" r="2.1" fill="#F0AB00" />
+      <circle cx="32.6" cy="18.2" r="2.1" fill="#F0AB00" />
     </svg>
   );
 }
@@ -42,17 +42,19 @@ export function Logo({
   className,
   markClassName,
   showWordmark = true,
+  light = false,
 }: {
   className?: string;
   markClassName?: string;
   showWordmark?: boolean;
+  light?: boolean;
 }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <LogoMark className={cn("h-9 w-9 drop-shadow-sm", markClassName)} />
       {showWordmark ? (
-        <span className="text-[15px] font-bold tracking-tight text-foreground">
-          SecureTrack<span className="text-primary"> ERP</span>
+        <span className={cn("text-[15px] font-bold tracking-tight", light ? "text-white" : "text-foreground")}>
+          SecureTrack<span className={light ? "text-[#A6DAFB]" : "text-primary"}> ERP</span>
         </span>
       ) : null}
     </span>

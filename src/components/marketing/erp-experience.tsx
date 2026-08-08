@@ -56,11 +56,11 @@ export function ErpExperience() {
               className={cn(
                 "flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition",
                 selected
-                  ? "border-primary/40 bg-primary/10 text-foreground shadow-sm"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                  ? "border-hope-blue/40 bg-hope-blue/10 text-foreground shadow-sm"
+                  : "border-border bg-card text-muted-foreground hover:border-hope-blue/30 hover:text-foreground",
               )}
             >
-              <PIcon className={cn("h-4 w-4", selected ? "text-primary" : "text-muted-foreground")} aria-hidden="true" />
+              <PIcon className={cn("h-4 w-4", selected ? "text-hope-blue" : "text-muted-foreground")} aria-hidden="true" />
               {p.label}
             </button>
           );
@@ -79,7 +79,7 @@ export function ErpExperience() {
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-hope-blue/10 text-hope-blue">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div>

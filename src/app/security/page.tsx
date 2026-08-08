@@ -47,7 +47,7 @@ export default function SecurityPage() {
               <Reveal key={l.title} delay={i * 0.06}>
                 <Card className="h-full border-border/60 bg-background/70">
                   <CardContent className="p-6">
-                    <l.icon className="mb-4 h-6 w-6 text-primary" aria-hidden="true" />
+                    <l.icon className="mb-4 h-6 w-6 text-hope-blue" aria-hidden="true" />
                     <h2 className="text-base font-bold">{l.title}</h2>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{l.desc}</p>
                   </CardContent>
@@ -56,14 +56,14 @@ export default function SecurityPage() {
             ))}
           </div>
         </Section>
-        <Section className="bg-muted/40">
+        <Section className="bg-hope-mist">
           <SectionHeader eyebrow="Controls" title="Security controls across every layer" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {SECURITY_FEATURES.map((f, i) => (
               <Reveal key={f.title} delay={(i % 4) * 0.05}>
                 <Card className="h-full border-border/60 bg-background/70">
                   <CardContent className="p-5">
-                    <f.icon className="mb-3 h-5 w-5 text-primary" aria-hidden="true" />
+                    <f.icon className="mb-3 h-5 w-5 text-hope-blue" aria-hidden="true" />
                     <h3 className="text-sm font-semibold">{f.title}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
                   </CardContent>
@@ -76,7 +76,7 @@ export default function SecurityPage() {
           <SectionHeader eyebrow="Compliance" title="Compliance-ready from day one" />
           <div className="flex flex-wrap items-center justify-center gap-3">
             {TRUST_BADGES.map((b) => (
-              <span key={b} className="rounded-full border border-border/70 bg-muted/40 px-5 py-2.5 text-sm font-semibold">
+              <span key={b} className="rounded-full border border-border/70 bg-hope-mist px-5 py-2.5 text-sm font-semibold">
                 {b}
               </span>
             ))}

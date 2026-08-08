@@ -42,7 +42,7 @@ export default function PartnersPage() {
               <Reveal key={p.title} delay={(i % 3) * 0.06}>
                 <Card className="h-full border-border/60">
                   <CardContent className="p-6">
-                    <p.icon className="mb-4 h-6 w-6 text-primary" aria-hidden="true" />
+                    <p.icon className="mb-4 h-6 w-6 text-hope-blue" aria-hidden="true" />
                     <h2 className="text-base font-bold">{p.title}</h2>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
                   </CardContent>
@@ -51,7 +51,7 @@ export default function PartnersPage() {
             ))}
           </div>
         </Section>
-        <Section className="bg-muted/40">
+        <Section className="bg-hope-mist">
           <SectionHeader eyebrow="Partner benefits" title="What you get" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[

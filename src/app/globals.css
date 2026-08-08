@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* SAP 72 variable font (Thin -> Black) - self-hosted for the SAP-inspired
+   brand typography used across marketing surfaces. */
+@font-face {
+  font-family: "72";
+  src: url("/fonts/72BrandVariable_Th-Blk.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* High-contrast mode (WCAG-oriented) — enable via .high-contrast on html/body */
 .high-contrast {
   --background: 0 0% 100%;
@@ -47,8 +57,9 @@
 
 @layer base {
   :root {
-    --font-geist-sans: "Segoe UI", Arial, system-ui, sans-serif;
+    --font-geist-sans: "72", "Plus Jakarta Sans", "Archivo", "Poppins", "Nunito", "Segoe UI", Arial, system-ui, sans-serif;
     --font-geist-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+    --font-jakarta: "72", "Plus Jakarta Sans", "Archivo", "Poppins", "Nunito", system-ui, sans-serif;
 
     /* Surfaces */
     --background: 210 40% 98%;
@@ -60,7 +71,7 @@
 
     /* Brand primary (navy) */
     /* Increased contrast for auth pages: darker primary improves link contrast on light background */
-    --primary: 213 68% 9%;
+    --primary: 207 100% 18%;
     --primary-foreground: 45 70% 96%;
 
     /* Secondary / muted surfaces */
@@ -70,8 +81,8 @@
     /* Darken muted-foreground to meet 4.5:1 on light backgrounds for small text */
     --muted-foreground: 215 16% 30%;
 
-    /* Accent (teal) */
-    --accent: 183 80% 26%;
+    /* Accent (SAP blue) */
+    --accent: 212 100% 42%;
     --accent-foreground: 0 0% 100%;
 
     /* Semantic */
@@ -86,25 +97,25 @@
     --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
 
-    /* Brand gold */
-    --brand: 45 70% 47%;
+    /* Brand amber (SAP accent) */
+    --brand: 43 100% 47%;
     --brand-foreground: 213 68% 14%;
 
     /* Chrome */
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 183 80% 26%;
+    --ring: 212 100% 42%;
     --radius: 0.625rem;
 
     /* Sidebar */
-    --sidebar-background: 213 68% 12%;
+    --sidebar-background: 207 100% 18%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 45 70% 47%;
+    --sidebar-primary: 43 100% 47%;
     --sidebar-primary-foreground: 213 68% 14%;
-    --sidebar-accent: 213 50% 18%;
+    --sidebar-accent: 207 60% 26%;
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 213 40% 18%;
-    --sidebar-ring: 45 70% 47%;
+    --sidebar-ring: 43 100% 47%;
 
     /* Elevation */
     --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.04);
@@ -141,13 +152,13 @@
     --card-foreground: 210 40% 98%;
     --popover: 222 40% 8%;
     --popover-foreground: 210 40% 98%;
-    --primary: 45 70% 50%;
+    --primary: 43 100% 50%;
     --primary-foreground: 213 68% 12%;
     --secondary: 217 28% 14%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 28% 14%;
     --muted-foreground: 215 16% 62%;
-    --accent: 183 70% 32%;
+    --accent: 209 100% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 42%;
     --destructive-foreground: 0 0% 98%;
@@ -159,19 +170,19 @@
     --info-foreground: 0 0% 100%;
     --danger: 0 62% 42%;
     --danger-foreground: 0 0% 100%;
-    --brand: 45 70% 50%;
+    --brand: 43 100% 50%;
     --brand-foreground: 213 68% 12%;
     --border: 217 28% 16%;
     --input: 217 28% 16%;
-    --ring: 45 70% 50%;
+    --ring: 43 100% 50%;
     --sidebar-background: 222 47% 5%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 45 70% 50%;
+    --sidebar-primary: 43 100% 50%;
     --sidebar-primary-foreground: 213 68% 12%;
     --sidebar-accent: 217 28% 12%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 28% 12%;
-    --sidebar-ring: 45 70% 50%;
+    --sidebar-ring: 43 100% 50%;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.4);
     --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.5);

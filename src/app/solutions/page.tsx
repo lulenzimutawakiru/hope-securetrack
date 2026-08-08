@@ -48,7 +48,7 @@ export default function SolutionsPage() {
               <Reveal key={p.name} delay={(i % 3) * 0.06}>
                 <Card className="h-full border-border/60">
                   <CardContent className="p-6">
-                    <p.icon className="mb-4 h-6 w-6 text-primary" aria-hidden="true" />
+                    <p.icon className="mb-4 h-6 w-6 text-hope-blue" aria-hidden="true" />
                     <h2 className="text-lg font-bold">{p.name}</h2>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
                   </CardContent>
@@ -56,7 +56,7 @@ export default function SolutionsPage() {
               </Reveal>
             ))}
             <Reveal delay={0.12}>
-              <Card className="flex h-full flex-col justify-center border-primary/30 bg-primary/5 p-6">
+              <Card className="flex h-full flex-col justify-center border-hope-blue/30 bg-hope-blue/5 p-6">
                 <h2 className="text-lg font-bold">Everything is connected</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   A purchase order approval updates inventory, finance, suppliers, dashboards, search, and AI — automatically.
@@ -65,14 +65,14 @@ export default function SolutionsPage() {
             </Reveal>
           </div>
         </Section>
-        <Section className="bg-muted/40">
+        <Section className="bg-hope-mist">
           <SectionHeader eyebrow="Platform" title="Enterprise capabilities built in" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLATFORM_CAPABILITIES.map((cap, i) => (
               <Reveal key={cap.title} delay={(i % 4) * 0.05}>
                 <Card className="h-full border-border/60 bg-background/70">
                   <CardContent className="p-5">
-                    <cap.icon className="mb-3 h-5 w-5 text-primary" aria-hidden="true" />
+                    <cap.icon className="mb-3 h-5 w-5 text-hope-blue" aria-hidden="true" />
                     <h3 className="text-sm font-semibold">{cap.title}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{cap.desc}</p>
                   </CardContent>

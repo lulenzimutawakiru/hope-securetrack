@@ -39,7 +39,7 @@ export default function CustomersPage() {
               <Reveal key={m.label} delay={i * 0.05}>
                 <Card className="border-border/60 text-center">
                   <CardContent className="p-8">
-                    <p className="text-4xl font-extrabold tracking-tight text-primary">{m.value}</p>
+                    <p className="text-4xl font-extrabold tracking-tight text-hope-blue">{m.value}</p>
                     <p className="mt-2 text-sm font-medium text-muted-foreground">{m.label}</p>
                   </CardContent>
                 </Card>
@@ -47,14 +47,14 @@ export default function CustomersPage() {
             ))}
           </div>
         </Section>
-        <Section className="bg-muted/40">
+        <Section className="bg-hope-mist">
           <SectionHeader eyebrow="Testimonials" title="What customers say" />
           <div className="grid gap-4 lg:grid-cols-2">
             {TESTIMONIALS.map((t, i) => (
               <Reveal key={t.name} delay={(i % 2) * 0.08}>
                 <Card className="h-full border-border/60 bg-background/70">
                   <CardContent className="p-6">
-                    <Quote className="mb-4 h-6 w-6 text-primary/50" aria-hidden="true" />
+                    <Quote className="mb-4 h-6 w-6 text-hope-blue/50" aria-hidden="true" />
                     <p className="leading-relaxed text-muted-foreground">"{t.quote}"</p>
                     <div className="mt-6 flex items-center justify-between">
                       <div>

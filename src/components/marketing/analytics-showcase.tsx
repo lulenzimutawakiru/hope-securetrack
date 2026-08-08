@@ -21,8 +21,8 @@ export function AnalyticsShowcase() {
             className={cn(
               "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
               view.id === activeId
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                ? "border-hope-blue bg-hope-blue text-white"
+                : "border-border/70 text-muted-foreground hover:border-hope-blue/40 hover:text-foreground",
             )}
             aria-pressed={view.id === activeId}
           >
@@ -52,7 +52,7 @@ export function AnalyticsShowcase() {
               </div>
               <div className="rounded-xl border border-border/60 p-3">
                 <p className="text-xs text-muted-foreground">AI forecast</p>
-                <p className="mt-1 text-sm font-bold text-primary">Built in</p>
+                <p className="mt-1 text-sm font-bold text-hope-blue">Built in</p>
               </div>
             </div>
           </CardContent>

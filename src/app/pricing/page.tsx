@@ -40,9 +40,9 @@ export default function PricingPage() {
           <div className="grid gap-4 lg:grid-cols-4">
             {PRICING_PLANS.map((plan, i) => (
               <Reveal key={plan.name} delay={i * 0.06}>
-                <Card className={`flex h-full flex-col border-border/60 ${plan.featured ? "border-primary/50 shadow-xl shadow-primary/10" : ""}`}>
+                <Card className={`flex h-full flex-col border-border/60 ${plan.featured ? "border-hope-blue/50 shadow-xl shadow-hope-blue/10" : ""}`}>
                   <CardHeader>
-                    {plan.featured ? <Badge className="mb-2 w-fit bg-primary text-primary-foreground">Most popular</Badge> : null}
+                    {plan.featured ? <Badge className="mb-2 w-fit bg-hope-blue text-white">Most popular</Badge> : null}
                     <CardTitle className="text-lg">{plan.name}</CardTitle>
                     <p className="text-sm text-muted-foreground">{plan.tagline}</p>
                     <p className="mt-2">
@@ -72,10 +72,10 @@ export default function PricingPage() {
           </div>
           <p className="mt-8 text-center text-sm text-muted-foreground">
             All plans include a 14-day free trial. Volume discounts, annual contracts, and government pricing available.{" "}
-            <Link href="/contact" className="font-medium text-primary hover:underline">Contact sales</Link>.
+            <Link href="/contact" className="font-medium text-hope-blue hover:underline">Contact sales</Link>.
           </p>
         </Section>
-        <Section className="bg-muted/40">
+        <Section className="bg-hope-mist">
           <SectionHeader eyebrow="FAQ" title="Pricing questions, answered" />
           <div className="mx-auto max-w-3xl divide-y divide-border rounded-2xl border border-border/60 bg-background/60">
             {[
@@ -87,7 +87,7 @@ export default function PricingPage() {
               <details key={f.q} className="group px-6 py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
                   {f.q}
-                  <span className="text-primary transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+                  <span className="text-hope-blue transition-transform group-open:rotate-45" aria-hidden="true">+</span>
                 </summary>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
               </details>

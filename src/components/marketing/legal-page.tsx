@@ -16,11 +16,11 @@ export function LegalPage({
     <>
       <SiteHeader />
       <main>
-        <section className="border-b border-border/60 bg-muted/30">
+        <section className="border-b border-border/60 bg-hope-indigo">
           <div className="mx-auto w-full max-w-4xl px-4 pb-12 pt-16 sm:px-6 sm:pt-20 lg:px-8">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Legal</p>
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{title}</h1>
-            <p className="mt-3 text-sm text-muted-foreground">Last updated: {updated}</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-hope-sky">Legal</p>
+            <h1 className="font-jakarta text-4xl font-extrabold tracking-tight text-white sm:text-5xl">{title}</h1>
+            <p className="mt-3 text-sm text-white/80">Last updated: {updated}</p>
           </div>
         </section>
         <Section>

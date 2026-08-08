@@ -295,8 +295,8 @@ export function ContactForm() {
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                 industry === option
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  ? "border-hope-blue bg-hope-blue text-white"
+                  : "border-border bg-background text-muted-foreground hover:border-hope-blue/50 hover:text-foreground"
               )}
             >
               {option}
@@ -376,8 +376,8 @@ export function ContactForm() {
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                 method === option.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  ? "border-hope-blue bg-hope-blue text-white"
+                  : "border-border bg-background text-muted-foreground hover:border-hope-blue/50 hover:text-foreground"
               )}
             >
               {option.label}
@@ -395,7 +395,7 @@ export function ContactForm() {
               "inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-4 py-2.5 text-sm font-medium transition-colors",
               file
                 ? "border-green-500/50 bg-green-500/5 text-green-700"
-                : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                : "border-border text-muted-foreground hover:border-hope-blue/50 hover:text-foreground"
             )}
           >
             {file ? (

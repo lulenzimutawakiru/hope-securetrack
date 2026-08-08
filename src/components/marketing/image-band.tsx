@@ -39,7 +39,7 @@ export function ImageBand({
         {(kicker || caption) ? (
           <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
             {kicker ? (
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">{kicker}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-hope-sky">{kicker}</p>
             ) : null}
             {caption ? (
               <p className="mt-1 max-w-2xl text-balance text-xl font-bold text-white sm:text-2xl">{caption}</p>
